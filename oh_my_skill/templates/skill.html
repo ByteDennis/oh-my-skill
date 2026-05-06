@@ -425,14 +425,6 @@
   </div>
   <div class="omi-field"><label class="omi-label">SSH key path (for private repo)</label><input id="setSshKey" class="omi-input" placeholder="/root/.ssh/id_rsa"></div>
   <div class="omi-field">
-    <label class="omi-label">Proxy <span class="omi-text-xs omi-text-muted">— git over HTTPS (env vars) AND git over SSH (auto <code>ProxyCommand</code> via <code>nc</code>); accepts <code>http://host:port</code> or <code>socks5://host:port</code></span></label>
-    <input id="setProxy" class="omi-input" placeholder="http://127.0.0.1:7890">
-  </div>
-  <div class="omi-field">
-    <label class="omi-label">No-proxy hosts <span class="omi-text-xs omi-text-muted">— comma-separated, e.g. <code>localhost,127.0.0.1</code></span></label>
-    <input id="setNoProxy" class="omi-input" placeholder="localhost,127.0.0.1">
-  </div>
-  <div class="omi-field">
     <label class="omi-label">Ignore patterns <span class="omi-text-xs omi-text-muted">— one per line, glob (e.g. <code>sibyl-*</code>, <code>image-style-*</code>); ignored ids never appear in Sync Center</span></label>
     <textarea id="setIgnore" class="omi-input" rows="3" style="font-family: var(--omi-font-mono, monospace); font-size: 12px" placeholder="sibyl-*&#10;image-style-*"></textarea>
   </div>
@@ -1366,8 +1358,6 @@ $('#openSettings').onclick = async () => {
   $('#setBranch').value   = syncS.remoteBranch || 'main';
   $('#setSubdir').value   = syncS.remoteSubdir || '';
   $('#setSshKey').value   = syncS.remoteSshKey || '';
-  $('#setProxy').value    = syncS.httpProxy || '';
-  $('#setNoProxy').value  = syncS.noProxy || '';
   $('#setIgnore').value   = (syncS.ignorePatterns || '').replace(/,\s*/g, '\n');
   $('#settingsDlg').showModal();
 };
@@ -1390,8 +1380,6 @@ $('#saveSet').onclick = async () => {
       remoteBranch: $('#setBranch').value.trim() || 'main',
       remoteSubdir: $('#setSubdir').value.trim(),
       remoteSshKey: $('#setSshKey').value.trim(),
-      httpProxy: $('#setProxy').value.trim(),
-      noProxy: $('#setNoProxy').value.trim(),
       ignorePatterns: $('#setIgnore').value.trim(),
     }),
   });
