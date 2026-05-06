@@ -130,13 +130,10 @@ def _write_skill_md(card: dict, target_dir: str):
         f.write('\n'.join(fm_lines) + '\n\n' + body)
 
 
-def _parse_skill_md(skill_path: str, entry: str) -> dict | None:
-    """Parse a SKILL.md back into a card dict. Returns None on failure."""
-    try:
-        with open(skill_path, 'r') as f:
-            raw = f.read()
-    except Exception:
-        return None
+def _parse_skill_md_text(raw: str, entry: str) -> dict | None:
+    """Parse SKILL.md content (string) into a card dict. Returns None on
+    failure. Lower-level than _parse_skill_md so we can reuse for in-memory
+    uploads (drag-and-drop import) as well as on-disk files."""
     m = re.match(r'^---\s*\n(.*?)\n---\s*\n?(.*)$', raw, re.DOTALL)
     if not m:
         return None
@@ -152,13 +149,22 @@ def _parse_skill_md(skill_path: str, entry: str) -> dict | None:
     tag_str = (meta.get('tags') or '').strip('[]')
     tags = [t.strip().strip('"').strip("'") for t in tag_str.split(',') if t.strip()]
     updated_at = meta.get('updated_at') or ''
-    # Strip the synthetic frontmatter keys; everything else stays in metadata
     meta_extra = {k: v for k, v in meta.items()
                   if k not in ('id', 'name', 'tags', 'updated_at')}
     return {
         'id': cid, 'title': title, 'content': body, 'tags': tags,
         'metadata': meta_extra, 'updated_at': updated_at,
     }
+
+
+def _parse_skill_md(skill_path: str, entry: str) -> dict | None:
+    """Parse a SKILL.md back into a card dict. Returns None on failure."""
+    try:
+        with open(skill_path, 'r') as f:
+            raw = f.read()
+    except Exception:
+        return None
+    return _parse_skill_md_text(raw, entry)
 
 
 def _scan_repo(target_dir: str) -> dict[str, dict]:
@@ -476,3 +482,174 @@ def sync_settings_put():
             # vendored devhub endpoints (sync-skills, etc.) see the same config
             put_setting('skillcards', k, data[k].strip())
     return jsonify({'ok': True})
+
+
+# ── /import-parse + /import-apply: drag-drop a folder/zip of SKILL.md ──
+def _parse_uploaded(files) -> list[dict]:
+    """Walk uploaded files. For each *.md whose path tail looks like
+    `<entry>/SKILL.md`, parse it. Also support .zip uploads (extracted
+    in-memory) — same matching rule applies inside.
+
+    Returns list of card dicts (each like _parse_skill_md_text output).
+    """
+    import zipfile, io
+    parsed: list[dict] = []
+    for f in files:
+        # Browser sends folder uploads as files where filename is the relative
+        # path (e.g. "my_skills/gpu-ml-tools/SKILL.md").
+        rel = (f.filename or '').strip().lstrip('/')
+        if not rel:
+            continue
+
+        if rel.lower().endswith('.zip'):
+            try:
+                zf = zipfile.ZipFile(io.BytesIO(f.read()))
+            except zipfile.BadZipFile:
+                continue
+            for name in zf.namelist():
+                if name.endswith('/SKILL.md') or name == 'SKILL.md':
+                    entry = _entry_from_path(name)
+                    try:
+                        text = zf.read(name).decode('utf-8', errors='replace')
+                    except KeyError:
+                        continue
+                    c = _parse_skill_md_text(text, entry)
+                    if c:
+                        parsed.append(c)
+            continue
+
+        # Plain file path: only act on SKILL.md
+        if not (rel.endswith('/SKILL.md') or rel == 'SKILL.md' or rel.endswith('SKILL.md')):
+            continue
+        entry = _entry_from_path(rel)
+        try:
+            text = f.read().decode('utf-8', errors='replace')
+        except Exception:
+            continue
+        c = _parse_skill_md_text(text, entry)
+        if c:
+            parsed.append(c)
+
+    # Dedup by id, keeping the last seen (later in the list)
+    by_id: dict[str, dict] = {}
+    for c in parsed:
+        by_id[c['id']] = c
+    return list(by_id.values())
+
+
+def _entry_from_path(path: str) -> str:
+    """For 'foo/bar/baz/SKILL.md' → 'baz'. For 'SKILL.md' → 'imported'."""
+    parts = [p for p in path.replace('\\', '/').split('/') if p]
+    if len(parts) >= 2 and parts[-1] == 'SKILL.md':
+        return parts[-2]
+    return 'imported'
+
+
+@sync_bp.route('/skill-cards/api/import-parse', methods=['POST'])
+def import_parse():
+    """Multipart upload: returns parsed cards + diff rows against local DB.
+
+    Accepts any number of files. Folder uploads come through as multiple
+    files whose `filename` includes the relative path (browsers preserve
+    this when you drag a directory). Also accepts .zip uploads.
+    """
+    # `request.files` is a MultiDict; `.values()` collapses duplicate keys.
+    # Iterate with multi=True to collect every uploaded file regardless of
+    # field name (`files`, `files[]`, `file`, …).
+    files = [v for _, v in request.files.items(multi=True)]
+    parsed = _parse_uploaded(files)
+    if not parsed:
+        return jsonify({
+            'error': 'No SKILL.md files found in upload. Drop a folder containing '
+                     '`<id>/SKILL.md` files, or a .zip with the same layout.',
+        }), 400
+
+    locals_by_id = {c['id']: c for c in _load_local_cards()}
+    rows = []
+    for rc in parsed:
+        cid = rc['id']
+        lc = locals_by_id.get(cid)
+        row = {
+            'id': cid,
+            'title': rc['title'],
+            'tags': rc.get('tags') or [],
+            'local_updated_at': (lc or {}).get('updated_at') or '',
+            'remote_updated_at': rc.get('updated_at') or '',
+            # Embed the parsed card so apply step is stateless
+            'imported': rc,
+        }
+        if not lc:
+            row['status'] = 'remote-only'
+            row['suggested'] = 'pull'
+        else:
+            lh = _card_hash(lc['title'], lc['content'], lc['tags'])
+            rh = _card_hash(rc['title'], rc['content'], rc['tags'])
+            if lh == rh:
+                row['status'] = 'synced'
+                row['suggested'] = 'skip'
+            else:
+                row['status'] = 'modified'
+                lu = lc.get('updated_at') or ''
+                ru = rc.get('updated_at') or ''
+                row['suggested'] = 'pull' if (ru and ru > lu) else 'skip'
+                row['conflict'] = bool(lu and ru and lu != ru)
+    # Note: imported set never produces local-only rows (we only know what
+    # was uploaded). Local cards missing from the upload aren't shown here.
+        rows.append(row)
+    return jsonify({'rows': rows, 'count': len(parsed)})
+
+
+@sync_bp.route('/skill-cards/api/import-apply', methods=['POST'])
+def import_apply():
+    """Body: {actions: [{id, direction: 'pull'|'skip', card: {...}}]}.
+
+    `card` is the parsed card returned by /import-parse for that id, so the
+    flow is stateless (no server-side temp dir). We only honour direction
+    'pull'.
+    """
+    data = request.get_json(silent=True) or {}
+    actions = data.get('actions') or []
+    if not actions:
+        return jsonify({'error': 'no actions'}), 400
+
+    conn = _db()
+    now_ts = datetime.utcnow().isoformat() + 'Z'
+    pulled = 0
+    results = []
+    for a in actions:
+        if a.get('direction') != 'pull':
+            results.append({**a, 'ok': True, 'skipped': True})
+            continue
+        rc = a.get('card') or {}
+        cid = a.get('id') or rc.get('id')
+        if not cid or not rc.get('title'):
+            results.append({**a, 'ok': False, 'error': 'missing card payload'})
+            continue
+        try:
+            tags_json = json.dumps(rc.get('tags') or [])
+            meta_json = json.dumps(rc.get('metadata') or {})
+            upd = rc.get('updated_at') or now_ts
+            new_hash = _card_hash(rc['title'], rc.get('content', ''), rc.get('tags') or [])
+            existing = conn.execute('SELECT id FROM cards WHERE id=?', (cid,)).fetchone()
+            if existing:
+                conn.execute(
+                    '''UPDATE cards SET title=?, content=?, tags=?, metadata=?,
+                       updated_at=?, last_synced_hash=? WHERE id=?''',
+                    (rc['title'], rc.get('content', ''), tags_json, meta_json,
+                     upd, new_hash, cid),
+                )
+            else:
+                conn.execute(
+                    '''INSERT INTO cards
+                       (id, title, content, tags, metadata, created_at, updated_at, last_synced_hash)
+                       VALUES (?,?,?,?,?,?,?,?)''',
+                    (cid, rc['title'], rc.get('content', ''), tags_json, meta_json,
+                     upd, upd, new_hash),
+                )
+            pulled += 1
+            results.append({'id': cid, 'ok': True})
+        except Exception as e:
+            results.append({'id': cid, 'ok': False, 'error': str(e)[:200]})
+    conn.commit()
+    conn.close()
+    return jsonify({'pulled': pulled, 'rows': results})

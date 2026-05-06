@@ -126,6 +126,29 @@
   .focus-body pre { background: var(--omi-bg-deep, #2a2a2e); color: #e6e6e6; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; margin: 10px 0; }
   .focus-body pre code { background: transparent; padding: 0; color: inherit; }
 
+  /* ─── Import drop zone ─── */
+  .import-drop {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; padding: 32px 28px;
+    border: 2px dashed var(--omi-border);
+    border-radius: 14px;
+    margin: 16px 18px 18px;
+    background: rgba(255, 251, 244, 0.6);
+    transition: all .18s ease;
+  }
+  .import-drop.drag-over {
+    border-color: var(--omi-accent);
+    background: rgba(255, 248, 233, 0.85);
+    transform: scale(1.005);
+  }
+  .import-drop .dz-glyph { font-size: 56px; opacity: 0.55; line-height: 1; }
+  .import-drop .dz-headline { font-size: 16px; font-weight: 600; color: var(--omi-fg); }
+  .import-drop .dz-sub { font-size: 13px; color: var(--omi-muted); }
+  .import-drop .dz-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .import-drop .dz-help { max-width: 540px; text-align: center; line-height: 1.55; padding: 0 12px; }
+  .import-drop code { background: rgba(255, 255, 255, 0.65); padding: 1px 6px; border-radius: 4px; font-size: 11.5px; }
+
   /* ─── Sync Center modal ─── */
   .omi-dialog.sync-modal[open] {
     width: min(1100px, 92vw); height: min(80vh, 760px);
@@ -196,6 +219,10 @@
   <button class="omi-btn ghost icon-btn" id="openSync" title="Sync with GitHub">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     Sync
+  </button>
+  <button class="omi-btn ghost icon-btn" id="openImport" title="Import from a folder/zip you cloned manually">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Import
   </button>
   <button class="omi-btn ghost icon-btn" id="openSettings" title="Settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -400,6 +427,55 @@
   <div class="sync-rows-wrap">
     <table class="sync-rows" id="syncRows"><tbody></tbody></table>
     <div id="syncEmpty" class="omi-empty" style="display:none">All clear — no differences with remote 🎉</div>
+  </div>
+</dialog>
+
+<!-- ─── Import dialog (drag-and-drop folder/zip) ─────────────── -->
+<dialog id="importDlg" class="omi-dialog sync-modal">
+  <div class="sync-header">
+    <h3 style="margin:0; display:flex; align-items:center; gap:8px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Import from folder / zip
+    </h3>
+    <span class="omi-grow"></span>
+    <span id="importStatus" class="omi-text-xs omi-text-muted"></span>
+    <button class="omi-btn ghost sm" id="importReset" title="Clear and pick again" style="display:none">↺ Reset</button>
+    <button class="omi-btn ghost sm" id="importClose">✕</button>
+  </div>
+
+  <!-- Drop zone, shown until something is parsed -->
+  <div class="import-drop" id="importDrop">
+    <div class="dz-glyph">📁</div>
+    <div class="dz-headline">Drag a folder of <code>&lt;id&gt;/SKILL.md</code> files here</div>
+    <div class="dz-sub">…or a <code>.zip</code> archive of the same. Or click to pick files.</div>
+    <input type="file" id="importFile" multiple webkitdirectory directory style="display:none">
+    <input type="file" id="importFile2" multiple accept=".zip,.md" style="display:none">
+    <div class="dz-actions">
+      <button class="omi-btn secondary sm" id="importPickFolder">Pick folder…</button>
+      <button class="omi-btn ghost sm" id="importPickFiles">Pick files / .zip…</button>
+    </div>
+    <div class="dz-help omi-text-xs omi-text-muted">
+      Tip: clone your repo first (<code>git clone https://github.com/.../skills.git</code>),
+      then drag the folder here. <code>private</code> tag still routes to a private collection.
+    </div>
+  </div>
+
+  <!-- Toolbar shown after parse -->
+  <div class="sync-toolbar" id="importToolbar" style="display:none">
+    <span class="omi-text-xs omi-text-muted">Bulk:</span>
+    <button class="omi-btn ghost sm" data-ibulk="auto" title="Apply suggested for all">⚙ Auto-pick</button>
+    <button class="omi-btn ghost sm" data-ibulk="pull">← Pull all</button>
+    <button class="omi-btn ghost sm" data-ibulk="skip">Skip all</button>
+    <span class="omi-grow"></span>
+    <label class="omi-text-xs omi-text-muted" style="display:flex; align-items:center; gap:6px; cursor:pointer">
+      <input type="checkbox" id="importShowSynced"> show synced
+    </label>
+    <button class="omi-btn primary sm" id="importApply">Apply →</button>
+  </div>
+
+  <div class="sync-rows-wrap" id="importRowsWrap" style="display:none">
+    <table class="sync-rows" id="importRows"><tbody></tbody></table>
+    <div id="importEmpty" class="omi-empty" style="display:none">No differences — everything in the upload already matches local.</div>
   </div>
 </dialog>
 
@@ -1385,6 +1461,186 @@ $('#saveSet').onclick = async () => {
   });
   $('#settingsDlg').close();
   setStatus('settings saved', 'ok');
+};
+
+// ── Import (drag-drop folder/zip) ─────────────────────────────────
+let IMPORT_ROWS = [];
+async function _walkEntry(entry, prefix='') {
+  // Recursively walk a webkitGetAsEntry FileSystemEntry, returning [{file, path}]
+  if (entry.isFile) {
+    const file = await new Promise(res => entry.file(res));
+    return [{file, path: prefix + file.name}];
+  }
+  if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const out = [];
+    // readEntries returns up to ~100 at a time; loop until empty
+    let batch;
+    do {
+      batch = await new Promise(res => reader.readEntries(res));
+      for (const e of batch) {
+        const sub = await _walkEntry(e, prefix + entry.name + '/');
+        out.push(...sub);
+      }
+    } while (batch.length > 0);
+    return out;
+  }
+  return [];
+}
+async function _collectFromDataTransfer(dt) {
+  const out = [];
+  // Prefer items[].webkitGetAsEntry for folder support
+  if (dt.items && dt.items.length && dt.items[0].webkitGetAsEntry) {
+    for (const item of dt.items) {
+      const entry = item.webkitGetAsEntry && item.webkitGetAsEntry();
+      if (entry) {
+        const collected = await _walkEntry(entry);
+        out.push(...collected);
+      }
+    }
+    if (out.length) return out;
+  }
+  // Fallback: plain files (no folder structure)
+  for (const f of (dt.files || [])) out.push({file: f, path: f.name});
+  return out;
+}
+async function _collectFromFileList(files, useRelativePath) {
+  const out = [];
+  for (const f of files) {
+    // <input webkitdirectory> sets f.webkitRelativePath = "folder/sub/file"
+    const path = (useRelativePath && f.webkitRelativePath) ? f.webkitRelativePath : f.name;
+    out.push({file: f, path});
+  }
+  return out;
+}
+async function importParse(items) {
+  if (!items.length) { setStatus('no files dropped', 'error'); return; }
+  $('#importStatus').textContent = `parsing ${items.length} file(s)…`;
+  const fd = new FormData();
+  for (const {file, path} of items) {
+    fd.append('files', file, path);
+  }
+  try {
+    const r = await fetch('/skill-cards/api/import-parse', {method: 'POST', body: fd});
+    const j = await r.json();
+    if (j.error) { $('#importStatus').innerHTML = `<span style="color:var(--omi-error-deep)">${escapeHtml(j.error)}</span>`; return; }
+    IMPORT_ROWS = (j.rows || []).map(r => ({...r, direction: r.suggested}));
+    $('#importDrop').style.display = 'none';
+    $('#importToolbar').style.display = '';
+    $('#importRowsWrap').style.display = '';
+    $('#importReset').style.display = '';
+    const summary = {};
+    IMPORT_ROWS.forEach(r => summary[r.status] = (summary[r.status] || 0) + 1);
+    const parts = Object.entries(summary).map(([k, v]) => `${v} ${k.replace('-', ' ')}`);
+    $('#importStatus').textContent = `${j.count} parsed · ${parts.join(' · ') || 'all synced'}`;
+    renderImportRows();
+  } catch (e) {
+    $('#importStatus').innerHTML = `<span style="color:var(--omi-error-deep)">${escapeHtml(String(e))}</span>`;
+  }
+}
+function importDirOptions(row) {
+  const allowed = (row.status === 'synced') ? ['skip']
+                  : ['pull', 'skip'];
+  const labels = {pull: '← pull (overwrite local)', skip: 'skip'};
+  return allowed.map(d => `<option value="${d}" ${d === row.suggested ? 'selected' : ''}>${labels[d]}</option>`).join('');
+}
+function renderImportRows() {
+  const showSynced = $('#importShowSynced').checked;
+  const visible = IMPORT_ROWS.filter(r => showSynced || r.status !== 'synced');
+  const tbody = $('#importRows tbody');
+  if (!visible.length) {
+    tbody.innerHTML = '';
+    $('#importEmpty').style.display = '';
+    return;
+  }
+  $('#importEmpty').style.display = 'none';
+  tbody.innerHTML = visible.map(r => {
+    const i = IMPORT_ROWS.indexOf(r);
+    const conflict = r.conflict ? `<span class="conflict-mark" title="local was edited after the imported file">⚡ conflict</span>` : '';
+    const meta = [];
+    if (r.local_updated_at)  meta.push(`local: ${r.local_updated_at.slice(0, 19).replace('T',' ')}`);
+    if (r.remote_updated_at) meta.push(`file: ${r.remote_updated_at.slice(0, 19).replace('T',' ')}`);
+    return `<tr class="row-${r.status} ${r.conflict ? 'row-conflict' : ''}">
+      <td>${syncStatusBadge(r.status)}${conflict}</td>
+      <td><div class="ttl">${escapeHtml(r.title)}</div><div class="meta omi-mono">${escapeHtml(r.id.slice(0, 14))} · ${meta.join(' · ')}</div></td>
+      <td>${(r.tags || []).map(t => `<span class="omi-tag-chip tiny">${escapeHtml(t)}</span>`).join(' ')}</td>
+      <td><select class="dir-pick suggested" data-i="${i}">${importDirOptions(r)}</select></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('select.dir-pick').forEach(sel => {
+    sel.onchange = () => {
+      const i = +sel.dataset.i;
+      IMPORT_ROWS[i].direction = sel.value;
+      sel.classList.toggle('suggested', sel.value === IMPORT_ROWS[i].suggested);
+    };
+  });
+}
+function importReset() {
+  IMPORT_ROWS = [];
+  $('#importDrop').style.display = '';
+  $('#importToolbar').style.display = 'none';
+  $('#importRowsWrap').style.display = 'none';
+  $('#importReset').style.display = 'none';
+  $('#importStatus').textContent = '';
+  $('#importRows tbody').innerHTML = '';
+}
+$('#openImport').onclick = () => { importReset(); $('#importDlg').showModal(); };
+$('#importClose').onclick = () => $('#importDlg').close();
+$('#importReset').onclick = importReset;
+$('#importShowSynced').onchange = renderImportRows;
+$('#importPickFolder').onclick = () => $('#importFile').click();
+$('#importPickFiles').onclick  = () => $('#importFile2').click();
+$('#importFile').onchange  = async e => importParse(await _collectFromFileList(e.target.files, true));
+$('#importFile2').onchange = async e => importParse(await _collectFromFileList(e.target.files, false));
+
+// Drop zone events
+const _dz = $('#importDrop');
+['dragenter', 'dragover'].forEach(ev => _dz.addEventListener(ev, e => {
+  e.preventDefault(); e.stopPropagation(); _dz.classList.add('drag-over');
+}));
+['dragleave', 'drop'].forEach(ev => _dz.addEventListener(ev, e => {
+  e.preventDefault(); e.stopPropagation();
+  if (ev === 'drop' || !_dz.contains(e.relatedTarget)) _dz.classList.remove('drag-over');
+}));
+_dz.addEventListener('drop', async e => {
+  const items = await _collectFromDataTransfer(e.dataTransfer);
+  importParse(items);
+});
+
+document.querySelectorAll('#importDlg [data-ibulk]').forEach(btn => {
+  btn.onclick = () => {
+    const mode = btn.dataset.ibulk;
+    IMPORT_ROWS.forEach(r => {
+      if (mode === 'auto') r.direction = r.suggested;
+      else if (mode === 'pull') r.direction = (r.status === 'synced') ? 'skip' : 'pull';
+      else r.direction = 'skip';
+    });
+    renderImportRows();
+  };
+});
+$('#importApply').onclick = async () => {
+  const actions = IMPORT_ROWS
+    .filter(r => r.direction === 'pull')
+    .map(r => ({id: r.id, direction: 'pull', card: r.imported}));
+  if (!actions.length) { $('#importStatus').textContent = 'nothing to apply (pick "pull" on at least one row)'; return; }
+  $('#importStatus').textContent = `applying ${actions.length}…`;
+  $('#importApply').disabled = true;
+  try {
+    const r = await fetch('/skill-cards/api/import-apply', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({actions}),
+    });
+    const j = await r.json();
+    const ok = (j.rows || []).filter(x => x.ok && !x.skipped).length;
+    const err = (j.rows || []).filter(x => !x.ok).length;
+    $('#importStatus').textContent = `pulled ${j.pulled || ok}${err ? ', '+err+' failed' : ''}`;
+    setStatus(`imported ${j.pulled || ok} cards`, err ? 'error' : 'ok');
+    await loadCards();
+  } catch (e) {
+    $('#importStatus').innerHTML = `<span style="color:var(--omi-error-deep)">${escapeHtml(String(e))}</span>`;
+  } finally {
+    $('#importApply').disabled = false;
+  }
 };
 
 // ── Sync Center ────────────────────────────────────────────────────
