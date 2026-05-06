@@ -4,8 +4,10 @@ FROM python:3.11-slim
 # instead of failing — saves ~1-2s per chat turn.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git openssh-client \
+    netcat-openbsd \
     nodejs \
     && rm -rf /var/lib/apt/lists/*
+# netcat-openbsd: enables SSH ProxyCommand support for HTTP/SOCKS proxies
 
 WORKDIR /app
 

@@ -23,11 +23,88 @@ from flask import Blueprint, jsonify, request
 # Reuse helpers from skillcards.py
 from oh_my_skill.routes.skillcards import (
     _db, _get_app_setting,
-    _git_env, _git_clone_or_pull,
+    _git_env as _vendor_git_env,
+    _git_clone_or_pull as _vendor_git_clone_or_pull,
     SKILLS_REMOTE_DIR, SKILLS_REMOTE_PRIVATE_DIR,
 )
 
 sync_bp = Blueprint('sync', __name__)
+
+
+# ── Proxy-aware git env (overrides vendored _git_env) ──────────────
+def _parse_proxy_hostport(proxy_url: str) -> tuple[str, str, str] | None:
+    """Parse 'http://host:port' / 'socks5://host:port' (auth tolerated).
+    Returns (scheme, host, port) or None."""
+    if not proxy_url:
+        return None
+    m = re.match(r'^(?:(\w+)://)?(?:[^@/]+@)?([^:/]+):(\d+)/?$', proxy_url.strip())
+    if not m:
+        return None
+    return (m.group(1) or 'http').lower(), m.group(2), m.group(3)
+
+
+def _git_env(ssh_key='', proxy=''):
+    """Wrap the vendored _git_env so we can layer proxy support on top.
+
+    HTTP/HTTPS proxy is exported as HTTP_PROXY / HTTPS_PROXY / ALL_PROXY so
+    git-over-https picks it up natively. For git-over-SSH, we extend
+    GIT_SSH_COMMAND with `-o ProxyCommand="nc -X <mode> -x host:port %h %p"`.
+    Requires `nc` (netcat-openbsd) on PATH; falls back gracefully if missing.
+    """
+    env = _vendor_git_env(ssh_key)
+    if not proxy:
+        proxy = _get_app_setting('httpProxy', '') or os.environ.get('HTTPS_PROXY') \
+            or os.environ.get('HTTP_PROXY') or ''
+    if not proxy:
+        return env
+    parsed = _parse_proxy_hostport(proxy)
+    # 1. Set env vars for HTTPS git
+    env['HTTP_PROXY']  = proxy
+    env['HTTPS_PROXY'] = proxy
+    env['ALL_PROXY']   = proxy
+    env['http_proxy']  = proxy
+    env['https_proxy'] = proxy
+    env['all_proxy']   = proxy
+    # Honour NO_PROXY if user set it
+    no_proxy = _get_app_setting('noProxy', '') or os.environ.get('NO_PROXY', '')
+    if no_proxy:
+        env['NO_PROXY'] = env['no_proxy'] = no_proxy
+    # 2. Extend SSH ProxyCommand for git-over-SSH
+    if parsed and shutil.which('nc'):
+        scheme, host, port = parsed
+        mode = '5' if scheme.startswith('socks') else 'connect'
+        ssh_extra = f' -o ProxyCommand=nc\\ -X\\ {mode}\\ -x\\ {host}:{port}\\ %h\\ %p'
+        env['GIT_SSH_COMMAND'] = env.get('GIT_SSH_COMMAND', 'ssh') + ssh_extra
+    return env
+
+
+def _git_clone_or_pull(repo, branch, ssh_key='', target_dir=None, proxy=''):
+    """Wrap vendored _git_clone_or_pull but pass our proxy-aware env so git
+    fetch/clone use HTTP(S)_PROXY and SSH ProxyCommand."""
+    import shutil as _shutil  # local: vendored helper does its own work
+    if target_dir is None:
+        target_dir = SKILLS_REMOTE_DIR
+    env = _git_env(ssh_key, proxy)
+    git_dir = os.path.join(target_dir, '.git')
+    os.makedirs(target_dir, exist_ok=True)
+    if os.path.isdir(git_dir):
+        subprocess.run(['git', '-C', target_dir, 'fetch', '--depth', '1', 'origin', branch],
+                       capture_output=True, timeout=30, check=True, env=env)
+        subprocess.run(['git', '-C', target_dir, 'reset', '--hard', f'origin/{branch}'],
+                       capture_output=True, timeout=10, check=True)
+    else:
+        if os.path.exists(target_dir):
+            _shutil.rmtree(target_dir)
+        result = subprocess.run(['git', 'clone', '--depth', '1', '--branch', branch, repo, target_dir],
+                                capture_output=True, timeout=60, env=env)
+        if result.returncode != 0:
+            os.makedirs(target_dir, exist_ok=True)
+            subprocess.run(['git', 'init', target_dir], check=True, capture_output=True)
+            subprocess.run(['git', '-C', target_dir, 'remote', 'add', 'origin', repo],
+                           check=True, capture_output=True)
+            subprocess.run(['git', '-C', target_dir, 'checkout', '-b', branch],
+                           check=True, capture_output=True)
+    return env
 
 
 # ── DB migration: add last_synced_hash + remote_updated_at columns ──
@@ -94,6 +171,9 @@ def _config(data: dict) -> dict:
         'branch':       g('remoteBranch', 'main'),
         'subdir':       g('remoteSubdir', ''),
         'ssh_key':      g('remoteSshKey', os.environ.get('SKILL_SSH_KEY', '')),
+        'proxy':        g('httpProxy', os.environ.get('HTTPS_PROXY')
+                                       or os.environ.get('HTTP_PROXY', '')),
+        'no_proxy':     g('noProxy', os.environ.get('NO_PROXY', '')),
     }
 
 
@@ -221,7 +301,7 @@ def sync_diff():
             repo_status[repo_kind] = {'ok': False, 'error': 'not configured'}
             continue
         try:
-            _git_clone_or_pull(repo_url, cfg['branch'], cfg['ssh_key'], target_dir)
+            _git_clone_or_pull(repo_url, cfg['branch'], cfg['ssh_key'], target_dir, proxy=cfg['proxy'])
         except subprocess.CalledProcessError as e:
             repo_status[repo_kind] = {'ok': False, 'error': (e.stderr or b'').decode()[:200] or str(e)}
             continue
@@ -324,7 +404,7 @@ def sync_apply():
 
         # Clone/fetch fresh so we have an up-to-date base
         try:
-            env = _git_clone_or_pull(repo_url, cfg['branch'], cfg['ssh_key'], target_dir)
+            env = _git_clone_or_pull(repo_url, cfg['branch'], cfg['ssh_key'], target_dir, proxy=cfg['proxy'])
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             err = getattr(e, 'stderr', None)
             err = (err or b'').decode()[:200] if isinstance(err, (bytes, bytearray)) else str(e)
@@ -462,6 +542,8 @@ def sync_settings_get():
         'remoteSubdir':   _get_app_setting('remoteSubdir', ''),
         'remoteSshKey':   _get_app_setting('remoteSshKey', ''),
         'ignorePatterns': _get_app_setting('ignorePatterns', ''),
+        'httpProxy':      _get_app_setting('httpProxy', ''),
+        'noProxy':        _get_app_setting('noProxy', ''),
     })
 
 
@@ -470,9 +552,7 @@ def sync_settings_put():
     data = request.get_json(silent=True) or {}
     from oh_my_skill.shared.config import put_setting
     for k in ('remoteRepo', 'privateRepo', 'remoteBranch', 'remoteSubdir', 'remoteSshKey',
-              'ignorePatterns'):
+              'ignorePatterns', 'httpProxy', 'noProxy'):
         if k in data and isinstance(data[k], str):
-            # devhub stores under 'skillcards.*'; reuse that prefix so the
-            # vendored devhub endpoints (sync-skills, etc.) see the same config
             put_setting('skillcards', k, data[k].strip())
     return jsonify({'ok': True})
