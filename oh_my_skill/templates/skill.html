@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>oh-my-skill</title>
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260505g">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<style>
+  .page-header { padding: 18px 24px 0; flex-shrink: 0; }
+  .page-title { display: flex; align-items: center; gap: 12px; font-family: var(--omi-font-heading); }
+  .page-title h1 { font-size: 22px; font-weight: 700; color: var(--omi-accent-deeper); display:flex; align-items:center; gap:8px;}
+  .page-title h1 svg { width: 22px; height: 22px; }
+  .page-title .meta { color: var(--omi-muted); font-size: 12px; }
+
+  /* ─── Extract composer (top of cards section) ─── */
+  .compose {
+    margin: 12px 0 4px;
+    background: rgba(255,251,244,0.85);
+    border: 1px solid var(--omi-border);
+    border-radius: var(--omi-radius);
+    box-shadow: var(--omi-shadow-sm);
+    padding: 12px 14px;
+    transition: all .2s ease;
+  }
+  .compose .row { display: flex; gap: 8px; align-items: flex-start; }
+  .compose textarea {
+    flex: 1; min-height: 38px; max-height: 220px;
+    padding: 9px 12px; border-radius: 8px;
+    border: 1px solid var(--omi-border);
+    background: rgba(255,255,255,.65);
+    color: var(--omi-fg); font: inherit; font-size: 13px;
+    line-height: 1.5; resize: vertical;
+  }
+  .compose textarea:focus { outline:none; border-color: var(--omi-accent); box-shadow: 0 0 0 3px var(--omi-accent-ring); }
+  .compose .hint { font-size: 11px; color: var(--omi-muted); margin-top: 6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .compose .hint .ex { cursor:pointer; padding: 2px 8px; border-radius: 12px; background: rgba(238,231,217,.6); border: 1px solid var(--omi-border); }
+  .compose .hint .ex:hover { background: rgba(238,231,217,1); }
+
+  /* ─── Search bar (existing) ─── */
+  .search-bar { margin-top: 12px; position: relative; }
+  .search-bar input {
+    width: 100%; padding: 12px 16px 12px 40px;
+    border-radius: var(--omi-radius);
+    background: rgba(255, 251, 244, 0.85);
+    border: 1px solid var(--omi-border);
+    font: inherit; font-size: 14px; color: var(--omi-fg);
+    box-shadow: var(--omi-shadow-sm);
+  }
+  .search-bar input:focus { outline:none; border-color: var(--omi-accent); box-shadow: 0 0 0 3px var(--omi-accent-ring), var(--omi-shadow-sm); }
+  .search-bar .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--omi-muted); }
+  .tag-row { margin-top: 12px; display:flex; gap:6px; flex-wrap:wrap; padding-bottom: 4px; }
+  .grid-area { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 24px 24px; }
+
+  /* ─── Modal hides AI panel quirk ─── */
+  body.modal-open .omi-main > aside.omi-panel { display: none; }
+  body.modal-open .omi-main { grid-template-columns: 1fr !important; }
+  .em-pane-preview .pv:empty::before { content: "Preview appears here as you type…"; color: var(--omi-muted); font-style: italic; display: block; padding-top: 8px; }
+
+  /* ─── Frontmatter table (rendered above markdown body) ─── */
+  .fm-table {
+    width: 100%; border-collapse: collapse;
+    margin: 0 0 14px; font-size: 12px;
+    background: rgba(255, 251, 244, 0.7);
+    border: 1px solid var(--omi-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .fm-table td { padding: 5px 10px; border-top: 1px solid color-mix(in srgb, var(--omi-border) 50%, transparent); vertical-align: top; }
+  .fm-table tr:first-child td { border-top: none; }
+  .fm-table .fm-key {
+    font-family: var(--omi-font-mono, 'Fira Code', monospace);
+    color: var(--omi-accent-deeper);
+    font-weight: 600;
+    white-space: nowrap;
+    width: 1%;
+    background: rgba(238, 231, 217, 0.45);
+  }
+  .fm-table .fm-v code.fm-val { background: rgba(255,255,255,0.6); padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+  .fm-table .fm-chip { display: inline-block; font-size: 10px; padding: 1px 8px; margin: 0 3px 2px 0; border-radius: 12px; background: rgba(220, 200, 165, 0.35); border: 1px solid var(--omi-border); }
+  .fm-table .fm-null { color: var(--omi-muted); font-style: italic; }
+  .fm-table .fm-nested summary { cursor: pointer; color: var(--omi-muted); font-size: 11px; }
+  .fm-table .fm-code { background: rgba(0,0,0,0.04); padding: 6px 8px; border-radius: 6px; font-size: 11px; margin: 4px 0 0; white-space: pre-wrap; }
+
+  /* ─── Card Focus View ─── */
+  .focus-area {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    padding: 0 24px 24px;
+  }
+  .focus-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0 12px;
+    border-bottom: 1px solid var(--omi-border);
+    flex-shrink: 0;
+  }
+  .focus-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .focus-title h2 {
+    font-family: var(--omi-font-heading);
+    font-size: 18px; font-weight: 700;
+    color: var(--omi-accent-deeper);
+    margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .focus-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 11px; color: var(--omi-muted); }
+  .focus-meta .omi-tag-chip { font-size: 10px; }
+  .focus-body {
+    flex: 1; min-height: 0;
+    padding: 14px 4px 24px;
+    overflow-y: auto;
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  .focus-body h1 { font-size: 22px; color: var(--omi-accent-deeper); margin: 16px 0 8px; }
+  .focus-body h2 { font-size: 17px; color: var(--omi-accent-deep); margin: 18px 0 6px; }
+  .focus-body h3 { font-size: 15px; margin: 14px 0 4px; }
+  .focus-body table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+  .focus-body th, .focus-body td { padding: 6px 10px; border: 1px solid var(--omi-border); text-align: left; }
+  .focus-body th { background: rgba(238, 231, 217, 0.4); }
+  .focus-body code { background: rgba(255,255,255,0.65); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+  .focus-body pre { background: var(--omi-bg-deep, #2a2a2e); color: #e6e6e6; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; margin: 10px 0; }
+  .focus-body pre code { background: transparent; padding: 0; color: inherit; }
+
+  /* ─── Sync Center modal ─── */
+  .omi-dialog.sync-modal[open] {
+    width: min(1100px, 92vw); height: min(80vh, 760px);
+    max-width: none; max-height: none;
+    padding: 0; display: flex; flex-direction: column;
+    background: #fbf8f0;
+  }
+  .sync-header { padding: 14px 18px; border-bottom: 1px solid var(--omi-border); display:flex; align-items:center; gap:10px; flex-shrink: 0; background: rgba(255, 250, 241, 0.78); }
+  .sync-toolbar { padding: 8px 16px; border-bottom: 1px solid var(--omi-border); display:flex; gap:6px; align-items:center; flex-shrink: 0; flex-wrap: wrap; }
+  .sync-repo-info { padding: 6px 18px; font-size: 11px; color: var(--omi-muted); border-bottom: 1px solid var(--omi-border); flex-shrink: 0; }
+  .sync-repo-info .repo-line { display: inline-flex; align-items:center; gap:6px; margin-right: 16px; }
+  .sync-repo-info code { background: rgba(255,255,255,0.6); padding: 1px 6px; border-radius:4px; font-size: 10.5px; }
+  .sync-rows-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px 16px; }
+  .sync-rows { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .sync-rows td { padding: 7px 10px; border-bottom: 1px solid color-mix(in srgb, var(--omi-border) 50%, transparent); vertical-align: middle; }
+  .sync-rows tr.row-synced { opacity: 0.5; }
+  .sync-rows tr.row-conflict { background: rgba(238, 196, 188, 0.15); }
+  .sync-rows .badge { display:inline-block; font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 600; }
+  .sync-rows .badge.local-only { background: rgba(180, 220, 180, 0.4); color: #4a7a4a; }
+  .sync-rows .badge.remote-only { background: rgba(180, 200, 220, 0.4); color: #4a6a8a; }
+  .sync-rows .badge.modified { background: rgba(238, 220, 180, 0.5); color: #8a6a3a; }
+  .sync-rows .badge.synced { background: rgba(220, 220, 220, 0.5); color: #777; }
+  .sync-rows .repo-pill { display:inline-block; font-size: 9.5px; padding: 1px 6px; border-radius: 8px; background: rgba(220, 200, 165, 0.35); border: 1px solid var(--omi-border); margin-right: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .sync-rows .repo-pill.private { background: rgba(238, 196, 188, 0.35); }
+  .sync-rows .ttl { font-weight: 600; }
+  .sync-rows .meta { color: var(--omi-muted); font-size: 11px; }
+  .sync-rows select.dir-pick { padding: 3px 6px; border-radius: 6px; border: 1px solid var(--omi-border); background: rgba(255,255,255,0.7); font-family: inherit; font-size: 12px; cursor: pointer; }
+  .sync-rows select.dir-pick.suggested { border-color: var(--omi-accent); }
+  .sync-rows .conflict-mark { color: #b85a3a; font-size: 11px; margin-left: 4px; }
+
+  /* ─── Resizers (col + row, lifted from oh-my-slide) ─── */
+  .resizer-v { width: 3px; cursor: col-resize; background: var(--omi-border); flex-shrink: 0; z-index: 10; position: relative; }
+  .resizer-v:hover, .resizer-v.dragging { background: var(--omi-accent); }
+  .resizer-v::after { content: ''; position: absolute; top: 50%; left: -3px; width: 9px; height: 32px; transform: translateY(-50%); border-radius: 4px; opacity: 0; background: var(--omi-accent); transition: opacity .15s; pointer-events: none; }
+  .resizer-v:hover::after, .resizer-v.dragging::after { opacity: .35; }
+  .resizer-h { width: 3px; cursor: col-resize; background: var(--omi-border); flex-shrink: 0; z-index: 10; position: relative; }
+  .resizer-h:hover, .resizer-h.dragging { background: var(--omi-accent); }
+  /* When body.modal-open hides the right aside, also hide the resizer next to it */
+  body.modal-open #resizerMain { display: none; }
+  /* Edit/Preview split inside modal: 3-track grid (edit | resizer | preview).
+     Override the 2-fr default and edit-only/preview-only states. */
+  .editor-modal .em-body { grid-template-columns: 1fr 3px 1fr; }
+  .editor-modal .em-body.edit-only    { grid-template-columns: 1fr 0 0 !important; }
+  .editor-modal .em-body.preview-only { grid-template-columns: 0 0 1fr !important; }
+  .editor-modal .em-body.edit-only    #resizerEditor,
+  .editor-modal .em-body.preview-only #resizerEditor { display: none; }
+
+  /* ─── SVG icon button utility ─── */
+  .icon-btn { display:inline-flex; align-items:center; gap:6px; }
+  .icon-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .omi-btn.primary svg { stroke: #fff; }
+</style>
+</head>
+<body>
+<header class="omi-topnav">
+  <span class="omi-brand">oh<span class="dot">·</span>my<span class="dot">·</span>skill</span>
+  <nav class="omi-nav"></nav>
+  <span class="omi-grow"></span>
+  <span class="omi-status" id="status">ready</span>
+  <button class="omi-btn ghost toggle icon-btn" id="toggleAI" title="Chat with AI about a card">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Chat
+  </button>
+  <button class="omi-btn ghost toggle icon-btn" id="toggleLogs" title="API logs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+    Logs
+  </button>
+  <button class="omi-btn ghost icon-btn" id="openSync" title="Sync with GitHub">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    Sync
+  </button>
+  <button class="omi-btn ghost icon-btn" id="openSettings" title="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Settings
+  </button>
+</header>
+
+<main class="omi-main" id="main" style="display:flex; padding:0; gap:0">
+  <!-- LEFT: cards + composer -->
+  <section class="omi-panel" style="flex:1">
+    <div class="page-header">
+      <div class="page-title">
+        <h1>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Skill Cards
+        </h1>
+        <span class="meta" id="cardMeta">0 cards · Press <kbd>/</kbd> to search</span>
+        <span class="omi-grow"></span>
+        <button class="omi-btn primary sm icon-btn" id="newCard" title="Empty card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Card
+        </button>
+      </div>
+
+      <!-- Extract composer -->
+      <div class="compose" id="compose">
+        <div class="row">
+          <textarea id="extractInput" rows="1" placeholder="✨ Paste rough notes — aliases, env vars, paths, key commands… Claude turns them into a tight skill card."></textarea>
+          <button class="omi-btn primary sm icon-btn" id="extractBtn" title="Extract a skill card from these notes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            <span id="extractBtnLabel">Extract</span>
+          </button>
+        </div>
+        <div class="hint">
+          <span>Tries:</span>
+          <span class="ex" data-ex="alias gpu='nvidia-smi'&#10;alias gpuw='watch -n 1 nvidia-smi'&#10;py = python, ipy = ipython, pip = uv pip&#10;CUDA_PATH=/usr/local/cuda-12.6&#10;HF_HOME=$DATA/../huggingface">gpu/ml tools</span>
+          <span class="ex" data-ex="git lg = log --graph --oneline&#10;git st = status -sb&#10;git aa = add -A&#10;edit ~/.gitconfig with [alias] section">git aliases</span>
+          <span class="ex" data-ex="vim splits: ctrl-w v vertical, ctrl-w s horizontal, ctrl-w hjkl move, ctrl-w = equalize, ctrl-w o only">vim splits</span>
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <span class="icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input id="searchInput" placeholder="Search cards by title, content, or tag…">
+      </div>
+      <div class="tag-row" id="tagRow"></div>
+    </div>
+    <div class="grid-area" id="gridArea">
+      <div id="cardGrid" class="omi-card-grid"></div>
+    </div>
+
+    <!-- Card focus view: shown while chatting about a single card -->
+    <div class="focus-area" id="focusArea" style="display:none">
+      <div class="focus-header">
+        <button class="omi-btn ghost sm icon-btn" id="focusBack" title="Back to all cards">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button>
+        <div class="focus-title">
+          <h2 id="focusTitle">—</h2>
+          <div class="focus-meta">
+            <span class="omi-mono" id="focusId"></span>
+            <span id="focusTags"></span>
+            <span id="focusUpdated" class="omi-text-xs omi-text-muted"></span>
+          </div>
+        </div>
+        <span class="omi-grow"></span>
+        <button class="omi-btn ghost sm" id="focusOpen" title="Open in editor">✏ Edit</button>
+        <button class="omi-btn ghost sm" id="focusReload" title="Reload from DB">↻</button>
+      </div>
+      <div class="focus-body" id="focusBody"></div>
+    </div>
+  </section>
+
+  <!-- Resizer between cards (left) and chat (right) -->
+  <div class="resizer-v" id="resizerMain" title="Drag to resize · double-click to collapse"></div>
+
+  <!-- RIGHT: AI Chat / Logs panel -->
+  <aside class="omi-panel" id="rightPanel" style="border-left: 1px solid var(--omi-border)">
+    <div class="omi-tabs">
+      <button id="tabAI" class="active icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Chat
+      </button>
+      <button id="tabLogs" class="icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Logs
+      </button>
+    </div>
+
+    <!-- Chat tab — Manus-style -->
+    <div class="omi-tab-pane active" id="paneAI">
+      <div class="omi-chat" id="chatRoot">
+        <div class="omi-chat-empty" id="chatEmpty">
+          <div class="glyph">💬</div>
+          <div>Open a card and click <strong>🖥 Edit w/ AI</strong> to chat-edit it.<br>Or paste rough notes above and hit <strong>Extract</strong> to skip straight to a clean card.</div>
+        </div>
+        <div class="omi-chat-context" id="chatContext" style="display:none">
+          <div class="meta">
+            <div class="title" id="chatCtxTitle">scope: card</div>
+            <div class="sub" id="chatCtxSub"></div>
+          </div>
+          <button class="omi-btn ghost sm" id="chatNew" title="Fresh chat">＋ new</button>
+          <button class="omi-btn ghost sm" id="chatStop" title="Stop reply">⏹</button>
+        </div>
+        <div class="omi-chat-stream" id="chatStream" style="display:none"></div>
+        <div class="omi-chat-composer" id="chatComposer" style="display:none">
+          <div class="row">
+            <textarea id="chatInput" rows="1" placeholder="Tighten the table · add a Gotchas section · …"></textarea>
+            <button class="omi-btn primary send" id="chatSend">Send ↵</button>
+          </div>
+          <div class="hint">Enter to send · Shift+Enter for newline · changes go through <code>oms-save</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs tab -->
+    <div class="omi-tab-pane" id="paneLogs">
+      <div style="padding:8px 12px; background: rgba(255, 250, 241, 0.78); border-bottom: 1px solid var(--omi-border); display:flex; gap:6px">
+        <span style="font-size:11px; color: var(--omi-muted); flex:1" id="logInfo">api log</span>
+        <button class="omi-btn ghost sm" id="logsRefresh" title="Refresh">↻</button>
+        <button class="omi-btn ghost sm" id="logsClear">Clear</button>
+      </div>
+      <div id="logs" class="omi-logs"></div>
+    </div>
+  </aside>
+</main>
+
+<!-- ─── Editor modal ─────────────────────────────────────────── -->
+<dialog id="editorModal" class="omi-dialog editor-modal">
+  <div class="em-header">
+    <input id="emTitle" class="em-title" placeholder="Untitled card">
+    <button class="omi-btn ghost sm icon-btn" id="emPreviewMode" title="Cycle edit / split / preview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span id="emPreviewLabel">Split</span>
+    </button>
+    <button class="omi-btn secondary sm icon-btn" id="emAi" title="Chat with Claude about this card">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Edit w/ AI
+    </button>
+    <button class="omi-btn ghost sm icon-btn" id="emSyncFromAi" title="Pull workspace card.md back into editor">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      from AI
+    </button>
+    <button class="omi-btn primary sm icon-btn" id="emSave">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Save
+    </button>
+    <button class="omi-btn ghost sm" id="emDelete" style="color: var(--omi-error-deep)" title="Delete">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+    </button>
+    <button class="omi-btn ghost sm" id="emClose">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="em-tags" id="emTagsContainer">
+    <input id="emTagInput" placeholder="add tag, press Enter">
+  </div>
+  <div class="em-body" id="emBody">
+    <div class="em-pane em-pane-edit">
+      <div class="em-label">Edit</div>
+      <textarea id="emContent" placeholder="# Title&#10;&#10;markdown content…"></textarea>
+    </div>
+    <div class="resizer-h" id="resizerEditor" title="Drag to resize edit/preview"></div>
+    <div class="em-pane em-pane-preview">
+      <div class="em-label">Preview</div>
+      <div class="pv" id="emPreview"></div>
+    </div>
+  </div>
+</dialog>
+
+<!-- ─── Sync Center dialog ────────────────────────────────────── -->
+<dialog id="syncDlg" class="omi-dialog sync-modal">
+  <div class="sync-header">
+    <h3 style="margin:0; display:flex; align-items:center; gap:8px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Sync Center
+    </h3>
+    <span class="omi-grow"></span>
+    <span id="syncStatus" class="omi-text-xs omi-text-muted"></span>
+    <button class="omi-btn ghost sm" id="syncRefresh" title="Re-fetch remote">↻ Refresh</button>
+    <button class="omi-btn ghost sm" id="syncClose">✕</button>
+  </div>
+
+  <div class="sync-toolbar">
+    <span class="omi-text-xs omi-text-muted">Bulk:</span>
+    <button class="omi-btn ghost sm" data-bulk="auto" title="Apply suggested for all">⚙ Auto-pick</button>
+    <button class="omi-btn ghost sm" data-bulk="push">→ Push all</button>
+    <button class="omi-btn ghost sm" data-bulk="pull">← Pull all</button>
+    <button class="omi-btn ghost sm" data-bulk="skip">Skip all</button>
+    <span class="omi-grow"></span>
+    <label class="omi-text-xs omi-text-muted" style="display:flex; align-items:center; gap:6px; cursor:pointer">
+      <input type="checkbox" id="syncShowSynced"> show synced
+    </label>
+    <button class="omi-btn primary sm" id="syncApply">Apply →</button>
+  </div>
+
+  <div class="sync-repo-info" id="syncRepoInfo"></div>
+
+  <div class="sync-rows-wrap">
+    <table class="sync-rows" id="syncRows"><tbody></tbody></table>
+    <div id="syncEmpty" class="omi-empty" style="display:none">All clear — no differences with remote 🎉</div>
+  </div>
+</dialog>
+
+<!-- ─── Settings dialog ──────────────────────────────────────── -->
+<dialog id="settingsDlg" class="omi-dialog">
+  <h3>Settings</h3>
+  <div class="omi-field"><label class="omi-label">Color theme</label><select id="setColor" class="omi-select"></select></div>
+  <div class="omi-field"><label class="omi-label">Font theme</label><select id="setFont" class="omi-select"></select></div>
+  <div class="omi-field">
+    <label class="omi-label">Auto-close chat sessions after (days) — 0 = never</label>
+    <input id="setRetention" class="omi-input" type="number" min="0" max="365" placeholder="7">
+    <div class="omi-text-xs omi-text-muted" style="margin-top:4px">Per-card chats survive container restarts and resume on click. Sweeper runs hourly.</div>
+  </div>
+  <div class="omi-field"><label class="omi-label">Claude OAuth token (overrides .env) <span class="omi-text-xs omi-text-muted">— optional, AI extract & chat will say "not configured" without it</span></label><input id="setClaudeToken" class="omi-input" type="password" placeholder="sk-ant-oat..."></div>
+
+  <hr class="omi-hr" style="margin: 16px 0">
+  <div class="omi-text-xs omi-text-muted" style="margin-bottom: 8px"><strong>GitHub sync</strong> — cards with <code>private</code> tag go to the private repo; everything else to the public repo.</div>
+  <div class="omi-field"><label class="omi-label">Public repo</label><input id="setPubRepo" class="omi-input" placeholder="https://github.com/user/skills.git"></div>
+  <div class="omi-field"><label class="omi-label">Private repo</label><input id="setPrivRepo" class="omi-input" placeholder="git@github.com:user/private-skills.git"></div>
+  <div class="omi-row" style="gap: 8px">
+    <div class="omi-field" style="flex:1"><label class="omi-label">Branch</label><input id="setBranch" class="omi-input" placeholder="main"></div>
+    <div class="omi-field" style="flex:1"><label class="omi-label">Subdir (optional)</label><input id="setSubdir" class="omi-input" placeholder="skills/"></div>
+  </div>
+  <div class="omi-field"><label class="omi-label">SSH key path (for private repo)</label><input id="setSshKey" class="omi-input" placeholder="/root/.ssh/id_rsa"></div>
+  <div class="omi-field">
+    <label class="omi-label">Ignore patterns <span class="omi-text-xs omi-text-muted">— one per line, glob (e.g. <code>sibyl-*</code>, <code>image-style-*</code>); ignored ids never appear in Sync Center</span></label>
+    <textarea id="setIgnore" class="omi-input" rows="3" style="font-family: var(--omi-font-mono, monospace); font-size: 12px" placeholder="sibyl-*&#10;image-style-*"></textarea>
+  </div>
+
+  <div class="omi-row" style="margin-top: 16px">
+    <span class="omi-grow"></span>
+    <button class="omi-btn ghost" id="cancelSet">Cancel</button>
+    <button class="omi-btn primary" id="saveSet">Save</button>
+  </div>
+</dialog>
+
+<script src="/omi/ui/js/nav.js" data-service="skill"></script>
+<script>
+const $ = s => document.querySelector(s);
+const escapeHtml = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const setStatus = (msg, kind='') => { const el=$('#status'); el.textContent=msg; el.className='omi-status '+kind; };
+
+let CARDS = [], FILTERED = [], CURRENT = null, ORIGINAL = null;
+let THEMES = {colors: [], fonts: []};
+let activeTag = null;
+let unsavedChanges = false;
+let previewMode = 'split';
+
+// ── Markdown rendering with KaTeX + GitHub alerts ──────────────────
+marked.setOptions({
+  highlight: (code, lang) => {
+    if (lang && hljs.getLanguage(lang)) {
+      try { return hljs.highlight(code, {language: lang}).value; } catch {}
+    }
+    return hljs.highlightAuto(code).value;
+  },
+  breaks: false, gfm: true,
+});
+function extractFrontmatter(md) {
+  // Returns {fm: object|null, body: string}. Frontmatter is the leading
+  // ---\n…\n--- block. Values can be scalars, [a, b] flow lists, or nested
+  // (indented) keys/lists. We render any object/list as compact YAML-ish text.
+  const m = (md || '').match(/^\s*---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/);
+  if (!m) return {fm: null, body: md || ''};
+  const fm = parseSimpleYaml(m[1]);
+  return {fm, body: (md || '').slice(m[0].length)};
+}
+function parseSimpleYaml(text) {
+  // Tiny indent-aware YAML reader. Good enough for skill-card frontmatter.
+  const lines = text.split('\n').filter(l => l.trim() !== '');
+  let i = 0;
+  function indent(s) { return s.match(/^ */)[0].length; }
+  function parseScalar(v) {
+    v = v.trim();
+    if (!v) return '';
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1);
+    // flow list [a, b, c]
+    if (v.startsWith('[') && v.endsWith(']')) {
+      return v.slice(1, -1).split(',').map(x => parseScalar(x)).filter(x => x !== '');
+    }
+    return v;
+  }
+  function parseBlock(parentIndent) {
+    const out = {};
+    const arr = [];
+    let isArr = false;
+    while (i < lines.length) {
+      const ln = lines[i];
+      const ind = indent(ln);
+      if (ind <= parentIndent) break;
+      const trimmed = ln.slice(ind);
+      // List item under this key
+      if (trimmed.startsWith('- ')) {
+        isArr = true;
+        const rest = trimmed.slice(2);
+        // inline "- key: value …" possibly with multiple sibling keys following
+        if (/^[A-Za-z_][\w-]*\s*:/.test(rest)) {
+          // Treat as a child object; rewind so parseBlock parses it
+          const obj = {};
+          // First key on this line
+          const km = rest.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+          obj[km[1]] = km[2] ? parseScalar(km[2]) : '';
+          i++;
+          // Following lines deeper than this one belong to obj
+          while (i < lines.length && indent(lines[i]) > ind) {
+            const subInd = indent(lines[i]);
+            const sub = lines[i].slice(subInd);
+            const sm = sub.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+            if (sm) { obj[sm[1]] = sm[2] ? parseScalar(sm[2]) : ''; i++; }
+            else { i++; }
+          }
+          arr.push(obj);
+          continue;
+        }
+        arr.push(parseScalar(rest));
+        i++;
+        continue;
+      }
+      const km = trimmed.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+      if (!km) { i++; continue; }
+      const key = km[1];
+      const rest = km[2];
+      if (rest) { out[key] = parseScalar(rest); i++; }
+      else {
+        i++;
+        out[key] = parseBlock(ind);
+      }
+    }
+    return isArr ? arr : out;
+  }
+  return parseBlock(-1);
+}
+function renderFrontmatterTable(fm) {
+  if (!fm || (typeof fm === 'object' && Object.keys(fm).length === 0)) return '';
+  const fmtVal = (v) => {
+    if (v === null || v === undefined) return '<span class="fm-null">∅</span>';
+    if (Array.isArray(v)) {
+      if (v.every(x => typeof x !== 'object')) {
+        return v.map(x => `<span class="fm-chip">${escapeHtml(String(x))}</span>`).join(' ');
+      }
+      return `<details class="fm-nested"><summary>${v.length} items</summary><pre class="fm-code">${escapeHtml(toYamlish(v, 0))}</pre></details>`;
+    }
+    if (typeof v === 'object') {
+      return `<details class="fm-nested"><summary>${Object.keys(v).length} fields</summary><pre class="fm-code">${escapeHtml(toYamlish(v, 0))}</pre></details>`;
+    }
+    return `<code class="fm-val">${escapeHtml(String(v))}</code>`;
+  };
+  const rows = Object.entries(fm).map(([k, v]) =>
+    `<tr><td class="fm-key">${escapeHtml(k)}</td><td class="fm-v">${fmtVal(v)}</td></tr>`
+  ).join('');
+  return `<table class="fm-table"><tbody>${rows}</tbody></table>`;
+}
+function toYamlish(v, depth) {
+  const pad = '  '.repeat(depth);
+  if (Array.isArray(v)) {
+    return v.map(x => {
+      if (typeof x === 'object' && x !== null) {
+        const inner = toYamlish(x, depth + 1).split('\n').map((ln, i) => i === 0 ? '- ' + ln.trim() : pad + '  ' + ln.trim()).join('\n');
+        return pad + inner;
+      }
+      return pad + '- ' + String(x);
+    }).join('\n');
+  }
+  if (v && typeof v === 'object') {
+    return Object.entries(v).map(([k, val]) => {
+      if (typeof val === 'object' && val !== null) return pad + k + ':\n' + toYamlish(val, depth + 1);
+      return pad + k + ': ' + String(val);
+    }).join('\n');
+  }
+  return pad + String(v);
+}
+function renderMarkdown(md) {
+  const {fm, body} = extractFrontmatter(md);
+  const fmHtml = renderFrontmatterTable(fm);
+  let html = marked.parse(body || '');
+  html = html.replace(/<pre><code class="hljs language-(\w+)">/g,
+                      '<pre data-lang="$1"><code class="hljs language-$1">');
+  // GitHub-style alerts: > [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING], > [!CAUTION]
+  html = html.replace(/<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*<br>?([\s\S]*?)<\/p>/gi,
+    (m, type, body) => {
+      const t = type.toLowerCase();
+      const icons = {note:'ℹ️', tip:'💡', important:'❗', warning:'⚠️', caution:'🛑'};
+      return `<blockquote class="alert-${t}"><p><strong>${icons[t]||''} ${type[0]+type.slice(1).toLowerCase()}</strong><br>${body}</p>`;
+    });
+  // ==highlight==
+  html = html.replace(/==([^=]+?)==/g, '<mark>$1</mark>');
+  return fmHtml + html;
+}
+function renderPreview() {
+  const md = $('#emContent').value;
+  $('#emPreview').innerHTML = renderMarkdown(md);
+  try { renderMathInElement($('#emPreview'), {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false},
+  ], throwOnError: false}); } catch {}
+}
+
+// ── Bootstrap ──────────────────────────────────────────────────────
+let AI_OK = true;
+async function bootstrap() {
+  const [t, ai] = await Promise.all([
+    fetch('/api/themes').then(r => r.json()),
+    fetch('/api/ai/status').then(r => r.json()).catch(() => ({configured: false})),
+  ]);
+  THEMES = t;
+  AI_OK = !!ai.configured;
+  applyAIDegradation(ai);
+  await loadCards();
+}
+function applyAIDegradation(ai) {
+  if (ai.configured) return;
+  // Disable AI affordances; everything else still works.
+  const reason = !ai.has_binary ? 'claude binary not found' :
+                 !ai.has_token  ? 'no Claude token configured (Settings → Claude OAuth token)' :
+                                  'AI not configured';
+  const dim = (sel, title) => {
+    const el = $(sel); if (!el) return;
+    el.disabled = true;
+    el.title = title;
+    el.style.opacity = 0.45;
+    el.style.cursor = 'not-allowed';
+  };
+  dim('#extractBtn', `AI is not configured — ${reason}`);
+  dim('#emAi',       `AI is not configured — ${reason}`);
+  $('#extractInput').placeholder = `⚠ AI not configured — ${reason}. Other features still work.`;
+  $('#chatEmpty').innerHTML = `<div class="glyph">⚠</div><div>AI not configured — ${escapeHtml(reason)}.<br>You can still <strong>create</strong>, <strong>edit</strong>, <strong>search</strong>, and <strong>sync</strong> skill cards manually.</div>`;
+  setStatus(`AI off · ${reason}`, '');
+}
+async function loadCards() {
+  CARDS = await fetch('/skill-cards/api/cards').then(r => r.json());
+  applyFilter();
+  renderTagRow();
+}
+function applyFilter() {
+  const q = $('#searchInput').value.trim().toLowerCase();
+  FILTERED = CARDS.filter(c => {
+    if (activeTag && !(c.tags || []).includes(activeTag)) return false;
+    if (!q) return true;
+    return c.title.toLowerCase().includes(q)
+        || (c.content || '').toLowerCase().includes(q)
+        || (c.tags || []).some(t => t.toLowerCase().includes(q));
+  });
+  renderGrid();
+}
+function renderTagRow() {
+  const tags = [...new Set(CARDS.flatMap(c => c.tags || []))].sort();
+  $('#tagRow').innerHTML = tags.map(t =>
+    `<button class="omi-tag-chip ${t === activeTag ? 'active' : ''}" onclick="toggleTag('${escapeHtml(t)}')">${escapeHtml(t)}</button>`
+  ).join('') + (activeTag ? `<button class="omi-tag-chip" onclick="toggleTag(null)" style="margin-left:6px">✕ clear</button>` : '');
+}
+window.toggleTag = function (t) {
+  activeTag = (activeTag === t || t === null) ? null : t;
+  renderTagRow();
+  applyFilter();
+};
+function firstHeading(content) {
+  const m = (content || '').match(/^#{1,3}\s+(.+)$/m);
+  return m ? m[1].trim() : '';
+}
+function fieldCount(content) { return ((content || '').match(/^#{2,3}\s+/gm) || []).length; }
+function bodySnippet(content) {
+  const text = (content || '').split('\n').find(l => l.trim() && !l.startsWith('#') && !l.startsWith('```'));
+  if (!text) return '';
+  return text.length > 120 ? text.slice(0, 117) + '…' : text;
+}
+function renderGrid() {
+  $('#cardMeta').innerHTML = `${FILTERED.length} of ${CARDS.length} cards · Press <kbd>/</kbd> to search`;
+  if (FILTERED.length === 0) {
+    $('#cardGrid').innerHTML = '<div class="omi-empty" style="grid-column:1/-1">no cards match — paste rough notes above and hit <strong>Extract</strong>, or click <strong>+ New Card</strong></div>';
+    return;
+  }
+  $('#cardGrid').innerHTML = FILTERED.map(c => {
+    const tagChips = (c.tags || []).slice(0, 6).map(t =>
+      `<span class="omi-tag-chip tiny">${escapeHtml(t)}</span>`).join('');
+    const fields = fieldCount(c.content);
+    const heading = firstHeading(c.content);
+    const snip = bodySnippet(c.content);
+    return `
+      <div class="omi-card skill-card" onclick="openCard('${c.id}')">
+        <div class="id-row">
+          <span class="omi-mono">${c.id.slice(0, 12)}</span>
+          ${fields ? `<span class="omi-pill muted">▸ ${fields} fields</span>` : ''}
+        </div>
+        <div class="ttl">${escapeHtml(c.title)}</div>
+        ${heading && heading !== c.title ? `<div class="preview-line">${escapeHtml(heading)}</div>` : ''}
+        ${snip ? `<div class="body-snippet">${escapeHtml(snip)}</div>` : ''}
+        ${tagChips ? `<div class="tags-row">${tagChips}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ── Editor modal ───────────────────────────────────────────────────
+window.openCard = function (id) {
+  const card = CARDS.find(c => c.id === id);
+  if (!card) return;
+  CURRENT = card;
+  ORIGINAL = JSON.parse(JSON.stringify(card));
+  $('#emTitle').value = card.title;
+  $('#emContent').value = card.content || '';
+  renderEmTags();
+  renderPreview();
+  unsavedChanges = false;
+  applyPreviewMode();
+  document.body.classList.add('modal-open');
+  $('#editorModal').showModal();
+  setTimeout(() => $('#emContent').focus(), 100);
+};
+function renderEmTags() {
+  const tags = CURRENT.tags || [];
+  $('#emTagsContainer').innerHTML = tags.map((t, i) =>
+    `<span class="em-tag">${escapeHtml(t)}<span class="x" onclick="removeEmTag(${i})">×</span></span>`
+  ).join('') + '<input id="emTagInput" placeholder="add tag, press Enter">';
+  $('#emTagInput').addEventListener('keydown', emTagKey);
+}
+window.removeEmTag = function (i) { CURRENT.tags.splice(i, 1); renderEmTags(); markDirty(); };
+function emTagKey(e) {
+  if (e.key === 'Enter' && this.value.trim()) {
+    e.preventDefault();
+    CURRENT.tags = CURRENT.tags || [];
+    if (!CURRENT.tags.includes(this.value.trim())) {
+      CURRENT.tags.push(this.value.trim());
+      markDirty();
+    }
+    this.value = '';
+    renderEmTags();
+  }
+}
+function markDirty() { unsavedChanges = true; }
+$('#emTitle').oninput = markDirty;
+$('#emContent').oninput = () => { markDirty(); if (previewMode !== 'edit') renderPreview(); };
+function applyPreviewMode() {
+  const body = $('#emBody');
+  body.classList.remove('edit-only', 'preview-only');
+  if (previewMode === 'edit') body.classList.add('edit-only');
+  else if (previewMode === 'preview') body.classList.add('preview-only');
+  $('#emPreviewLabel').textContent = previewMode === 'edit' ? 'Edit' : previewMode === 'preview' ? 'Preview' : 'Split';
+  if (typeof applyEditorSplit === 'function') applyEditorSplit();
+  if (previewMode !== 'edit') renderPreview();
+}
+$('#emPreviewMode').onclick = () => {
+  previewMode = previewMode === 'split' ? 'preview' : previewMode === 'preview' ? 'edit' : 'split';
+  applyPreviewMode();
+};
+
+$('#emSave').onclick = async () => {
+  if (!CURRENT) return;
+  CURRENT.title = $('#emTitle').value.trim() || 'Untitled';
+  CURRENT.content = $('#emContent').value;
+  setStatus('saving…');
+  const r = await fetch(`/skill-cards/api/cards/${CURRENT.id}`, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({title: CURRENT.title, content: CURRENT.content, tags: CURRENT.tags || []}),
+  });
+  const j = await r.json();
+  if (j.error) { setStatus(j.error, 'error'); return; }
+  setStatus('saved', 'ok');
+  $('#emSave').classList.add('omi-pulse');
+  setTimeout(() => $('#emSave').classList.remove('omi-pulse'), 1400);
+  unsavedChanges = false;
+  ORIGINAL = JSON.parse(JSON.stringify(CURRENT));
+  await loadCards();
+};
+$('#emDelete').onclick = async () => {
+  if (!CURRENT) return;
+  if (!confirm(`Delete "${CURRENT.title}"?`)) return;
+  await fetch(`/skill-cards/api/cards/${CURRENT.id}`, {method: 'DELETE'});
+  $('#editorModal').close();
+  CURRENT = null; unsavedChanges = false;
+  loadCards();
+  setStatus('deleted', 'ok');
+};
+$('#emClose').onclick = () => closeModal();
+function closeModal() {
+  if (unsavedChanges && !confirm('Discard unsaved changes?')) return;
+  $('#editorModal').close();
+  CURRENT = null;
+}
+$('#editorModal').addEventListener('close', () => {
+  CURRENT = null;
+  document.body.classList.remove('modal-open');
+});
+
+// ── Edit w/ AI: opens chat panel scoped to this card ───────────────
+$('#emAi').onclick = async () => {
+  if (!CURRENT) return;
+  if (unsavedChanges) await $('#emSave').onclick();
+  const cardId = CURRENT.id;
+  closeModal();
+  showCardFocus(cardId);          // left panel = full card preview
+  setRightOpen(true); selectTab('ai');
+  await chatStartScoped(cardId);
+};
+
+// ── Card Focus View ────────────────────────────────────────────────
+let FOCUS_CARD_ID = null;
+function showCardFocus(cardId) {
+  const card = CARDS.find(c => c.id === cardId);
+  if (!card) return;
+  FOCUS_CARD_ID = cardId;
+  $('#gridArea').style.display = 'none';
+  $('#focusArea').style.display = '';
+  renderFocusFromCard(card);
+}
+function hideCardFocus() {
+  FOCUS_CARD_ID = null;
+  $('#gridArea').style.display = '';
+  $('#focusArea').style.display = 'none';
+}
+function renderFocusFromCard(card) {
+  $('#focusTitle').textContent = card.title || 'Untitled';
+  $('#focusId').textContent = card.id.slice(0, 14);
+  $('#focusTags').innerHTML = (card.tags || []).map(t =>
+    `<span class="omi-tag-chip tiny">${escapeHtml(t)}</span>`).join(' ');
+  $('#focusUpdated').textContent = card.updated_at
+    ? `· updated ${card.updated_at.slice(0, 19).replace('T', ' ')}` : '';
+  $('#focusBody').innerHTML = renderMarkdown(card.content || '');
+  try { renderMathInElement($('#focusBody'), {delimiters: [
+    {left:'$$', right:'$$', display:true}, {left:'$', right:'$', display:false},
+  ], throwOnError:false}); } catch {}
+}
+function refreshFocusFromDB() {
+  if (!FOCUS_CARD_ID) return;
+  const card = CARDS.find(c => c.id === FOCUS_CARD_ID);
+  if (card) renderFocusFromCard(card);
+}
+$('#focusBack').onclick = hideCardFocus;
+$('#focusOpen').onclick = () => { if (FOCUS_CARD_ID) openCard(FOCUS_CARD_ID); };
+$('#focusReload').onclick = async () => {
+  await loadCards();
+  refreshFocusFromDB();
+  setStatus('reloaded', 'ok');
+};
+
+$('#emSyncFromAi').onclick = async () => {
+  if (!CURRENT) return;
+  // Reload card from DB (chat's oms-save already wrote back)
+  await loadCards();
+  const updated = CARDS.find(c => c.id === CURRENT.id);
+  if (updated) {
+    CURRENT = updated;
+    $('#emTitle').value = updated.title;
+    $('#emContent').value = updated.content || '';
+    renderEmTags(); renderPreview();
+    unsavedChanges = false;
+    setStatus('synced from AI', 'ok');
+  }
+};
+
+// ── New card ───────────────────────────────────────────────────────
+$('#newCard').onclick = async () => {
+  const r = await fetch('/skill-cards/api/cards', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({title: 'Untitled', content: '# Untitled\n\n', tags: []}),
+  });
+  const j = await r.json();
+  if (j.error) { setStatus(j.error, 'error'); return; }
+  await loadCards();
+  openCard(j.id);
+  setTimeout(() => $('#emTitle').select(), 200);
+};
+
+// ── Search ─────────────────────────────────────────────────────────
+$('#searchInput').oninput = () => {
+  clearTimeout(window._st);
+  window._st = setTimeout(applyFilter, 150);
+};
+
+// ── Right panel toggles + resizable widths ────────────────────────
+const main = $('#main');
+const rightPanel = $('#rightPanel');
+const resizerMain = $('#resizerMain');
+let currentTab = 'ai';
+const SIZES = JSON.parse(localStorage.getItem('skill_sizes') || '{}');
+const _saveSizes = () => localStorage.setItem('skill_sizes', JSON.stringify(SIZES));
+const RIGHT_DEFAULT = Math.max(380, Math.floor(window.innerWidth * 0.32));
+
+function applyRightWidth(open) {
+  if (open) {
+    const w = SIZES.right || RIGHT_DEFAULT;
+    rightPanel.style.flex = `0 0 ${w}px`;
+    rightPanel.style.display = '';
+    resizerMain.style.display = '';
+  } else {
+    rightPanel.style.flex = '0 0 0';
+    rightPanel.style.display = 'none';
+    resizerMain.style.display = 'none';
+  }
+}
+function setRightOpen(open) {
+  main.classList.toggle('with-right', open);
+  applyRightWidth(open);
+  $('#toggleAI').classList.toggle('on', open && currentTab === 'ai');
+  $('#toggleLogs').classList.toggle('on', open && currentTab === 'logs');
+}
+// Initialize collapsed
+applyRightWidth(false);
+
+// Drag overlay (blocks selection while dragging)
+const _dragOverlay = document.createElement('div');
+_dragOverlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;';
+document.body.appendChild(_dragOverlay);
+
+function makeColResizer(handle, getEl, key, opts={}) {
+  const min = opts.min ?? 220;
+  const max = opts.max ?? (() => window.innerWidth * 0.7);
+  const fromRight = opts.fromRight ?? false;
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    handle.classList.add('dragging');
+    _dragOverlay.style.display = 'block';
+    _dragOverlay.style.cursor = 'col-resize';
+    const sx = e.clientX, sw = getEl().offsetWidth;
+    const maxN = typeof max === 'function' ? max() : max;
+    const mv = ev => {
+      const delta = ev.clientX - sx;
+      const w = Math.max(min, Math.min(maxN, fromRight ? sw - delta : sw + delta));
+      getEl().style.flex = `0 0 ${w}px`;
+      SIZES[key] = w;
+    };
+    const up = () => {
+      document.removeEventListener('mousemove', mv);
+      document.removeEventListener('mouseup', up);
+      handle.classList.remove('dragging');
+      _dragOverlay.style.display = 'none';
+      _saveSizes();
+    };
+    document.addEventListener('mousemove', mv);
+    document.addEventListener('mouseup', up);
+  });
+  handle.addEventListener('dblclick', () => {
+    // Toggle collapse
+    if (key === 'right') {
+      const isOpen = main.classList.contains('with-right');
+      if (isOpen) setRightOpen(false);
+      else { setRightOpen(true); selectTab(currentTab); }
+    }
+  });
+}
+makeColResizer(resizerMain, () => rightPanel, 'right', {fromRight: true, min: 280});
+
+// Editor modal split resizer
+function applyEditorSplit() {
+  const pct = SIZES.editorSplit || 50;
+  const body = $('#emBody');
+  if (!body.classList.contains('edit-only') && !body.classList.contains('preview-only')) {
+    body.style.gridTemplateColumns = `${pct}fr 3px ${100 - pct}fr`;
+  } else {
+    body.style.gridTemplateColumns = '';
+  }
+}
+$('#resizerEditor').addEventListener('mousedown', e => {
+  e.preventDefault();
+  const handle = $('#resizerEditor');
+  handle.classList.add('dragging');
+  _dragOverlay.style.display = 'block';
+  _dragOverlay.style.cursor = 'col-resize';
+  const body = $('#emBody');
+  const rect = body.getBoundingClientRect();
+  const mv = ev => {
+    const pct = Math.max(15, Math.min(85, ((ev.clientX - rect.left) / rect.width) * 100));
+    SIZES.editorSplit = pct;
+    body.style.gridTemplateColumns = `${pct}fr 3px ${100 - pct}fr`;
+  };
+  const up = () => {
+    document.removeEventListener('mousemove', mv);
+    document.removeEventListener('mouseup', up);
+    handle.classList.remove('dragging');
+    _dragOverlay.style.display = 'none';
+    _saveSizes();
+  };
+  document.addEventListener('mousemove', mv);
+  document.addEventListener('mouseup', up);
+});
+$('#resizerEditor').addEventListener('dblclick', () => {
+  SIZES.editorSplit = 50;
+  applyEditorSplit();
+  _saveSizes();
+});
+function selectTab(name) {
+  currentTab = name;
+  $('#tabAI').classList.toggle('active', name === 'ai');
+  $('#tabLogs').classList.toggle('active', name === 'logs');
+  $('#paneAI').classList.toggle('active', name === 'ai');
+  $('#paneLogs').classList.toggle('active', name === 'logs');
+  $('#toggleAI').classList.toggle('on', name === 'ai' && main.classList.contains('with-right'));
+  $('#toggleLogs').classList.toggle('on', name === 'logs' && main.classList.contains('with-right'));
+  if (name === 'logs') refreshLogs();
+}
+function openLogs() { setRightOpen(true); selectTab('logs'); }
+function refreshLogsIfOpen() { if (main.classList.contains('with-right') && currentTab === 'logs') refreshLogs(); }
+
+$('#tabAI').onclick = () => selectTab('ai');
+$('#tabLogs').onclick = () => selectTab('logs');
+$('#toggleAI').onclick = () => {
+  const open = main.classList.contains('with-right');
+  if (open && currentTab === 'ai') setRightOpen(false);
+  else { setRightOpen(true); selectTab('ai'); }
+};
+$('#toggleLogs').onclick = () => {
+  const open = main.classList.contains('with-right');
+  if (open && currentTab === 'logs') setRightOpen(false);
+  else { setRightOpen(true); selectTab('logs'); }
+};
+
+// ── Manus-style chat (scoped to a card) ────────────────────────────
+let CHAT_ID = null;
+let CHAT_BUSY = false;
+let _abortChat = null;
+
+function chatShow() {
+  $('#chatEmpty').style.display = 'none';
+  $('#chatStream').style.display = '';
+  $('#chatComposer').style.display = '';
+  $('#chatContext').style.display = '';
+}
+function chatHideUntilContext() {
+  $('#chatEmpty').style.display = '';
+  $('#chatStream').style.display = 'none';
+  $('#chatComposer').style.display = 'none';
+  $('#chatContext').style.display = 'none';
+}
+async function chatStartScoped(card_id) {
+  setStatus('starting chat…');
+  // Sync the focus view with the chat scope
+  if (card_id) showCardFocus(card_id);
+  else if (FOCUS_CARD_ID) hideCardFocus();
+  const body = card_id ? {card_id} : {project: 'default'};
+  const r = await fetch('/api/chat/new', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (j.error) { setStatus(j.error, 'error'); return; }
+  CHAT_ID = j.chat_id;
+  $('#chatStream').innerHTML = '';
+  if (j.card_id) {
+    const tag = j.resumed ? '↺ resumed' : '＋ new';
+    $('#chatCtxTitle').innerHTML = `editing <span class="omi-mono">${j.card_id.slice(0, 8)}</span> <span class="omi-pill ${j.resumed ? 'ok' : 'muted'}" style="margin-left:6px">${tag}</span>`;
+    $('#chatCtxSub').textContent = `${(j.card_meta?.title || '').slice(0, 80)} · ${(j.card_meta?.tags||[]).join(', ')}`;
+  } else {
+    $('#chatCtxTitle').textContent = `workspace: ${j.project}`;
+    $('#chatCtxSub').textContent = j.cwd;
+  }
+  chatShow();
+  if (j.history && j.history.length) {
+    for (const m of j.history) renderHistoricMessage(m);
+    setStatus(`resumed (${j.history.length} prior messages)`, 'ok');
+  } else {
+    setStatus(card_id ? `new chat for ${card_id.slice(0,8)}` : `chat in ${j.project}`, 'ok');
+  }
+  setTimeout(() => $('#chatInput').focus(), 50);
+}
+function renderHistoricMessage(m) {
+  if (m.role === 'user') {
+    const text = (m.blocks || []).find(b => b.type === 'text')?.text || '';
+    chatAddUser(text);
+    return;
+  }
+  const msgEl = chatStartAssistant();
+  let idx = 0;
+  for (const b of (m.blocks || [])) {
+    if (b.type === 'text') {
+      handleChatEvent({type:'block_start', block_type:'text', index:idx}, msgEl);
+      handleChatEvent({type:'text_delta', index:idx, text:b.text||''}, msgEl);
+    } else if (b.type === 'thinking') {
+      handleChatEvent({type:'block_start', block_type:'thinking', index:idx}, msgEl);
+      handleChatEvent({type:'thinking_delta', index:idx, text:b.text||''}, msgEl);
+    } else if (b.type === 'tool_use') {
+      handleChatEvent({type:'block_start', block_type:'tool_use', index:idx, name:b.name||'', id:b.id||''}, msgEl);
+      handleChatEvent({type:'tool_input_delta', index:idx, partial_json:JSON.stringify(b.input||{})}, msgEl);
+    }
+    idx++;
+  }
+}
+function chatAddUser(text) {
+  const d = document.createElement('div');
+  d.className = 'omi-msg user';
+  d.innerHTML = `<div class="role">you</div><div class="bubble"></div>`;
+  d.querySelector('.bubble').textContent = text;
+  $('#chatStream').appendChild(d);
+  scrollChat();
+}
+function chatStartAssistant() {
+  const d = document.createElement('div');
+  d.className = 'omi-msg assistant active';
+  d.innerHTML = `<div class="role">claude</div>`;
+  $('#chatStream').appendChild(d);
+  scrollChat();
+  return d;
+}
+function scrollChat() { const s = $('#chatStream'); s.scrollTop = s.scrollHeight; }
+function ensureBlockEl(msgEl, key, factory) {
+  let el = msgEl.querySelector(`[data-bk="${key}"]`);
+  if (!el) { el = factory(); el.dataset.bk = key; msgEl.appendChild(el); }
+  return el;
+}
+function renderToolSummary(name, input) {
+  if (!input) return name;
+  if (name === 'Read' || name === 'Edit' || name === 'Write') return `${name}(${input.file_path || ''})`;
+  if (name === 'Bash') return `${name}: ${(input.command || '').slice(0, 100)}`;
+  if (name === 'Glob' || name === 'Grep') return `${name}(${input.pattern || ''})`;
+  return `${name}(${JSON.stringify(input).slice(0, 100)})`;
+}
+const _toolPartials = {};
+async function chatSend() {
+  if (CHAT_BUSY) return;
+  if (!CHAT_ID) { setStatus('start a chat first', 'error'); return; }
+  const text = $('#chatInput').value.trim();
+  if (!text) return;
+  $('#chatInput').value = '';
+  $('#chatInput').style.height = '38px';
+  CHAT_BUSY = true;
+  $('#chatSend').disabled = true;
+  $('#chatSend').textContent = '…sending';
+  chatAddUser(text);
+  const msgEl = chatStartAssistant();
+  const ctrl = new AbortController();
+  _abortChat = ctrl;
+  try {
+    const r = await fetch(`/api/chat/${CHAT_ID}/send`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({message: text}), signal: ctrl.signal,
+    });
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream:true});
+      const lines = buf.split('\n\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+        try { handleChatEvent(JSON.parse(data), msgEl); } catch {}
+      }
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      const eb = ensureBlockEl(msgEl, 'err', () => {
+        const d = document.createElement('div');
+        d.className = 'omi-block tool-result is-error';
+        d.innerHTML = `<summary><span class="glyph">⚠</span><span class="label"><span class="name">network error</span></span><span class="chev">▸</span></summary><div class="body"></div>`;
+        return d;
+      });
+      eb.querySelector('.body').textContent = String(e);
+      eb.open = true;
+    }
+  } finally {
+    CHAT_BUSY = false;
+    $('#chatSend').disabled = false;
+    $('#chatSend').textContent = 'Send ↵';
+    _abortChat = null;
+    // The card may have been updated via oms-save — reload + refresh focus view
+    await loadCards();
+    refreshFocusFromDB();
+    refreshLogsIfOpen();
+  }
+}
+function handleChatEvent(ev, msgEl) {
+  const t = ev.type;
+  if (t === 'text_delta') {
+    const el = ensureBlockEl(msgEl, `text-${ev.index}`, () => {
+      const d = document.createElement('div'); d.className='bubble'; return d;
+    });
+    el.textContent += ev.text;
+    scrollChat();
+  } else if (t === 'thinking_delta') {
+    const el = ensureBlockEl(msgEl, `think-${ev.index}`, () => {
+      const d = document.createElement('details'); d.className='omi-block thinking';
+      d.innerHTML = `<summary><span class="glyph">💭</span><span class="label"><span class="name">Thinking</span></span><span class="chev">▸</span></summary><div class="body"></div>`;
+      return d;
+    });
+    el.querySelector('.body').textContent += ev.text;
+  } else if (t === 'block_start' && ev.block_type === 'tool_use') {
+    const key = `tool-${ev.index}`;
+    _toolPartials[key] = '';
+    ensureBlockEl(msgEl, key, () => {
+      const d = document.createElement('details'); d.className='omi-block tool-use';
+      d.innerHTML = `<summary><span class="glyph">🔧</span><span class="label"><span class="name">${escapeHtml(ev.name||'tool')}</span><span class="arg"></span></span><span class="chev">▸</span></summary><div class="body">…</div>`;
+      d.dataset.toolName = ev.name||''; d.dataset.toolId = ev.id||'';
+      return d;
+    });
+  } else if (t === 'tool_input_delta') {
+    const key = `tool-${ev.index}`;
+    _toolPartials[key] = (_toolPartials[key]||'') + (ev.partial_json||'');
+    const el = msgEl.querySelector(`[data-bk="${key}"]`);
+    if (el) {
+      try {
+        const parsed = JSON.parse(_toolPartials[key]);
+        el.querySelector('.label .arg').textContent = renderToolSummary(el.dataset.toolName, parsed).replace(el.dataset.toolName, '').trim();
+        el.querySelector('.body').textContent = JSON.stringify(parsed, null, 2);
+      } catch { el.querySelector('.body').textContent = _toolPartials[key]; }
+    }
+  } else if (t === 'tool_result') {
+    const useEl = [...msgEl.querySelectorAll('.omi-block.tool-use')].find(d => d.dataset.toolId === ev.tool_use_id);
+    const d = document.createElement('details');
+    d.className = 'omi-block tool-result' + (ev.is_error ? ' is-error' : '');
+    d.innerHTML = `<summary><span class="glyph">${ev.is_error?'⚠':'✓'}</span><span class="label"><span class="name">${ev.is_error?'error':'result'}</span><span class="arg">${escapeHtml((ev.content||'').slice(0,80))}</span></span><span class="chev">▸</span></summary><div class="body"></div>`;
+    d.querySelector('.body').textContent = ev.content || '';
+    if (useEl) useEl.insertAdjacentElement('afterend', d); else msgEl.appendChild(d);
+    scrollChat();
+  } else if (t === 'turn_done') {
+    msgEl.classList.remove('active');
+  } else if (t === 'error') {
+    const d = document.createElement('details');
+    d.className = 'omi-block tool-result is-error'; d.open = true;
+    d.innerHTML = `<summary><span class="glyph">⚠</span><span class="label"><span class="name">error</span></span><span class="chev">▸</span></summary><div class="body"></div>`;
+    d.querySelector('.body').textContent = ev.message || '(unknown error)';
+    msgEl.appendChild(d);
+    scrollChat();
+  }
+}
+
+$('#chatSend').onclick = chatSend;
+$('#chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
+});
+$('#chatInput').addEventListener('input', function () {
+  this.style.height = '38px';
+  this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+});
+$('#chatNew').onclick = async () => {
+  if (!CHAT_ID) { chatHideUntilContext(); return; }
+  const ctxTitle = $('#chatCtxTitle').textContent || '';
+  const m = ctxTitle.match(/[a-f0-9]{8,}/i);
+  if (!confirm('Close this conversation and start a fresh one?')) return;
+  await fetch(`/api/chat/${CHAT_ID}/close`, {method:'POST'});
+  if (m) {
+    const cur = CARDS.find(c => c.id.startsWith(m[0]));
+    if (cur) {
+      const r = await fetch('/api/chat/new', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({card_id: cur.id, force_new: true}),
+      });
+      const j = await r.json();
+      if (j.error) { setStatus(j.error, 'error'); return; }
+      CHAT_ID = j.chat_id; $('#chatStream').innerHTML = '';
+      setStatus('fresh chat', 'ok');
+    }
+  } else { CHAT_ID = null; chatHideUntilContext(); }
+};
+$('#chatStop').onclick = async () => {
+  if (_abortChat) _abortChat.abort();
+  if (CHAT_ID) await fetch(`/api/chat/${CHAT_ID}/stop`, {method:'POST'});
+};
+
+// ── Extract Skill (rough notes → card via SSE) ────────────────────
+let EXTRACT_BUSY = false;
+$('#extractBtn').onclick = async () => {
+  if (EXTRACT_BUSY) return;
+  const notes = $('#extractInput').value.trim();
+  if (!notes) { setStatus('paste some notes first', 'error'); return; }
+  EXTRACT_BUSY = true;
+  const btn = $('#extractBtn'), label = $('#extractBtnLabel');
+  btn.disabled = true;
+  const t0 = Date.now();
+  const tick = setInterval(() => { label.textContent = `extracting ${Math.floor((Date.now()-t0)/1000)}s…`; }, 200);
+  openLogs(); selectTab('logs');
+  try {
+    const r = await fetch('/api/extract', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({notes}),
+    });
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf='', preview='', createdId=null;
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream:true});
+      const lines = buf.split('\n\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const ev = JSON.parse(data);
+          if (ev.text) preview += ev.text;
+          if (ev.error) setStatus(ev.error, 'error');
+          if (ev.created) createdId = ev.card_id;
+        } catch {}
+      }
+    }
+    clearInterval(tick);
+    if (createdId) {
+      $('#extractInput').value = '';
+      await loadCards();
+      setStatus(`extracted in ${Math.floor((Date.now()-t0)/1000)}s — opening`, 'ok');
+      openCard(createdId);
+    } else {
+      setStatus('no card created — see logs', 'error');
+    }
+  } catch (e) {
+    clearInterval(tick);
+    setStatus(String(e), 'error');
+  } finally {
+    EXTRACT_BUSY = false;
+    btn.disabled = false;
+    label.textContent = 'Extract';
+    refreshLogsIfOpen();
+  }
+};
+// Auto-grow extract textarea
+$('#extractInput').addEventListener('input', function () {
+  this.style.height = '38px';
+  this.style.height = Math.min(this.scrollHeight, 220) + 'px';
+});
+// Example chips
+document.querySelectorAll('.compose .ex').forEach(el => {
+  el.addEventListener('click', () => {
+    $('#extractInput').value = el.dataset.ex || '';
+    $('#extractInput').dispatchEvent(new Event('input'));
+    $('#extractInput').focus();
+  });
+});
+
+// ── Logs ──────────────────────────────────────────────────────────
+async function refreshLogs() {
+  const r = await fetch('/api/logs').then(r => r.json());
+  $('#logInfo').textContent = `tail of ${r.log_file || 'log'}`;
+  $('#logs').innerHTML = r.logs.length ? r.logs.map(l => {
+    const cls = l.status === 'error' ? 'err' : l.status === 'running' ? 'warn' : 'ok';
+    const ts = (l.ts || '').replace('T', ' ').slice(0, 19);
+    return `<div class="omi-log-row" onclick="this.classList.toggle('show-tb')">
+      <div class="top"><span class="omi-pill ${cls}">${l.status}</span>
+        <span class="action">#${l.id} ${l.action}</span>
+        <span class="omi-grow"></span>
+        <span class="ts">${ts}${l.duration_ms ? ' · ' + l.duration_ms + 'ms' : ''}</span></div>
+      ${l.detail ? `<div class="detail">${escapeHtml(l.detail)}</div>` : ''}
+      ${l.error ? `<div class="err">${escapeHtml(l.error)}</div>` : ''}
+      ${l.traceback ? `<div class="tb">${escapeHtml(l.traceback)}</div>` : ''}
+    </div>`;
+  }).join('') : '<div class="omi-empty">no log entries yet</div>';
+}
+$('#logsRefresh').onclick = refreshLogs;
+$('#logsClear').onclick = async () => {
+  if (!confirm('Clear all api logs?')) return;
+  await fetch('/api/logs', {method: 'DELETE'});
+  refreshLogs();
+};
+
+// ── Settings ───────────────────────────────────────────────────────
+$('#openSettings').onclick = async () => {
+  const [s, syncS] = await Promise.all([
+    fetch('/api/settings').then(r => r.json()),
+    fetch('/skill-cards/api/sync-settings').then(r => r.json()).catch(() => ({})),
+  ]);
+  $('#setColor').innerHTML = THEMES.colors.map(c =>
+    `<option value="${c.id}" ${c.id===s.color_theme?'selected':''}>${c.name}</option>`).join('');
+  $('#setFont').innerHTML = THEMES.fonts.map(f =>
+    `<option value="${f.id}" ${f.id===s.font_theme?'selected':''}>${f.name}</option>`).join('');
+  $('#setRetention').value = s.chat_retention_days || 7;
+  $('#setClaudeToken').value = '';
+  $('#setPubRepo').value  = syncS.remoteRepo   || '';
+  $('#setPrivRepo').value = syncS.privateRepo  || '';
+  $('#setBranch').value   = syncS.remoteBranch || 'main';
+  $('#setSubdir').value   = syncS.remoteSubdir || '';
+  $('#setSshKey').value   = syncS.remoteSshKey || '';
+  $('#setIgnore').value   = (syncS.ignorePatterns || '').replace(/,\s*/g, '\n');
+  $('#settingsDlg').showModal();
+};
+$('#cancelSet').onclick = () => $('#settingsDlg').close();
+$('#saveSet').onclick = async () => {
+  const body = {color_theme: $('#setColor').value, font_theme: $('#setFont').value};
+  const ret = parseInt($('#setRetention').value, 10);
+  if (!isNaN(ret) && ret >= 0) body.chat_retention_days = ret;
+  if ($('#setClaudeToken').value.trim()) body.claude_code_oauth_token = $('#setClaudeToken').value.trim();
+  await fetch('/api/settings', {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  // Sync settings (separate endpoint, devhub-compatible namespace)
+  await fetch('/skill-cards/api/sync-settings', {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      remoteRepo: $('#setPubRepo').value.trim(),
+      privateRepo: $('#setPrivRepo').value.trim(),
+      remoteBranch: $('#setBranch').value.trim() || 'main',
+      remoteSubdir: $('#setSubdir').value.trim(),
+      remoteSshKey: $('#setSshKey').value.trim(),
+      ignorePatterns: $('#setIgnore').value.trim(),
+    }),
+  });
+  $('#settingsDlg').close();
+  setStatus('settings saved', 'ok');
+};
+
+// ── Sync Center ────────────────────────────────────────────────────
+let SYNC_ROWS = [];
+let SYNC_REPOS = {};
+function syncStatusBadge(s) {
+  return `<span class="badge ${s}">${s.replace('-', ' ')}</span>`;
+}
+function dirOptions(row) {
+  const allowed = (() => {
+    if (row.status === 'local-only')  return ['push', 'delete-local', 'skip'];
+    if (row.status === 'remote-only') return ['pull', 'delete-remote', 'skip'];
+    if (row.status === 'modified')    return ['push', 'pull', 'delete-remote', 'delete-local', 'skip'];
+    if (row.status === 'synced')      return ['skip', 'delete-remote', 'delete-local'];
+    return ['skip'];
+  })();
+  const labels = {
+    push: '→ push (overwrite remote)',
+    pull: '← pull (overwrite local)',
+    'delete-remote': '🗑 delete remote',
+    'delete-local':  '🗑 delete local',
+    skip: 'skip',
+  };
+  return allowed.map(d => `<option value="${d}" ${d === row.suggested ? 'selected' : ''}>${labels[d]}</option>`).join('');
+}
+function renderSyncRows() {
+  const showSynced = $('#syncShowSynced').checked;
+  const visible = SYNC_ROWS.filter(r => showSynced || r.status !== 'synced');
+  const tbody = $('#syncRows tbody');
+  if (visible.length === 0) {
+    tbody.innerHTML = '';
+    $('#syncEmpty').style.display = '';
+    return;
+  }
+  $('#syncEmpty').style.display = 'none';
+  tbody.innerHTML = visible.map((r, i) => {
+    const repoBadge = `<span class="repo-pill ${r.repo}">${r.repo}</span>`;
+    const conflict = r.conflict ? `<span class="conflict-mark" title="both sides changed since last sync — picking newer">⚡ conflict</span>` : '';
+    const meta = [];
+    if (r.local_updated_at)  meta.push(`local: ${r.local_updated_at.slice(0, 19).replace('T',' ')}`);
+    if (r.remote_updated_at) meta.push(`remote: ${r.remote_updated_at.slice(0, 19).replace('T',' ')}`);
+    return `<tr class="row-${r.status} ${r.conflict ? 'row-conflict' : ''}" data-i="${SYNC_ROWS.indexOf(r)}">
+      <td>${repoBadge}${syncStatusBadge(r.status)}${conflict}</td>
+      <td><div class="ttl">${escapeHtml(r.title)}</div><div class="meta omi-mono">${escapeHtml(r.id.slice(0, 14))} · ${meta.join(' · ')}</div></td>
+      <td>${(r.tags || []).map(t => `<span class="omi-tag-chip tiny">${escapeHtml(t)}</span>`).join(' ')}</td>
+      <td><select class="dir-pick suggested" data-i="${SYNC_ROWS.indexOf(r)}">${dirOptions(r)}</select></td>
+      <td><button class="omi-btn ghost sm ignore-this" data-i="${SYNC_ROWS.indexOf(r)}" title="Add this id (or its prefix) to ignore patterns and remove from this list">🙈</button></td>
+    </tr>`;
+  }).join('');
+  // Wire selects
+  tbody.querySelectorAll('select.dir-pick').forEach(sel => {
+    sel.onchange = () => {
+      const i = +sel.dataset.i;
+      SYNC_ROWS[i].direction = sel.value;
+      sel.classList.toggle('suggested', sel.value === SYNC_ROWS[i].suggested);
+    };
+  });
+  // Quick-ignore: prompt the user for a pattern (default = the exact id),
+  // append to ignorePatterns, save, and re-fetch the diff.
+  tbody.querySelectorAll('button.ignore-this').forEach(btn => {
+    btn.onclick = async () => {
+      const i = +btn.dataset.i;
+      const r = SYNC_ROWS[i];
+      // Suggest a useful glob: strip a leading "skill-" (devhub convention),
+      // then take the prefix up to the first '-' (e.g. 'sibyl-*' for
+      // 'skill-sibyl-foo'). Fall back to the exact id.
+      const stripped = r.id.replace(/^skill-/, '');
+      const m = stripped.match(/^([a-zA-Z]+-)/);
+      const suggested = m ? m[1] + '*' : stripped;
+      const pat = prompt(`Ignore pattern (glob over card id):`, suggested);
+      if (!pat) return;
+      // Read current settings, append, save
+      const cur = await fetch('/skill-cards/api/sync-settings').then(r => r.json());
+      const existing = (cur.ignorePatterns || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+      if (existing.includes(pat)) {
+        setStatus(`already ignored: ${pat}`); return;
+      }
+      existing.push(pat);
+      await fetch('/skill-cards/api/sync-settings', {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({...cur, ignorePatterns: existing.join('\n')}),
+      });
+      setStatus(`ignoring ${pat}`, 'ok');
+      await loadSyncDiff();
+    };
+  });
+}
+async function loadSyncDiff() {
+  $('#syncStatus').textContent = 'fetching remote…';
+  $('#syncRows tbody').innerHTML = '';
+  $('#syncEmpty').style.display = 'none';
+  try {
+    const r = await fetch('/skill-cards/api/sync-diff', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({}),
+    });
+    const j = await r.json();
+    if (j.error) {
+      $('#syncStatus').innerHTML = `<span style="color:var(--omi-error-deep)">${escapeHtml(j.error)}</span>`;
+      $('#syncRepoInfo').innerHTML = '';
+      return;
+    }
+    SYNC_REPOS = j.repos || {};
+    SYNC_ROWS = (j.rows || []).map(r => ({...r, direction: r.suggested}));
+    // Repo info line
+    const lines = [];
+    for (const [k, v] of Object.entries(SYNC_REPOS)) {
+      if (v.ok) lines.push(`<span class="repo-line">✓ <strong>${k}</strong> <code>${escapeHtml(v.repo || '')}</code></span>`);
+      else lines.push(`<span class="repo-line" style="color:var(--omi-error-deep)">✗ <strong>${k}</strong>: ${escapeHtml(v.error || '')}</span>`);
+    }
+    $('#syncRepoInfo').innerHTML = lines.join(' ');
+    const summary = {};
+    SYNC_ROWS.forEach(r => summary[r.status] = (summary[r.status] || 0) + 1);
+    const parts = Object.entries(summary).map(([k, v]) => `${v} ${k.replace('-', ' ')}`);
+    if (j.ignored_count) parts.push(`${j.ignored_count} ignored`);
+    $('#syncStatus').textContent = parts.join(' · ') || 'all synced';
+    renderSyncRows();
+  } catch (e) {
+    $('#syncStatus').innerHTML = `<span style="color:var(--omi-error-deep)">${escapeHtml(String(e))}</span>`;
+  }
+}
+$('#openSync').onclick = async () => {
+  $('#syncDlg').showModal();
+  await loadSyncDiff();
+};
+$('#syncClose').onclick = () => $('#syncDlg').close();
+$('#syncRefresh').onclick = loadSyncDiff;
+$('#syncShowSynced').onchange = renderSyncRows;
+document.querySelectorAll('#syncDlg [data-bulk]').forEach(btn => {
+  btn.onclick = () => {
+    const mode = btn.dataset.bulk;
+    SYNC_ROWS.forEach(r => {
+      if (mode === 'auto') r.direction = r.suggested;
+      else if (mode === 'push') r.direction = (r.status === 'remote-only') ? 'skip' : 'push';
+      else if (mode === 'pull') r.direction = (r.status === 'local-only') ? 'skip' : 'pull';
+      else r.direction = 'skip';
+    });
+    renderSyncRows();
+  };
+});
+$('#syncApply').onclick = async () => {
+  const actions = SYNC_ROWS
+    .filter(r => r.direction && r.direction !== 'skip')
+    .map(r => ({id: r.id, repo: r.repo, direction: r.direction}));
+  if (!actions.length) { $('#syncStatus').textContent = 'nothing to apply'; return; }
+  $('#syncStatus').textContent = `applying ${actions.length}…`;
+  $('#syncApply').disabled = true;
+  try {
+    const r = await fetch('/skill-cards/api/sync-apply', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({actions}),
+    });
+    const j = await r.json();
+    const ok = (j.rows || []).filter(x => x.ok).length;
+    const err = (j.rows || []).filter(x => !x.ok).length;
+    const commitParts = [];
+    for (const [k, v] of Object.entries(j.commits || {})) {
+      if (v.ok) commitParts.push(`${k}: ${v.pushed||0}↑ ${v.pulled||0}↓`);
+      else commitParts.push(`${k}: ${v.error||'?'}`);
+    }
+    $('#syncStatus').innerHTML = `${ok} ok${err ? ', '+err+' failed' : ''} · ${commitParts.join(' · ')}`;
+    setStatus(`synced ${ok} cards`, err ? 'error' : 'ok');
+    await loadCards();
+    await loadSyncDiff();
+  } catch (e) {
+    $('#syncStatus').innerHTML = `<span style="color:var(--omi-error-deep)">${escapeHtml(String(e))}</span>`;
+  } finally {
+    $('#syncApply').disabled = false;
+  }
+};
+
+// ── Keyboard shortcuts ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    e.preventDefault(); $('#searchInput').focus();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 's' && $('#editorModal').open) {
+    e.preventDefault(); $('#emSave').click();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && document.activeElement === $('#extractInput')) {
+    e.preventDefault(); $('#extractBtn').click();
+  }
+  if (e.key === 'Escape' && $('#editorModal').open) {
+    if (unsavedChanges) {
+      e.preventDefault();
+      if (confirm('Discard unsaved changes?')) { unsavedChanges = false; $('#editorModal').close(); }
+    }
+  }
+});
+
+bootstrap();
+</script>
+</body>
+</html>

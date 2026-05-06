@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Cards</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+    <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/latex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <style>
+        :root {
+            --bg: #0d1117; --surface: #161b22; --border: #30363d;
+            --text: #e6edf3; --dim: #8b949e; --green: #3fb950;
+            --red: #f85149; --blue: #58a6ff; --yellow: #d29922;
+            --surface2: #1c2129; --purple: #a371f7; --selection: #264f78;
+            --accent: #58a6ff; --accent-dim: #58a6ff33;
+        }
+        body.light {
+            --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de;
+            --text: #1f2328; --dim: #656d76; --green: #1a7f37;
+            --red: #cf222e; --blue: #0969da; --yellow: #9a6700;
+            --surface2: #eaeef2; --purple: #8250df; --selection: #add6ff;
+        }
+        body.catppuccin {
+            --bg: #1e1e2e; --surface: #313244; --border: #45475a;
+            --text: #cdd6f4; --dim: #a6adc8; --green: #a6e3a1;
+            --red: #f38ba8; --blue: #89b4fa; --yellow: #f9e2af;
+            --surface2: #585b70; --purple: #cba6f7; --selection: #45475a;
+        }
+        body.nord {
+            --bg: #2e3440; --surface: #3b4252; --border: #4c566a;
+            --text: #eceff4; --dim: #d8dee9; --green: #a3be8c;
+            --red: #bf616a; --blue: #88c0d0; --yellow: #ebcb8b;
+            --surface2: #434c5e; --purple: #b48ead; --selection: #434c5e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        ::selection { background: var(--selection); }
+        input::placeholder, textarea::placeholder { color: var(--dim); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        kbd { background: var(--surface2); padding: 1px 6px; border-radius: 4px; font-size: 11px; font-family: 'Fira Code', monospace; color: var(--text); }
+
+        /* Nav */
+        .top-nav { max-width: 100%; margin: 0 auto; padding: 16px 24px 0; display: flex; justify-content: flex-end; gap: 12px; }
+        .top-nav a { color: var(--dim); text-decoration: none; font-size: 0.8rem; font-family: 'Monaco','Menlo',monospace; }
+        .top-nav a:hover { color: var(--text); }
+        .top-nav a.active { color: var(--blue); }
+
+        /* Header */
+        .header { max-width: 100%; margin: 0 auto; padding: 16px 24px 0; display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--blue); display: flex; align-items: center; justify-content: center; }
+        .logo-icon svg { width: 18px; height: 18px; color: #fff; }
+        .logo h1 { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+        .logo p { font-size: 12px; color: var(--dim); margin-top: 3px; }
+        .btn-new { background: var(--blue); color: #fff; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 7px; }
+        .btn-new:hover { opacity: 0.9; }
+
+        /* Search */
+        .search-wrap { max-width: 100%; margin: 0 auto; padding: 16px 24px 0; position: relative; }
+        .search-wrap svg { position: absolute; left: 40px; top: 50%; transform: translateY(-30%); color: #ffffff30; pointer-events: none; }
+        .search-wrap input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px 12px 44px; color: var(--text); font-size: 14px; outline: none; transition: border 0.2s; }
+        .search-wrap input:focus { border-color: var(--blue); }
+        .search-clear { position: absolute; right: 36px; top: 50%; transform: translateY(-30%); background: none; border: none; cursor: pointer; padding: 4px; display: none; }
+
+        /* Tags */
+        .tags-bar { max-width: 100%; margin: 0 auto; padding: 12px 24px 0; display: flex; gap: 6px; flex-wrap: wrap; }
+        .tag-btn { font-size: 12px; padding: 4px 14px; border-radius: 20px; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--dim); border: 1px solid var(--border); }
+        .tag-btn.active { border-color: var(--tag-color); background: var(--tag-bg); color: var(--tag-color); }
+        .tag-clear { font-size: 12px; padding: 4px 14px; border-radius: 20px; cursor: pointer; background: none; border: 1px dashed var(--border); color: var(--dim); display: none; }
+
+        /* Grid */
+        .grid-wrap { max-width: 100%; margin: 0 auto; padding: 16px 24px 60px; }
+        .masonry { display: grid; grid-template-columns: repeat(var(--cols, 4), 1fr); gap: 12px; }
+        @media (max-width: 1200px) { .masonry { grid-template-columns: repeat(3, 1fr) !important; } }
+        @media (max-width: 900px) { .masonry { grid-template-columns: repeat(2, 1fr) !important; } }
+        @media (max-width: 580px) { .masonry { grid-template-columns: 1fr !important; } }
+
+        /* Card */
+        .card { height: 180px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); padding: 14px 16px; cursor: pointer; transition: all 0.25s ease; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, var(--surface)); pointer-events: none; }
+        .card:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 32px #00000040; }
+        .card .accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: transparent; transition: background 0.3s; }
+        .card:hover .accent { background: var(--blue); }
+        .card h3 { font-size: 14px; color: var(--text); margin-bottom: 6px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+        .card .body { color: var(--dim); line-height: 1.5; font-size: 12px; word-break: break-word; overflow: hidden; flex: 1; min-height: 0; }
+        /* Card metadata (frontmatter) */
+        .card-meta { flex-shrink: 0; margin-bottom: 4px; position: relative; z-index: 1; }
+        .card-meta summary {
+            font-size: 10px; color: var(--dim); cursor: pointer; user-select: none;
+            padding: 2px 6px; background: var(--bg); border-radius: 4px; display: inline-block;
+            border: 1px solid var(--border); list-style: none;
+        }
+        .card-meta summary::-webkit-details-marker { display: none; }
+        .card-meta summary::before { content: '\25B6 '; font-size: 8px; }
+        .card-meta[open] summary::before { content: '\25BC '; }
+        .card-meta-list { margin-top: 4px; font-size: 10px; line-height: 1.6; }
+        .card-meta-row { display: flex; gap: 6px; padding: 1px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent); }
+        .card-meta-row:last-child { border-bottom: none; }
+        .card-meta-key { color: var(--blue); font-family: 'Fira Code', monospace; flex-shrink: 0; min-width: 60px; }
+        .card-meta-val { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .card .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; flex-shrink: 0; position: relative; z-index: 1; }
+        .card .tags span { font-size: 9px; padding: 1px 7px; border-radius: 20px; letter-spacing: 0.3px; }
+        .card .actions { position: absolute; top: 10px; right: 10px; display: none; gap: 4px; }
+        .card:hover .actions { display: flex; }
+        .action-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px; cursor: pointer; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
+        .action-btn svg { stroke: var(--dim); }
+        .action-btn:hover svg { stroke: var(--text); }
+
+        /* Empty state */
+        .empty { text-align: center; padding: 80px 0; color: var(--dim); }
+        .empty svg { margin-bottom: 16px; opacity: 0.3; }
+        .empty p { font-size: 16px; }
+        .empty .sub { font-size: 13px; margin-top: 6px; }
+
+        /* Code blocks inside cards */
+        .card pre { background: var(--bg); border-radius: 6px; padding: 6px 10px; margin: 4px 0; overflow: hidden; font-size: 11px; border: 1px solid var(--border); position: relative; max-height: 60px; }
+        .editor-preview pre { background: var(--bg); border-radius: 8px; padding: 14px 16px; margin: 10px 0; overflow-x: auto; font-size: 13px; border: 1px solid var(--border); position: relative; }
+        .card pre .lang-label, .editor-preview pre .lang-label { position: absolute; right: 12px; top: 8px; font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+        .card code, .editor-preview code { font-family: 'Fira Code', 'SF Mono', monospace; }
+        .card :not(pre) > code, .editor-preview :not(pre) > code { background: var(--surface2); color: var(--text); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; border: 1px solid var(--border); }
+        .card strong, .editor-preview strong { color: var(--text); font-weight: 700; }
+        .card mark, .editor-preview mark { background: var(--yellow); color: var(--bg); padding: 1px 4px; border-radius: 3px; }
+        .inline-code { background: var(--surface2); color: var(--blue); padding: 2px 7px; border-radius: 4px; font-size: 13px; font-family: 'Fira Code', monospace; }
+
+        /* Markdown tables */
+        .card table, .editor-preview table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+        .card th, .card td, .editor-preview th, .editor-preview td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+        .card th, .editor-preview th { background: var(--bg); color: var(--text); font-weight: 600; }
+        .card td, .editor-preview td { color: var(--dim); }
+        /* Markdown headings inside cards */
+        .card h1, .card h2, .card h3 { color: var(--text); margin: 8px 0 4px; font-weight: 600; }
+        .card h1 { font-size: 15px; } .card h2 { font-size: 14px; } .card h3 { font-size: 13px; }
+        .card ul, .card ol, .editor-preview ul, .editor-preview ol { padding-left: 20px; margin: 4px 0; }
+        .card li, .editor-preview li { margin: 2px 0; }
+        .card a, .editor-preview a { color: var(--blue); text-decoration: none; }
+        .card a:hover, .editor-preview a:hover { text-decoration: underline; }
+        .card blockquote, .editor-preview blockquote { border-left: 3px solid var(--blue); padding-left: 14px; color: var(--dim); margin: 10px 0; background: color-mix(in srgb, var(--blue) 4%, transparent); padding: 8px 14px; border-radius: 0 6px 6px 0; }
+        .card blockquote p:last-child, .editor-preview blockquote p:last-child { margin-bottom: 0; }
+        .editor-preview .alert-note { border-left-color: var(--blue); background: color-mix(in srgb, var(--blue) 5%, transparent); }
+        .editor-preview .alert-note .alert-title { color: var(--blue); }
+        .editor-preview .alert-tip { border-left-color: var(--green); background: color-mix(in srgb, var(--green) 5%, transparent); }
+        .editor-preview .alert-tip .alert-title { color: var(--green); }
+        .editor-preview .alert-important { border-left-color: var(--purple); background: color-mix(in srgb, var(--purple) 5%, transparent); }
+        .editor-preview .alert-important .alert-title { color: var(--purple); }
+        .editor-preview .alert-warning { border-left-color: var(--yellow); background: color-mix(in srgb, var(--yellow) 5%, transparent); }
+        .editor-preview .alert-warning .alert-title { color: var(--yellow); }
+        .editor-preview .alert-caution { border-left-color: var(--red); background: color-mix(in srgb, var(--red) 5%, transparent); }
+        .editor-preview .alert-caution .alert-title { color: var(--red); }
+        .editor-preview .alert-title { font-weight: 600; font-size: 0.85em; margin-bottom: 4px; }
+        .card del, .editor-preview del { color: var(--dim); text-decoration: line-through; opacity: 0.6; }
+        .card hr, .editor-preview hr { border: none; height: 1px; background: linear-gradient(to right, transparent, var(--border), transparent); margin: 16px 0; }
+        .card img, .editor-preview img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
+        .card kbd, .editor-preview kbd { background: var(--bg); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; font-size: 0.85em; font-family: inherit; color: var(--text); }
+        .katex-display { margin: 12px 0 !important; }
+
+        /* Editor modal */
+        .modal-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: #000000cc; backdrop-filter: blur(12px); }
+        .modal { width: 94vw; max-width: 1100px; height: 85vh; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 40px 80px #00000080; }
+        .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+        .modal-header input.title-input { background: transparent; border: none; outline: none; color: var(--text); font-size: 20px; font-weight: 600; flex: 1; }
+        .modal-header input.tags-input { background: transparent; border: none; outline: none; color: var(--dim); font-size: 13px; flex: 1; }
+        .modal-body { flex: 1; display: flex; overflow: hidden; }
+        .editor-pane { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+        .modal-body.preview-hidden .editor-pane { border-right: none; }
+        .preview-pane { flex: 1; display: flex; flex-direction: column; overflow: auto; }
+        .modal-body.preview-hidden .preview-pane { display: none; }
+        .btn-toggle-preview { background: var(--surface2); color: var(--dim); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+        .btn-toggle-preview:hover { color: var(--text); border-color: var(--blue); }
+        .btn-toggle-preview.active { color: var(--blue); border-color: var(--blue); }
+        .pane-label { padding: 10px 16px 4px; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
+        .editor-pane textarea { flex: 1; background: transparent; border: none; outline: none; color: var(--text); padding: 8px 20px 20px; font-family: 'Fira Code', monospace; font-size: 13px; line-height: 1.8; resize: none; width: 100%; box-sizing: border-box; }
+        .editor-preview { padding: 8px 24px 24px; color: var(--text); }
+        .editor-preview h1 { font-size: 18px; color: var(--blue); margin: 16px 0 8px; font-weight: 600; }
+        .editor-preview h2 { font-size: 16px; color: var(--green); margin: 14px 0 6px; font-weight: 600; }
+        .editor-preview h3 { font-size: 14.5px; color: var(--purple); margin: 12px 0 4px; font-weight: 600; }
+        .btn-save { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 8px 20px; font-weight: 600; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+        .btn-close { background: var(--surface2); color: var(--text); border: none; border-radius: 8px; padding: 8px; cursor: pointer; }
+
+        /* Settings gear button */
+        .btn-gear { background: var(--surface2); color: var(--dim); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; line-height: 1; }
+        .btn-gear:hover { color: var(--text); border-color: var(--blue); }
+
+        /* Settings modal */
+        .settings-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: #000000cc; backdrop-filter: blur(12px); }
+        .settings-modal { width: 94vw; max-width: 520px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 40px 80px #00000080; }
+        .settings-modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .settings-modal-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+        .settings-modal-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 18px; }
+        .settings-group { display: flex; flex-direction: column; gap: 6px; }
+        .settings-group label { font-size: 13px; color: var(--dim); font-weight: 500; }
+        .settings-group select { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 14px; outline: none; cursor: pointer; appearance: auto; }
+        .settings-group select:focus { border-color: var(--blue); }
+        .settings-modal-footer { padding: 0 24px 20px; display: flex; gap: 10px; }
+        .btn-settings-save { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 8px 20px; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .btn-settings-save:hover { opacity: 0.9; }
+        .btn-settings-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; font-weight: 500; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+        .btn-settings-secondary:hover { border-color: var(--blue); color: var(--blue); }
+        .settings-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--blue); color: var(--blue); padding: 10px 24px; border-radius: 12px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 32px #00000060; z-index: 2000; animation: fadeIn 0.2s ease; display: none; }
+        .toast.show { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    </style>
+</head>
+<body>
+
+<!-- Nav -->
+<div class="top-nav">
+    <a href="/skill-cards" class="active">skill-cards</a>
+    <div style="position:relative;display:inline-block;" id="navHam" onclick="this.classList.toggle('open')">
+      <button style="background:none;border:1px solid var(--border);padding:4px 10px;font-size:14px;cursor:pointer;border-radius:6px;color:var(--dim);" title="Pages">&#9776;</button>
+      <div style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:6px;min-width:130px;z-index:500;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:4px 0;">
+        <a href="/" style="display:block;padding:5px 12px;">home</a>
+        <a href="/clipboard" style="display:block;padding:5px 12px;">clipboard</a>
+        <a href="/rss" style="display:block;padding:5px 12px;">podcast-rss</a>
+        <a href="/scholar" style="display:block;padding:5px 12px;">scholar-ai</a>
+        <a href="/rsync" style="display:block;padding:5px 12px;">rsync-file</a>
+        <a href="/slide" style="display:block;padding:5px 12px;">slider-ai</a>
+      </div>
+    </div>
+    <style>#navHam.open>div:last-child{display:block!important;}#navHam a:hover{background:var(--surface2);}</style>
+    <button id="themeBtn" onclick="cycleTheme()" style="background:none;border:1px solid var(--border);padding:4px 10px;font-size:16px;cursor:pointer;border-radius:6px;" title="Toggle theme">&#127769;</button>
+</div>
+
+<!-- Header -->
+<div class="header">
+    <div class="logo">
+        <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
+        <div>
+            <h1>Skill Cards</h1>
+            <p id="cardCount">0 cards &middot; Press <kbd>/</kbd> to search</p>
+        </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn-gear" onclick="openCardSettings()" title="Settings">&#9881;</button>
+        <button class="btn-new" onclick="openEditor(null)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Card
+        </button>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="search-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="searchInput" placeholder="Search cards by title, content, or tag...">
+    <button class="search-clear" id="searchClear" onclick="clearSearch()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff40" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+</div>
+
+<!-- Tags -->
+<div class="tags-bar" id="tagsBar"></div>
+
+<!-- Grid -->
+<div class="grid-wrap">
+    <div class="masonry" id="grid"></div>
+    <div class="empty" id="emptyState" style="display:none">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        <p id="emptyTitle">No cards yet</p>
+        <p class="sub" id="emptySub">Click "New Card" to create your first card</p>
+    </div>
+</div>
+
+<!-- Editor Modal -->
+<div class="modal-overlay" id="editorModal" style="display:none" onclick="closeEditor()">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+                <input class="title-input" id="edTitle" placeholder="Card title...">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff40" stroke-width="2" stroke-linecap="round"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l6.58-6.58a1 1 0 0 0 0-1.42L12 2Z"/><path d="M7 7h.01"/></svg>
+                    <input class="tags-input" id="edTags" placeholder="tags, comma, separated">
+                </div>
+            </div>
+            <button class="btn-toggle-preview active" id="togglePreviewBtn" onclick="togglePreview()" title="Toggle preview">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Preview
+            </button>
+            <button class="btn-save" onclick="saveCard()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Save
+            </button>
+            <button class="btn-close" onclick="closeEditor()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="editor-pane">
+                <div class="pane-label">Edit</div>
+                <textarea id="edContent" placeholder="Write your content here...&#10;&#10;Supported syntax:&#10;  `inline code`&#10;  ```lang&#10;code block&#10;```&#10;  $inline LaTeX$&#10;  $$block LaTeX$$&#10;  **bold**"></textarea>
+            </div>
+            <div class="preview-pane">
+                <div class="pane-label">Preview</div>
+                <div class="editor-preview" id="edPreview"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="settings-overlay" id="settingsModal" style="display:none" onclick="closeCardSettings()">
+    <div class="settings-modal" onclick="event.stopPropagation()">
+        <div class="settings-modal-header">
+            <h2>&#9881; Settings</h2>
+            <button class="btn-close" onclick="closeCardSettings()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="settings-modal-body">
+            <div class="settings-group">
+                <label>Column Count</label>
+                <select id="settingColumnCount">
+                    <option value="2">2 columns</option>
+                    <option value="3">3 columns</option>
+                    <option value="4" selected>4 columns</option>
+                    <option value="5">5 columns</option>
+                    <option value="6">6 columns</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label>Sort By</label>
+                <select id="settingSortBy">
+                    <option value="updated" selected>Last Updated</option>
+                    <option value="created">Date Created</option>
+                    <option value="title">Title (A-Z)</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label>Card Density</label>
+                <select id="settingCardDensity">
+                    <option value="compact">Compact</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="spacious">Spacious</option>
+                </select>
+            </div>
+            <hr class="settings-divider">
+
+            <!-- Local skills directory -->
+            <div class="settings-group">
+                <label>Local Skills Directory</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="settingSkillsDir" placeholder="/skills" value="/skills" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Fira Code',monospace;">
+                    <button class="btn-settings-secondary" onclick="syncFromDisk()" style="white-space:nowrap;">Sync Local</button>
+                </div>
+                <div style="font-size:11px;color:var(--dim);margin-top:4px;">Container path (default: <code>/skills</code>). Host dir is mapped in docker-compose.yaml via <code>SKILLS_DIR</code>.</div>
+            </div>
+
+            <!-- Remote git repos -->
+            <div class="settings-group">
+                <label>Public Repository <span style="color:var(--dim);font-weight:normal;">(cards without "private" tag)</span></label>
+                <input type="text" id="settingRemoteRepo" placeholder="https://github.com/user/skills.git" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Fira Code',monospace;">
+            </div>
+            <div class="settings-group">
+                <label>Private Repository <span style="color:var(--dim);font-weight:normal;">(cards with "private" tag only)</span></label>
+                <input type="text" id="settingPrivateRepo" placeholder="git@github.com:user/private-skills.git" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Fira Code',monospace;">
+            </div>
+            <div style="display:flex;gap:10px;">
+                <div class="settings-group" style="flex:1;">
+                    <label>Branch</label>
+                    <input type="text" id="settingRemoteBranch" placeholder="main" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;">
+                </div>
+                <div class="settings-group" style="flex:1;">
+                    <label>Subdirectory <span style="color:var(--dim);font-weight:normal;">(optional)</span></label>
+                    <input type="text" id="settingRemoteSubdir" placeholder="skills/" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Fira Code',monospace;">
+                </div>
+            </div>
+            <div class="settings-group">
+                <label>SSH Key <span style="color:var(--dim);font-weight:normal;">(for private repos)</span></label>
+                <input type="text" id="settingRemoteSshKey" placeholder="/root/.ssh/id_rsa" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Fira Code',monospace;">
+                <div style="font-size:11px;color:var(--dim);margin-top:4px;">Path inside container. Mount host key via docker-compose volume.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn-settings-secondary" onclick="syncFromRemote('pull')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="7 10 1 10 1 4"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    Pull
+                </button>
+                <button class="btn-settings-secondary" onclick="syncFromRemote('push')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 14 23 14 23 20"/><path d="M20.49 9a9 9 0 1 1-2.12 9.36L23 14"/></svg>
+                    Push
+                </button>
+                <span id="syncRemoteStatus" style="font-size:12px;color:var(--dim);"></span>
+            </div>
+
+            <hr class="settings-divider">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn-settings-secondary" onclick="exportAllCards()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export All
+                </button>
+                <button class="btn-settings-secondary" onclick="document.getElementById('importFileInput').click()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Import JSON
+                </button>
+                <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importCards(event)">
+            </div>
+        </div>
+        <div class="settings-modal-footer">
+            <button class="btn-settings-save" onclick="saveCardSettings()">Save Settings</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const TAG_PALETTE = [
+    { bg: '#e2b71420', border: '#e2b71466', text: '#e2b714' },
+    { bg: '#4cc9f020', border: '#4cc9f066', text: '#4cc9f0' },
+    { bg: '#f7258520', border: '#f7258566', text: '#f72585' },
+    { bg: '#7209b720', border: '#7209b766', text: '#7209b7' },
+    { bg: '#3a86ff20', border: '#3a86ff66', text: '#3a86ff' },
+    { bg: '#06d6a020', border: '#06d6a066', text: '#06d6a0' },
+    { bg: '#ef476f20', border: '#ef476f66', text: '#ef476f' },
+    { bg: '#ffd16620', border: '#ffd16666', text: '#ffd166' },
+    { bg: '#118ab220', border: '#118ab266', text: '#118ab2' },
+    { bg: '#fb560120', border: '#fb560166', text: '#fb5601' },
+];
+
+let cards = [];
+let activeTags = new Set();
+let editingCard = null;
+let searchTimeout = null;
+let currentSettings = { columnCount: 3, sortBy: 'updated', cardDensity: 'normal' };
+const DENSITY_PADDING = { compact: '12px 14px', normal: '18px 20px', spacious: '24px 26px' };
+
+// ─── API ───
+const api = {
+    async list() { const r = await fetch('/skill-cards/api/cards'); return r.json(); },
+    async create(card) { const r = await fetch('/skill-cards/api/cards', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(card) }); return r.json(); },
+    async update(id, card) { const r = await fetch(`/skill-cards/api/cards/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(card) }); return r.json(); },
+    async remove(id) { await fetch(`/skill-cards/api/cards/${id}`, { method: 'DELETE' }); },
+};
+
+// ─── Tag colors ───
+function getTagStyle(tag) {
+    const sorted = [...new Set(cards.flatMap(c => c.tags || []))].sort();
+    const idx = sorted.indexOf(tag);
+    return TAG_PALETTE[((idx % TAG_PALETTE.length) + TAG_PALETTE.length) % TAG_PALETTE.length];
+}
+
+// ─── Rendering ───
+// Register tex as alias for latex
+if (typeof hljs !== 'undefined' && hljs.getLanguage('latex') && !hljs.getLanguage('tex')) {
+    hljs.registerAliases('tex', { languageName: 'latex' });
+}
+// Configure marked with syntax highlighting
+const markedRenderer = new marked.Renderer();
+markedRenderer.code = function(code, lang) {
+    const langLabel = lang && lang !== 'plaintext' ? `<span class="lang-label">${esc(lang)}</span>` : '';
+    let highlighted = esc(code);
+    try { if (hljs && lang && lang !== 'plaintext') highlighted = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value; } catch(e) {}
+    return `<pre>${langLabel}<code class="language-${esc(lang || '')}">${highlighted}</code></pre>`;
+};
+marked.setOptions({ renderer: markedRenderer, breaks: true, gfm: true });
+
+function renderContent(content) {
+    if (!content) return '';
+    // Protect KaTeX blocks from marked's escaping
+    const katexBlocks = [];
+    let processed = content.replace(/\$\$([\s\S]+?)\$\$/g, (m, tex) => {
+        const idx = katexBlocks.length;
+        try { katexBlocks.push(katex.renderToString(tex.trim(), { throwOnError: false, displayMode: true })); }
+        catch(e) { katexBlocks.push(`<code>${esc(m)}</code>`); }
+        return `%%KATEX_BLOCK_${idx}%%`;
+    });
+    processed = processed.replace(/\$([^$\n]+?)\$/g, (m, tex) => {
+        const idx = katexBlocks.length;
+        try { katexBlocks.push(katex.renderToString(tex, { throwOnError: false, displayMode: false })); }
+        catch(e) { katexBlocks.push(`<code>${esc(m)}</code>`); }
+        return `%%KATEX_BLOCK_${idx}%%`;
+    });
+    let html = marked.parse(processed);
+    // Restore KaTeX
+    html = html.replace(/%%KATEX_BLOCK_(\d+)%%/g, (m, idx) => katexBlocks[parseInt(idx)] || m);
+    // ==highlight== support
+    html = html.replace(/==([^=]+?)==/g, '<mark>$1</mark>');
+    // GitHub-style alerts: > [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING], > [!CAUTION]
+    html = html.replace(/<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*<br>?([\s\S]*?)<\/p>/gi,
+        (m, type, body) => {
+            const t = type.toLowerCase();
+            const icons = { note: '\u2139\uFE0F', tip: '\uD83D\uDCA1', important: '\u2757', warning: '\u26A0\uFE0F', caution: '\uD83D\uDED1' };
+            return `<blockquote class="alert-${t}"><p><span class="alert-title">${icons[t] || ''} ${type.charAt(0) + type.slice(1).toLowerCase()}</span><br>${body}</p>`;
+        });
+    return html;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ─── Cards ───
+function renderCards() {
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    let filtered = sortCards(cards);
+    if (q) filtered = filtered.filter(c =>
+        c.title.toLowerCase().includes(q) || c.content.toLowerCase().includes(q) || (c.tags||[]).some(t => t.includes(q))
+    );
+    if (activeTags.size > 0) filtered = filtered.filter(c => (c.tags||[]).some(t => activeTags.has(t)));
+
+    document.getElementById('cardCount').textContent = `${cards.length} cards \u00b7 Press / to search`;
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('emptyState');
+
+    if (filtered.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = '';
+        if (q || activeTags.size) {
+            document.getElementById('emptyTitle').textContent = 'No cards match your search';
+            document.getElementById('emptySub').textContent = 'Try different keywords or clear filters';
+        } else {
+            document.getElementById('emptyTitle').textContent = 'No cards yet';
+            document.getElementById('emptySub').textContent = 'Click "New Card" to create your first card';
+        }
+        return;
+    }
+    empty.style.display = 'none';
+    const densityPad = DENSITY_PADDING[currentSettings.cardDensity] || DENSITY_PADDING.normal;
+    grid.innerHTML = filtered.map(c => {
+        const tagHtml = (c.tags||[]).map(t => {
+            const s = getTagStyle(t);
+            return `<span style="background:${s.bg};color:${s.text};border:1px solid ${s.border}">${esc(t)}</span>`;
+        }).join('');
+        const meta = c.metadata || {};
+        const metaKeys = Object.keys(meta).filter(k => k !== 'name' && k !== 'tags');
+        const metaHtml = metaKeys.length > 0 ? `<details class="card-meta" onclick="event.stopPropagation()">
+            <summary>${metaKeys.length} fields</summary>
+            <div class="card-meta-list">${metaKeys.map(k =>
+                `<div class="card-meta-row"><span class="card-meta-key">${esc(k)}</span><span class="card-meta-val">${esc(meta[k])}</span></div>`
+            ).join('')}</div>
+        </details>` : '';
+        return `<div class="card" onclick="openEditor('${c.id}')" style="padding:${densityPad}">
+            <div class="accent"></div>
+            <h3>${esc(c.title)}</h3>
+            ${metaHtml}
+            <div class="body">${renderContent(c.content)}</div>
+            ${tagHtml ? `<div class="tags">${tagHtml}</div>` : ''}
+            <div class="actions" onclick="event.stopPropagation()">
+                <button class="action-btn" onclick="copyCard('${c.id}')" title="Copy content">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+                <button class="action-btn" onclick="deleteCard('${c.id}')" title="Delete">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+    // Auto-render KaTeX in card bodies
+    if (typeof renderMathInElement === 'function') {
+        grid.querySelectorAll('.body').forEach(el => {
+            renderMathInElement(el, { delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ], throwOnError: false });
+        });
+    }
+}
+
+function renderTags() {
+    const allTags = [...new Set(cards.flatMap(c => c.tags || []))].sort();
+    const bar = document.getElementById('tagsBar');
+    bar.innerHTML = allTags.map(t => {
+        const s = getTagStyle(t);
+        const active = activeTags.has(t);
+        return `<button class="tag-btn${active ? ' active' : ''}" style="--tag-color:${s.text};--tag-bg:${s.bg}" onclick="toggleTag('${esc(t)}')">${esc(t)}</button>`;
+    }).join('');
+    if (activeTags.size > 0) bar.innerHTML += `<button class="tag-clear" style="display:inline" onclick="clearTags()">Clear filters</button>`;
+}
+
+// ─── Actions ───
+async function loadCards() {
+    cards = await api.list();
+    renderTags();
+    renderCards();
+    applySettings();
+}
+
+function openEditor(id) {
+    editingCard = id ? cards.find(c => c.id === id) : null;
+    document.getElementById('edTitle').value = editingCard?.title || '';
+    document.getElementById('edContent').value = editingCard?.content || '';
+    document.getElementById('edTags').value = (editingCard?.tags || []).join(', ');
+    document.getElementById('editorModal').style.display = '';
+    updatePreview();
+    document.getElementById('edTitle').focus();
+}
+
+function closeEditor() {
+    document.getElementById('editorModal').style.display = 'none';
+    editingCard = null;
+}
+
+function togglePreview() {
+    const body = document.querySelector('.modal-body');
+    const btn = document.getElementById('togglePreviewBtn');
+    body.classList.toggle('preview-hidden');
+    btn.classList.toggle('active');
+}
+
+async function saveCard() {
+    const title = document.getElementById('edTitle').value.trim();
+    if (!title) return;
+    const content = document.getElementById('edContent').value;
+    const tags = document.getElementById('edTags').value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    if (editingCard) {
+        await api.update(editingCard.id, { title, content, tags });
+        showToast('Card updated');
+    } else {
+        await api.create({ title, content, tags });
+        showToast('Card created');
+    }
+    closeEditor();
+    await loadCards();
+}
+
+async function deleteCard(id) {
+    await api.remove(id);
+    showToast('Card deleted');
+    await loadCards();
+}
+
+async function copyCard(id) {
+    const card = cards.find(c => c.id === id);
+    if (card) {
+        await navigator.clipboard.writeText(card.content);
+        showToast('Copied to clipboard');
+    }
+}
+
+function toggleTag(tag) {
+    activeTags.has(tag) ? activeTags.delete(tag) : activeTags.add(tag);
+    renderTags();
+    renderCards();
+}
+
+function clearTags() { activeTags.clear(); renderTags(); renderCards(); }
+function clearSearch() { document.getElementById('searchInput').value = ''; document.getElementById('searchClear').style.display = 'none'; renderCards(); }
+
+function updatePreview() {
+    const title = document.getElementById('edTitle').value.trim();
+    const content = document.getElementById('edContent').value;
+    const tags = document.getElementById('edTags').value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    let html = '';
+    html += `<div style="line-height:1.7;font-size:14px;word-break:break-word">${renderContent(content)}</div>`;
+    if (tags.length) html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px">${tags.map(t => `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#e2b71418;color:#e2b714;border:1px solid #e2b71433">${esc(t)}</span>`).join('')}</div>`;
+    const previewEl = document.getElementById('edPreview');
+    previewEl.innerHTML = html;
+    if (typeof renderMathInElement === 'function') {
+        renderMathInElement(previewEl, { delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ], throwOnError: false });
+    }
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ─── Events ───
+document.getElementById('searchInput').addEventListener('input', function() {
+    document.getElementById('searchClear').style.display = this.value ? '' : 'none';
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(renderCards, 150);
+});
+
+document.getElementById('edContent').addEventListener('input', updatePreview);
+document.getElementById('edTitle').addEventListener('input', updatePreview);
+document.getElementById('edTags').addEventListener('input', updatePreview);
+
+// ─── Synchronized Scrolling ─────────────────────────────────
+(function() {
+    const editor = document.getElementById('edContent');
+    const previewPane = document.querySelector('.preview-pane');
+    let syncingScroll = false;
+
+    editor.addEventListener('scroll', () => {
+        if (syncingScroll) return;
+        syncingScroll = true;
+        const pct = editor.scrollTop / (editor.scrollHeight - editor.clientHeight || 1);
+        previewPane.scrollTop = pct * (previewPane.scrollHeight - previewPane.clientHeight);
+        requestAnimationFrame(() => { syncingScroll = false; });
+    });
+
+    previewPane.addEventListener('scroll', () => {
+        if (syncingScroll) return;
+        syncingScroll = true;
+        const pct = previewPane.scrollTop / (previewPane.scrollHeight - previewPane.clientHeight || 1);
+        editor.scrollTop = pct * (editor.scrollHeight - editor.clientHeight);
+        requestAnimationFrame(() => { syncingScroll = false; });
+    });
+})();
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && document.getElementById('editorModal').style.display === 'none') {
+        const tag = document.activeElement?.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA') { e.preventDefault(); document.getElementById('searchInput').focus(); }
+    }
+    if (e.key === 'Escape') {
+        if (document.getElementById('settingsModal').style.display !== 'none') closeCardSettings();
+        else if (document.getElementById('editorModal').style.display !== 'none') closeEditor();
+        else clearSearch();
+    }
+});
+
+// ─── Settings ───
+function openCardSettings() {
+    document.getElementById('settingColumnCount').value = currentSettings.columnCount;
+    document.getElementById('settingSortBy').value = currentSettings.sortBy;
+    document.getElementById('settingCardDensity').value = currentSettings.cardDensity;
+    document.getElementById('settingSkillsDir').value = currentSettings.skillsDir || '';
+    document.getElementById('settingRemoteRepo').value = currentSettings.remoteRepo || '';
+    document.getElementById('settingPrivateRepo').value = currentSettings.privateRepo || '';
+    document.getElementById('settingRemoteBranch').value = currentSettings.remoteBranch || 'main';
+    document.getElementById('settingRemoteSubdir').value = currentSettings.remoteSubdir || '';
+    document.getElementById('settingRemoteSshKey').value = currentSettings.remoteSshKey || '';
+    document.getElementById('syncRemoteStatus').textContent = '';
+    document.getElementById('settingsModal').style.display = '';
+}
+
+function closeCardSettings() {
+    document.getElementById('settingsModal').style.display = 'none';
+}
+
+async function saveCardSettings() {
+    currentSettings.columnCount = parseInt(document.getElementById('settingColumnCount').value);
+    currentSettings.sortBy = document.getElementById('settingSortBy').value;
+    currentSettings.cardDensity = document.getElementById('settingCardDensity').value;
+    currentSettings.skillsDir = document.getElementById('settingSkillsDir').value.trim();
+    currentSettings.remoteRepo = document.getElementById('settingRemoteRepo').value.trim();
+    currentSettings.privateRepo = document.getElementById('settingPrivateRepo').value.trim();
+    currentSettings.remoteBranch = document.getElementById('settingRemoteBranch').value.trim() || 'main';
+    currentSettings.remoteSubdir = document.getElementById('settingRemoteSubdir').value.trim();
+    currentSettings.remoteSshKey = document.getElementById('settingRemoteSshKey').value.trim();
+    try {
+        await fetch('/api/settings/skillcards', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(currentSettings)
+        });
+    } catch (e) { console.warn('Failed to save settings:', e); }
+    applySettings();
+    closeCardSettings();
+    renderCards();
+    showToast('Settings saved');
+}
+
+async function loadSettings() {
+    try {
+        const r = await fetch('/api/settings/skillcards');
+        if (r.ok) {
+            const data = await r.json();
+            if (data.columnCount) currentSettings.columnCount = parseInt(data.columnCount);
+            if (data.sortBy) currentSettings.sortBy = data.sortBy;
+            if (data.cardDensity) currentSettings.cardDensity = data.cardDensity;
+            if (data.skillsDir) currentSettings.skillsDir = data.skillsDir;
+            if (data.remoteRepo) currentSettings.remoteRepo = data.remoteRepo;
+            if (data.remoteBranch) currentSettings.remoteBranch = data.remoteBranch;
+            if (data.remoteSubdir) currentSettings.remoteSubdir = data.remoteSubdir;
+            if (data.remoteSshKey) currentSettings.remoteSshKey = data.remoteSshKey;
+            if (data.privateRepo) currentSettings.privateRepo = data.privateRepo;
+        }
+    } catch (e) { console.warn('Failed to load settings:', e); }
+    applySettings();
+}
+
+function applySettings() {
+    document.querySelector('.masonry').style.setProperty('--cols', currentSettings.columnCount);
+    document.querySelectorAll('.card').forEach(c => {
+        c.style.padding = DENSITY_PADDING[currentSettings.cardDensity] || DENSITY_PADDING.normal;
+    });
+}
+
+function sortCards(arr) {
+    const sorted = [...arr];
+    switch (currentSettings.sortBy) {
+        case 'title':
+            sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            break;
+        case 'created':
+            sorted.sort((a, b) => (b.created_at || b.id || '').localeCompare(a.created_at || a.id || ''));
+            break;
+        case 'updated':
+        default:
+            sorted.sort((a, b) => (b.updated_at || b.created_at || b.id || '').localeCompare(a.updated_at || a.created_at || a.id || ''));
+            break;
+    }
+    return sorted;
+}
+
+// ─── Export / Import ───
+function exportAllCards() {
+    const blob = new Blob([JSON.stringify(cards, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `skill-cards-export-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Cards exported');
+}
+
+async function importCards(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+        const text = await file.text();
+        const imported = JSON.parse(text);
+        if (!Array.isArray(imported)) throw new Error('Expected an array of cards');
+        let count = 0;
+        for (const card of imported) {
+            const payload = {
+                title: card.title || 'Untitled',
+                content: card.content || '',
+                tags: card.tags || []
+            };
+            await api.create(payload);
+            count++;
+        }
+        await loadCards();
+        showToast(`Imported ${count} card${count !== 1 ? 's' : ''}`);
+    } catch (e) {
+        showToast('Import failed: ' + e.message);
+    }
+    event.target.value = '';
+}
+
+async function syncFromDisk() {
+    const customPath = document.getElementById('settingSkillsDir').value.trim();
+    try {
+        const res = await fetch('/skill-cards/api/sync-skills', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customPath ? { path: customPath } : {})
+        });
+        const data = await res.json();
+        if (data.error) {
+            showToast('Sync failed: ' + data.error);
+        } else {
+            await loadCards();
+            showToast(`Synced ${data.imported} skill${data.imported !== 1 ? 's' : ''} from ${data.path}`);
+        }
+    } catch (e) {
+        showToast('Sync failed: ' + e.message);
+    }
+}
+
+async function syncFromRemote(direction) {
+    const statusEl = document.getElementById('syncRemoteStatus');
+    const repo = document.getElementById('settingRemoteRepo').value.trim();
+    const privateRepo = document.getElementById('settingPrivateRepo').value.trim();
+    const branch = document.getElementById('settingRemoteBranch').value.trim() || 'main';
+    const subdir = document.getElementById('settingRemoteSubdir').value.trim();
+    const sshKey = document.getElementById('settingRemoteSshKey').value.trim();
+
+    if (!repo && !privateRepo) { showToast('Enter at least one repo URL'); return; }
+
+    statusEl.textContent = direction === 'push' ? 'Pushing...' : 'Pulling...';
+    statusEl.style.color = 'var(--blue)';
+
+    try {
+        const res = await fetch('/skill-cards/api/sync-remote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ direction, repo, privateRepo, branch, subdir, sshKey })
+        });
+        const data = await res.json();
+
+        // Build status from both repos
+        const parts = [];
+        if (data.public) {
+            if (data.public.error) { parts.push('pub: ' + data.public.error); }
+            else if (direction === 'push') { parts.push(`pub: ${data.public.exported} pushed`); }
+            else { parts.push(`pub: ${data.public.imported} pulled`); }
+        }
+        if (data.private) {
+            if (data.private.error) { parts.push('priv: ' + data.private.error); }
+            else if (direction === 'push') { parts.push(`priv: ${data.private.exported} pushed`); }
+            else { parts.push(`priv: ${data.private.imported} pulled`); }
+        }
+
+        const hasError = (data.public?.error || data.private?.error);
+        statusEl.textContent = parts.join(' | ');
+        statusEl.style.color = hasError ? 'var(--yellow)' : 'var(--green)';
+        if (direction !== 'push') await loadCards();
+        showToast(parts.join(' | '));
+    } catch (e) {
+        statusEl.textContent = e.message;
+        statusEl.style.color = 'var(--red)';
+        showToast('Remote sync failed: ' + e.message);
+    }
+}
+
+// ─── Theme ───
+var _THEMES = ['dark', 'light', 'catppuccin', 'nord'];
+var _THEME_ICONS = { dark: '\u{1F319}', light: '\u2600\uFE0F', catppuccin: '\u{1F431}', nord: '\u2744\uFE0F' };
+var _currentTheme = localStorage.getItem('appTheme') || 'dark';
+function applyTheme(t) {
+    _currentTheme = t;
+    document.body.className = t === 'dark' ? '' : t;
+    var btn = document.getElementById('themeBtn');
+    if (btn) { btn.textContent = _THEME_ICONS[t] || '\u{1F3A8}'; btn.title = 'Theme: ' + t; }
+    // Switch highlight.js theme for code blocks
+    var hljs = document.getElementById('hljs-theme');
+    if (hljs) hljs.href = t === 'light'
+        ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css'
+        : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
+}
+function cycleTheme() {
+    var i = _THEMES.indexOf(_currentTheme);
+    var next = _THEMES[(i + 1) % _THEMES.length];
+    applyTheme(next);
+    localStorage.setItem('appTheme', next);
+}
+applyTheme(_currentTheme);
+
+// ─── Init ───
+(async function() {
+    await loadSettings();
+    await loadCards();
+})();
+</script>
+</body>
+</html>

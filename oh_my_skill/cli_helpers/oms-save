@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 /opt/oms-cli/oms.py save "$@"

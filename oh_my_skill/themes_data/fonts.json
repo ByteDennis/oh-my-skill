@@ -1,0 +1,58 @@
+[
+  {
+    "id": "classic",
+    "name": "Classic",
+    "heading": "'Playfair Display', 'Georgia', serif",
+    "body": "'Source Serif Pro', 'Georgia', serif",
+    "mono": "'JetBrains Mono', 'Menlo', monospace",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+Pro:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap"
+  },
+  {
+    "id": "modern",
+    "name": "Modern",
+    "heading": "'Inter', 'system-ui', sans-serif",
+    "body": "'Inter', 'system-ui', sans-serif",
+    "mono": "'JetBrains Mono', 'Menlo', monospace",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+  },
+  {
+    "id": "minimal",
+    "name": "Minimal",
+    "heading": "'IBM Plex Sans', 'system-ui', sans-serif",
+    "body": "'IBM Plex Sans', 'system-ui', sans-serif",
+    "mono": "'IBM Plex Mono', 'Menlo', monospace",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+  },
+  {
+    "id": "elegant",
+    "name": "Elegant",
+    "heading": "'Cormorant Garamond', 'Georgia', serif",
+    "body": "'Lora', 'Georgia', serif",
+    "mono": "'Fira Code', 'Menlo', monospace",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&family=Lora:wght@400;500&family=Fira+Code:wght@400;500&display=swap"
+  },
+  {
+    "id": "tech",
+    "name": "Tech",
+    "heading": "'Space Grotesk', 'system-ui', sans-serif",
+    "body": "'Space Grotesk', 'system-ui', sans-serif",
+    "mono": "'Space Mono', 'Menlo', monospace",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+  },
+  {
+    "id": "academic",
+    "name": "Academic",
+    "heading": "'EB Garamond', 'Georgia', serif",
+    "body": "'EB Garamond', 'Georgia', serif",
+    "mono": "'Fira Mono', 'Menlo', monospace",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;700&family=Fira+Mono:wght@400;500&display=swap"
+  },
+  {
+    "id": "contemporary",
+    "name": "Contemporary",
+    "heading": "'DM Sans', 'system-ui', sans-serif",
+    "body": "'DM Sans', 'system-ui', sans-serif",
+    "mono": "'DM Mono', 'Menlo', monospace",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap"
+  }
+]

@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oh-my-skill"
+version = "0.1.0"
+description = "Claude-powered skill cards manager — markdown skill cards with AI extract, per-card chat editing, and GitHub sync."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+  { name = "Dennis", email = "dennisl@udel.edu" },
+]
+requires-python = ">=3.11"
+dependencies = [
+  "flask>=3.0,<4",
+]
+keywords = ["skill-cards", "claude", "markdown", "knowledge-base"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Web Environment",
+  "Framework :: Flask",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+prod = ["gunicorn>=23"]
+dev = ["pytest>=7", "pytest-asyncio"]
+
+[project.scripts]
+oh-my-skill = "oh_my_skill.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ByteDennis/oh-my-skill"
+Repository = "https://github.com/ByteDennis/oh-my-skill"
+
+# ─── hatchling: bundle templates / static / themes_data / cli_helpers ───
+[tool.hatch.build.targets.wheel]
+packages = ["oh_my_skill"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"oh_my_skill/templates" = "oh_my_skill/templates"
+"oh_my_skill/static"    = "oh_my_skill/static"
+"oh_my_skill/themes_data" = "oh_my_skill/themes_data"
+"oh_my_skill/cli_helpers" = "oh_my_skill/cli_helpers"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "oh_my_skill/",
+  "tests/",
+  "README.md",
+  "pyproject.toml",
+  "Dockerfile",
+]

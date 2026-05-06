@@ -1,0 +1,101 @@
+[
+  {
+    "id": "classic-blue",
+    "name": "Classic Blue",
+    "primary": "#1e3a8a",
+    "accent": "#3b82f6",
+    "bg": "#ffffff",
+    "fg": "#0f172a",
+    "muted": "#64748b",
+    "surface": "#f1f5f9",
+    "border": "#e2e8f0"
+  },
+  {
+    "id": "oxford-burgundy",
+    "name": "Oxford Burgundy",
+    "primary": "#7f1d1d",
+    "accent": "#b91c1c",
+    "bg": "#fdfaf6",
+    "fg": "#1c1917",
+    "muted": "#78716c",
+    "surface": "#f5f5f4",
+    "border": "#e7e5e4"
+  },
+  {
+    "id": "cambridge-green",
+    "name": "Cambridge Green",
+    "primary": "#14532d",
+    "accent": "#16a34a",
+    "bg": "#f7faf7",
+    "fg": "#0f1c14",
+    "muted": "#52796f",
+    "surface": "#ecf3ee",
+    "border": "#d8e3dc"
+  },
+  {
+    "id": "yale-blue",
+    "name": "Yale Blue",
+    "primary": "#0f3a6e",
+    "accent": "#1e6fb8",
+    "bg": "#f8fafc",
+    "fg": "#0c1626",
+    "muted": "#475569",
+    "surface": "#eef2f7",
+    "border": "#dde4ec"
+  },
+  {
+    "id": "princeton-orange",
+    "name": "Princeton Orange",
+    "primary": "#ea580c",
+    "accent": "#fb923c",
+    "bg": "#1c1917",
+    "fg": "#fafaf9",
+    "muted": "#a8a29e",
+    "surface": "#292524",
+    "border": "#44403c"
+  },
+  {
+    "id": "nordic-gray",
+    "name": "Nordic Gray",
+    "primary": "#334155",
+    "accent": "#94a3b8",
+    "bg": "#f8fafc",
+    "fg": "#1e293b",
+    "muted": "#64748b",
+    "surface": "#f1f5f9",
+    "border": "#cbd5e1"
+  },
+  {
+    "id": "monochrome",
+    "name": "Monochrome",
+    "primary": "#000000",
+    "accent": "#404040",
+    "bg": "#ffffff",
+    "fg": "#000000",
+    "muted": "#737373",
+    "surface": "#f5f5f5",
+    "border": "#d4d4d4"
+  },
+  {
+    "id": "warm-sepia",
+    "name": "Warm Sepia",
+    "primary": "#92400e",
+    "accent": "#d97706",
+    "bg": "#fef3c7",
+    "fg": "#451a03",
+    "muted": "#92400e",
+    "surface": "#fde68a",
+    "border": "#fcd34d"
+  },
+  {
+    "id": "high-contrast",
+    "name": "High Contrast",
+    "primary": "#facc15",
+    "accent": "#fde047",
+    "bg": "#000000",
+    "fg": "#ffffff",
+    "muted": "#a3a3a3",
+    "surface": "#171717",
+    "border": "#404040"
+  }
+]

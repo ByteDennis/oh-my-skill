@@ -1,0 +1,730 @@
+/* @oh-my/ui — shared design language for oh-my-* services.
+ * Inspired by oh-my-ppt: warm cream background, sage-green accents,
+ * soft layered cards, capped border radii, drop shadows on lift.
+ *
+ * The 9 color themes from @oh-my/themes flow in via CSS custom properties
+ * (--color-*) so per-service theme switching still works. Service colorway
+ * tweaks (oh-my-image=warm, oh-my-slide=cool, oh-my-skill=earthy) are added
+ * by setting body.service-{name} below.
+ */
+
+:root {
+  /* Warm-paper palette (defaults; --color-* may override) */
+  --omi-bg-1: #f5f1e8;
+  --omi-bg-2: #f1eadb;
+  --omi-bg-3: #ece3cf;
+  --omi-tint-a: rgba(212, 228, 193, 0.55); /* sage green halo */
+  --omi-tint-b: rgba(200, 184, 158, 0.38); /* warm tan halo */
+
+  --omi-fg:        #3e4a32;
+  --omi-fg-soft:   #5a6850;
+  --omi-muted:     #7c8474;
+  --omi-card-bg:   rgba(255, 251, 244, 0.88);
+  --omi-card-bg-2: rgba(244, 238, 225, 0.88);
+  --omi-border:    rgba(166, 145, 110, 0.30);
+  --omi-border-strong: rgba(146, 125, 92, 0.45);
+
+  --omi-accent:        #8fbc8f;        /* sage */
+  --omi-accent-deep:   #6f8159;
+  --omi-accent-deeper: #4f613f;
+  --omi-accent-ring:   rgba(143, 188, 143, 0.28);
+
+  --omi-warn:    #d4a04a;
+  --omi-error:   #c97a64;
+  --omi-error-deep: #b15a58;
+
+  --omi-radius-sm: 8px;
+  --omi-radius:    10px;
+  --omi-radius-lg: 12px;
+  --omi-radius-pill: 999px;
+
+  --omi-font-heading: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  --omi-font-body:    'Inter', 'SF Pro Text', system-ui, sans-serif;
+  --omi-font-mono:    'JetBrains Mono', 'Fira Code', Menlo, monospace;
+
+  --omi-shadow-sm: 0 4px 10px rgba(86, 72, 53, 0.08);
+  --omi-shadow:    0 14px 34px rgba(88, 75, 56, 0.12), 0 2px 8px rgba(79, 66, 49, 0.08);
+  --omi-shadow-lg: 0 20px 44px rgba(74, 59, 42, 0.18), 0 4px 12px rgba(83, 70, 52, 0.10);
+}
+
+/* Per-service colorway tints (subtle so themes still work) */
+body.service-image {
+  --omi-tint-a: rgba(214, 199, 168, 0.50); /* warm */
+  --omi-tint-b: rgba(232, 195, 145, 0.32);
+  --omi-accent:      #c08a4a;              /* terracotta */
+  --omi-accent-deep: #9a6a36;
+  --omi-accent-deeper: #6f4d28;
+  --omi-accent-ring: rgba(192, 138, 74, 0.25);
+}
+body.service-slide {
+  --omi-tint-a: rgba(178, 207, 219, 0.55); /* cool blue */
+  --omi-tint-b: rgba(155, 178, 200, 0.32);
+  --omi-accent:      #5a8da8;
+  --omi-accent-deep: #3d6f8a;
+  --omi-accent-deeper: #2c526b;
+  --omi-accent-ring: rgba(90, 141, 168, 0.24);
+}
+body.service-skill {
+  --omi-tint-a: rgba(206, 188, 158, 0.52); /* earthy */
+  --omi-tint-b: rgba(180, 158, 122, 0.34);
+  --omi-accent:      #8a7042;
+  --omi-accent-deep: #6c5530;
+  --omi-accent-deeper: #4d3c1f;
+  --omi-accent-ring: rgba(138, 112, 66, 0.24);
+}
+
+/* ─── Base ───────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--omi-font-body);
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  color: var(--omi-fg);
+}
+body {
+  background:
+    radial-gradient(circle at 12% 8%, var(--omi-tint-a), transparent 45%),
+    radial-gradient(circle at 88% 0%, var(--omi-tint-b), transparent 50%),
+    linear-gradient(145deg, var(--omi-bg-1), var(--omi-bg-2) 55%, var(--omi-bg-3));
+  background-attachment: fixed;
+  display: flex;
+  flex-direction: column;
+}
+h1, h2, h3, h4 { font-family: var(--omi-font-heading); font-weight: 600; margin: 0; color: var(--omi-fg); }
+a { color: var(--omi-accent-deep); text-decoration: none; }
+a:hover { color: var(--omi-accent-deeper); }
+
+/* ─── Top nav bar ────────────────────────────────────────────────── */
+.omi-topnav {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px;
+  background: rgba(255, 251, 244, 0.78);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--omi-border);
+  box-shadow: var(--omi-shadow-sm);
+  flex-shrink: 0;
+}
+.omi-brand {
+  font-family: var(--omi-font-heading);
+  font-weight: 700;
+  color: var(--omi-accent-deeper);
+  letter-spacing: -0.01em;
+}
+.omi-brand .dot { color: var(--omi-accent); }
+.omi-nav {
+  display: flex; gap: 4px; margin-left: 8px;
+}
+.omi-nav a {
+  padding: 5px 12px;
+  border-radius: var(--omi-radius-pill);
+  font-size: 13px;
+  color: var(--omi-muted);
+  transition: all 0.15s ease;
+}
+.omi-nav a:hover { background: rgba(232, 224, 208, 0.6); color: var(--omi-fg); }
+.omi-nav a.active {
+  background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
+  color: white;
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-grow { flex: 1; }
+.omi-status {
+  font-size: 12px; color: var(--omi-muted);
+  padding: 4px 10px;
+  max-width: 380px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.omi-status.error { color: var(--omi-error-deep); }
+.omi-status.ok { color: var(--omi-accent-deep); }
+
+/* ─── Buttons ────────────────────────────────────────────────────── */
+.omi-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; height: 32px;
+  font: inherit; font-size: 13px;
+  border: 1px solid transparent;
+  border-radius: var(--omi-radius-sm);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  background: transparent;
+  color: var(--omi-fg);
+}
+.omi-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.omi-btn.primary {
+  background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
+  color: white;
+  box-shadow: 0 4px 10px rgba(79, 97, 63, 0.3);
+}
+.omi-btn.primary:hover:not(:disabled) {
+  box-shadow: 0 8px 18px rgba(79, 97, 63, 0.4);
+  transform: translateY(-1px);
+}
+.omi-btn.secondary {
+  background: linear-gradient(165deg, rgba(255,252,247,0.93), rgba(244,238,225,0.88));
+  border-color: var(--omi-border-strong);
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-btn.secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(83, 70, 52, 0.12);
+}
+.omi-btn.ghost {
+  color: var(--omi-fg-soft);
+}
+.omi-btn.ghost:hover:not(:disabled) {
+  background: rgba(232, 224, 208, 0.6);
+}
+.omi-btn.danger {
+  background: linear-gradient(180deg, var(--omi-error), var(--omi-error-deep));
+  color: white;
+}
+.omi-btn.toggle.on {
+  background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
+  color: white;
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-btn.sm { height: 26px; padding: 4px 10px; font-size: 12px; }
+.omi-btn.icon { padding: 6px 8px; }
+
+/* ─── Inputs ─────────────────────────────────────────────────────── */
+.omi-input,
+.omi-select,
+.omi-textarea {
+  display: block;
+  width: 100%;
+  background: rgba(255, 251, 245, 0.85);
+  border: 1px solid rgba(148, 128, 94, 0.30);
+  border-radius: var(--omi-radius-sm);
+  padding: 8px 12px;
+  font: inherit; color: var(--omi-fg);
+  box-shadow: inset 0 2px 6px rgba(73, 61, 44, 0.06);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.omi-input:focus,
+.omi-select:focus,
+.omi-textarea:focus {
+  outline: none;
+  border-color: var(--omi-accent);
+  box-shadow: inset 0 2px 6px rgba(73, 61, 44, 0.04),
+              0 0 0 3px var(--omi-accent-ring);
+}
+.omi-textarea { min-height: 92px; resize: vertical; font-family: var(--omi-font-mono); font-size: 13px; line-height: 1.5; }
+.omi-label { display: block; font-size: 11px; font-weight: 600; color: var(--omi-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+.omi-row { display: flex; gap: 8px; align-items: center; }
+.omi-field { display: flex; flex-direction: column; gap: 4px; }
+.omi-field + .omi-field { margin-top: 12px; }
+
+/* ─── Cards ──────────────────────────────────────────────────────── */
+.omi-card {
+  background: linear-gradient(165deg, rgba(255,252,247,0.93), rgba(244,238,225,0.88));
+  border: 1px solid var(--omi-border-strong);
+  border-radius: var(--omi-radius-lg);
+  box-shadow: var(--omi-shadow);
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.omi-card:hover { transform: translateY(-2px); box-shadow: var(--omi-shadow-lg); }
+.omi-card-body { padding: 12px; }
+
+/* ─── Pills / badges ─────────────────────────────────────────────── */
+.omi-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: var(--omi-radius-pill);
+  background: rgba(212, 228, 193, 0.7);
+  border: 1px solid rgba(155, 178, 134, 0.5);
+  color: var(--omi-accent-deeper);
+}
+.omi-pill.warn { background: rgba(244, 219, 159, 0.7); border-color: rgba(212, 160, 74, 0.5); color: #6e4a16; }
+.omi-pill.err  { background: rgba(238, 196, 188, 0.7); border-color: rgba(201, 122, 100, 0.5); color: var(--omi-error-deep); }
+.omi-pill.ok   { background: rgba(212, 228, 193, 0.8); border-color: rgba(143, 188, 143, 0.6); color: var(--omi-accent-deeper); }
+.omi-pill.muted{ background: rgba(228, 220, 202, 0.6); border-color: var(--omi-border); color: var(--omi-muted); }
+
+/* ─── Panels (left form / center / right toggle) ─────────────────── */
+.omi-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 360px 1fr 0;
+  min-height: 0;
+  transition: grid-template-columns 0.18s ease;
+  padding: 12px;
+  gap: 12px;
+}
+.omi-main.with-right { grid-template-columns: 360px 1fr 580px; }
+
+.omi-panel {
+  background: rgba(255, 251, 244, 0.78);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius-lg);
+  box-shadow: var(--omi-shadow-sm);
+  display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden;
+}
+.omi-panel-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--omi-border);
+  background: rgba(255, 250, 241, 0.78);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.omi-panel-title { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--omi-fg-soft); }
+.omi-panel-body { flex: 1; padding: 14px; overflow-y: auto; min-height: 0; }
+.omi-panel-body.flush { padding: 0; }
+
+/* Tabs in right panel */
+.omi-tabs { display: flex; border-bottom: 1px solid var(--omi-border); background: rgba(255, 250, 241, 0.6); flex-shrink: 0; }
+.omi-tabs button {
+  background: none; border: none; cursor: pointer;
+  padding: 10px 16px; font: inherit; font-size: 13px;
+  color: var(--omi-muted);
+  border-bottom: 2px solid transparent;
+}
+.omi-tabs button:hover { color: var(--omi-fg); }
+.omi-tabs button.active {
+  color: var(--omi-accent-deeper);
+  border-bottom-color: var(--omi-accent);
+  font-weight: 600;
+}
+.omi-tab-pane { flex: 1; min-height: 0; overflow: hidden; display: none; flex-direction: column; }
+.omi-tab-pane.active { display: flex; }
+
+/* ttyd iframe */
+.omi-ttyd { flex: 1; width: 100%; border: 0; background: #1c1f24; }
+
+/* Logs panel */
+.omi-logs { flex: 1; overflow-y: auto; padding: 4px; font-family: var(--omi-font-mono); font-size: 11px; }
+.omi-log-row { padding: 8px 10px; border-bottom: 1px solid var(--omi-border); cursor: pointer; transition: background 0.1s; }
+.omi-log-row:hover { background: rgba(255, 255, 255, 0.4); }
+.omi-log-row .top { display: flex; gap: 8px; align-items: center; }
+.omi-log-row .ts { color: var(--omi-muted); font-size: 10px; }
+.omi-log-row .action { font-weight: 600; color: var(--omi-fg); }
+.omi-log-row .detail { color: var(--omi-fg-soft); margin-top: 4px; word-break: break-word; line-height: 1.4; }
+.omi-log-row .err { color: var(--omi-error-deep); margin-top: 4px; white-space: pre-wrap; line-height: 1.4; }
+.omi-log-row .tb {
+  color: var(--omi-muted); font-size: 10px; margin-top: 6px;
+  white-space: pre-wrap; max-height: 240px; overflow-y: auto;
+  background: rgba(255, 255, 255, 0.5); padding: 8px; border-radius: var(--omi-radius-sm);
+  display: none;
+}
+.omi-log-row.show-tb .tb { display: block; }
+.omi-log-row .expanded-only { display: none; }
+.omi-log-row.expanded .expanded-only { display: block; margin-top: 8px; }
+.omi-log-row .links { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.omi-log-row .kvs {
+  display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px;
+  background: rgba(255, 255, 255, 0.4); padding: 6px 8px; border-radius: 6px;
+  font-size: 11px;
+}
+.omi-log-row .kvs .k { color: var(--omi-muted); font-weight: 600; }
+.omi-log-row .kvs .v { color: var(--omi-fg); word-break: break-all; }
+.omi-log-row .kvs .v.mono { font-family: var(--omi-font-mono); }
+
+/* ─── Dialog ─────────────────────────────────────────────────────── */
+dialog.omi-dialog {
+  border: 1px solid var(--omi-border-strong);
+  border-radius: var(--omi-radius-lg);
+  background: linear-gradient(165deg, rgba(255,252,247,0.98), rgba(244,238,225,0.96));
+  box-shadow: var(--omi-shadow-lg);
+  padding: 20px;
+  max-width: 540px;
+  width: 90vw;
+  color: var(--omi-fg);
+}
+dialog.omi-dialog::backdrop {
+  background: rgba(40, 35, 25, 0.4);
+  backdrop-filter: blur(2px);
+}
+dialog.omi-dialog h3 { margin: 0 0 14px 0; font-family: var(--omi-font-heading); }
+
+/* ─── Utility ────────────────────────────────────────────────────── */
+.omi-empty { color: var(--omi-muted); padding: 60px 20px; text-align: center; font-style: italic; }
+.omi-text-muted { color: var(--omi-muted); }
+.omi-text-xs { font-size: 11px; }
+.omi-mono { font-family: var(--omi-font-mono); }
+.omi-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; }
+
+/* ─── Card grid + clickable tag chips ────────────────────────────── */
+.omi-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.omi-card.skill-card {
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.omi-card.skill-card .id-row {
+  font-size: 11px; color: var(--omi-muted);
+  display: flex; gap: 6px; align-items: center;
+  font-family: var(--omi-font-mono);
+}
+.omi-card.skill-card .ttl {
+  font-size: 16px; font-weight: 700; color: var(--omi-fg);
+  margin-top: 4px; line-height: 1.3;
+}
+.omi-card.skill-card .preview-line {
+  color: var(--omi-fg-soft); margin-top: 2px; font-size: 13px;
+  font-weight: 500;
+}
+.omi-card.skill-card .body-snippet {
+  color: var(--omi-muted); font-size: 12px; line-height: 1.5;
+  max-height: 4.5em; overflow: hidden; margin-top: 4px;
+}
+.omi-card.skill-card .tags-row {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px;
+}
+
+.omi-tag-chip {
+  display: inline-flex; align-items: center;
+  font-size: 11px; padding: 3px 10px;
+  border-radius: var(--omi-radius-pill);
+  background: rgba(255, 251, 244, 0.7);
+  border: 1px solid var(--omi-border);
+  color: var(--omi-fg-soft);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  font-family: inherit;
+}
+.omi-tag-chip:hover {
+  background: rgba(212, 228, 193, 0.5);
+  border-color: rgba(155, 178, 134, 0.5);
+  color: var(--omi-accent-deeper);
+}
+.omi-tag-chip.active {
+  background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
+  border-color: var(--omi-accent-deeper);
+  color: white;
+}
+.omi-tag-chip.tiny { font-size: 10px; padding: 1px 8px; }
+
+/* ─── Editor modal (split-pane EDIT / PREVIEW) ───────────────────── */
+.omi-dialog.editor-modal[open] {
+  width: min(1500px, 95vw); height: 90vh;
+  max-width: none; max-height: 95vh;
+  padding: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  /* Solid background so the card grid doesn't bleed through */
+  background: #fbf8f0;
+  /* The native ::backdrop covers everything below the top layer, but raise
+     z-index defensively in case anything has a stacking context that escapes */
+  z-index: 10000;
+}
+.omi-dialog.editor-modal::backdrop {
+  background: rgba(40, 35, 25, 0.55);
+  backdrop-filter: blur(4px);
+}
+.editor-modal .em-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--omi-border);
+  display: flex; gap: 8px; align-items: center;
+  background: rgba(255, 250, 241, 0.78);
+  flex-shrink: 0;
+}
+.editor-modal .em-title {
+  flex: 1;
+  font-size: 17px; font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: var(--omi-radius-sm);
+  padding: 6px 10px;
+  background: transparent;
+  font-family: var(--omi-font-heading);
+}
+.editor-modal .em-title:hover { border-color: var(--omi-border); background: rgba(255,255,255,0.4); }
+.editor-modal .em-title:focus {
+  border-color: var(--omi-accent); background: rgba(255,255,255,0.7);
+  outline: none; box-shadow: 0 0 0 3px var(--omi-accent-ring);
+}
+.editor-modal .em-tags {
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--omi-border);
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  background: rgba(255, 250, 241, 0.5);
+  flex-shrink: 0;
+}
+.editor-modal .em-tags input {
+  border: none; background: transparent;
+  padding: 3px 6px; font: inherit; font-size: 12px;
+  flex: 1; min-width: 120px;
+}
+.editor-modal .em-tags input:focus { outline: none; }
+.editor-modal .em-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--omi-radius-pill);
+  background: rgba(212, 228, 193, 0.7);
+  border: 1px solid rgba(155, 178, 134, 0.5);
+  color: var(--omi-accent-deeper); font-size: 11px;
+}
+.editor-modal .em-tag .x { cursor: pointer; opacity: 0.6; font-weight: bold; }
+.editor-modal .em-tag .x:hover { opacity: 1; color: var(--omi-error-deep); }
+
+.editor-modal .em-body {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  transition: grid-template-columns 0.18s ease;
+}
+.editor-modal .em-body.edit-only    { grid-template-columns: 1fr 0; }
+.editor-modal .em-body.preview-only { grid-template-columns: 0 1fr; }
+
+.editor-modal .em-pane {
+  min-width: 0; min-height: 0;
+  overflow: auto;
+}
+.editor-modal .em-pane-edit {
+  border-right: 1px solid var(--omi-border);
+}
+.editor-modal .em-pane-edit textarea {
+  width: 100%; height: 100%;
+  border: 0; resize: none; outline: none;
+  background: rgba(255, 251, 244, 0.4);
+  color: var(--omi-fg);
+  padding: 18px 22px;
+  font-family: var(--omi-font-mono);
+  font-size: 13px; line-height: 1.65;
+}
+.editor-modal .em-pane-edit textarea:focus { background: rgba(255, 251, 244, 0.6); }
+.editor-modal .em-label {
+  position: sticky; top: 0; z-index: 1;
+  padding: 6px 16px;
+  background: rgba(255, 250, 241, 0.85);
+  border-bottom: 1px solid var(--omi-border);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--omi-muted);
+}
+.editor-modal .em-pane-preview { padding-bottom: 40px; }
+.editor-modal .em-pane-preview .pv {
+  padding: 18px 26px;
+  color: var(--omi-fg);
+  line-height: 1.65;
+}
+.editor-modal .pv h1 {
+  color: var(--omi-accent-deep); font-size: 22px;
+  border-bottom: 1px solid var(--omi-border);
+  padding-bottom: 6px; margin-top: 0;
+}
+.editor-modal .pv h2 { color: var(--omi-accent-deep); font-size: 17px; margin-top: 22px; margin-bottom: 8px; }
+.editor-modal .pv h3 { color: var(--omi-fg-soft); font-size: 14px; margin-top: 14px; margin-bottom: 6px; }
+.editor-modal .pv p { margin: 6px 0; }
+.editor-modal .pv ul, .editor-modal .pv ol { padding-left: 22px; margin: 6px 0; }
+.editor-modal .pv table {
+  border-collapse: collapse; margin: 10px 0;
+  font-size: 13px;
+}
+.editor-modal .pv th, .editor-modal .pv td {
+  border: 1px solid var(--omi-border); padding: 6px 12px;
+  text-align: left;
+}
+.editor-modal .pv th {
+  background: rgba(232, 224, 208, 0.55);
+  font-weight: 600; color: var(--omi-fg);
+}
+.editor-modal .pv pre {
+  background: rgba(40, 35, 25, 0.92); color: #e6edf3;
+  border-radius: var(--omi-radius-sm); padding: 12px 14px;
+  overflow-x: auto; margin: 10px 0;
+  font-size: 12.5px; line-height: 1.5;
+  position: relative;
+}
+.editor-modal .pv pre::after {
+  content: attr(data-lang); position: absolute; top: 6px; right: 10px;
+  font-size: 10px; color: rgba(230, 237, 243, 0.5); font-family: var(--omi-font-mono);
+  text-transform: uppercase;
+}
+.editor-modal .pv code:not(pre code) {
+  background: rgba(146, 125, 92, 0.18); padding: 1px 6px;
+  border-radius: 4px; font-family: var(--omi-font-mono);
+  font-size: 12.5px; color: var(--omi-fg);
+}
+.editor-modal .pv blockquote {
+  border-left: 3px solid var(--omi-accent);
+  padding: 4px 12px; margin: 8px 0;
+  background: rgba(212, 228, 193, 0.2);
+  color: var(--omi-fg-soft); font-style: italic;
+}
+
+/* ─── Manus/oh-my-ppt-style chat panel ───────────────────────────── */
+.omi-chat {
+  flex: 1; display: flex; flex-direction: column;
+  min-height: 0; background: rgba(243, 236, 223, 0.50);
+}
+.omi-chat-context {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--omi-border);
+  background: rgba(255, 250, 241, 0.85);
+  display: flex; gap: 10px; align-items: center;
+  flex-shrink: 0;
+}
+.omi-chat-context img {
+  width: 56px; height: 56px; object-fit: cover;
+  border-radius: var(--omi-radius-sm);
+  border: 1px solid var(--omi-border);
+}
+.omi-chat-context .meta { flex: 1; min-width: 0; font-size: 12px; }
+.omi-chat-context .meta .title { font-weight: 600; color: var(--omi-fg); }
+.omi-chat-context .meta .sub { color: var(--omi-muted); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.omi-chat-stream {
+  flex: 1; overflow-y: auto;
+  padding: 14px 14px 6px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.omi-msg {
+  display: flex; flex-direction: column; gap: 4px;
+  max-width: 92%;
+}
+.omi-msg.user { align-self: flex-end; align-items: flex-end; }
+.omi-msg.assistant { align-self: flex-start; align-items: flex-start; }
+.omi-msg .bubble {
+  padding: 9px 14px;
+  border-radius: 14px;
+  box-shadow: 0 6px 14px rgba(74, 59, 42, 0.08);
+  line-height: 1.45;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.omi-msg.user .bubble {
+  background: rgba(251, 254, 246, 0.92);
+  border: 1px solid rgba(214, 227, 200, 0.78);
+  color: #34402c;
+}
+.omi-msg.assistant .bubble {
+  background: rgba(255, 250, 241, 0.92);
+  border: 1px solid rgba(222, 210, 189, 0.78);
+  color: #3f372b;
+}
+.omi-msg .role {
+  font-size: 10px; color: var(--omi-muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+/* Tool-use & thinking blocks (collapsible) */
+.omi-block {
+  border: 1px solid var(--omi-border);
+  border-radius: 10px;
+  background: rgba(255, 251, 244, 0.85);
+  font-size: 12px;
+  margin-top: 4px;
+  overflow: hidden;
+  align-self: stretch;
+  max-width: 100%;
+}
+.omi-block summary {
+  cursor: pointer;
+  padding: 7px 12px;
+  display: flex; gap: 8px; align-items: center;
+  list-style: none;
+  user-select: none;
+}
+.omi-block summary::-webkit-details-marker { display: none; }
+.omi-block summary .glyph { font-size: 14px; }
+.omi-block summary .label {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.omi-block summary .label .name { font-weight: 600; color: var(--omi-fg); }
+.omi-block summary .label .arg { color: var(--omi-muted); margin-left: 6px; font-family: var(--omi-font-mono); font-size: 11px; }
+.omi-block summary .chev {
+  font-size: 10px; color: var(--omi-muted);
+  transition: transform 0.15s ease;
+}
+.omi-block[open] summary .chev { transform: rotate(90deg); }
+.omi-block .body {
+  padding: 10px 12px;
+  border-top: 1px solid var(--omi-border);
+  font-family: var(--omi-font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: rgba(255, 251, 244, 0.5);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.omi-block.thinking summary .label .name { color: #6f5d3b; }
+.omi-block.thinking { border-color: rgba(180, 158, 122, 0.45); background: rgba(252, 247, 233, 0.85); }
+.omi-block.tool-use summary .label .name { color: var(--omi-accent-deeper); }
+.omi-block.tool-use { border-color: rgba(143, 188, 143, 0.55); background: rgba(232, 245, 219, 0.55); }
+.omi-block.tool-result { border-color: rgba(180, 158, 122, 0.4); background: rgba(245, 240, 228, 0.8); }
+.omi-block.tool-result.is-error { border-color: rgba(201, 122, 100, 0.55); background: rgba(252, 233, 226, 0.8); }
+.omi-block .body img { max-width: 100%; border-radius: 6px; margin-top: 6px; display: block; }
+
+/* Inline image (e.g. omi-edit produced a new variant) */
+.omi-msg .inline-image {
+  margin-top: 6px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--omi-border);
+  max-width: 280px;
+  align-self: flex-start;
+  cursor: zoom-in;
+}
+.omi-msg .inline-image img { width: 100%; display: block; }
+.omi-msg .inline-image .cap { padding: 4px 8px; font-size: 10px; color: var(--omi-muted); background: rgba(255,250,241,0.85); border-top: 1px solid var(--omi-border); font-family: var(--omi-font-mono); }
+
+/* Composer */
+.omi-chat-composer {
+  border-top: 1px solid var(--omi-border);
+  padding: 10px 12px;
+  background: rgba(255, 250, 241, 0.85);
+  flex-shrink: 0;
+}
+.omi-chat-composer .row { display: flex; gap: 8px; align-items: flex-end; }
+.omi-chat-composer textarea {
+  flex: 1;
+  min-height: 38px; max-height: 200px;
+  resize: none;
+  padding: 8px 12px;
+  border: 1px solid rgba(148, 128, 94, 0.30);
+  border-radius: 10px;
+  background: rgba(255, 251, 245, 0.9);
+  color: var(--omi-fg);
+  font: inherit; font-size: 13px; line-height: 1.45;
+  box-shadow: inset 0 2px 6px rgba(73, 61, 44, 0.06);
+}
+.omi-chat-composer textarea:focus {
+  outline: none; border-color: var(--omi-accent);
+  box-shadow: inset 0 2px 6px rgba(73, 61, 44, 0.04), 0 0 0 3px var(--omi-accent-ring);
+}
+.omi-chat-composer .hint { font-size: 10px; color: var(--omi-muted); margin-top: 4px; padding-left: 4px; }
+.omi-chat-composer button.send { white-space: nowrap; }
+
+.omi-chat-empty {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--omi-muted); text-align: center; padding: 30px;
+  gap: 10px;
+}
+.omi-chat-empty .glyph { font-size: 36px; opacity: 0.4; }
+
+/* Pulse animation reusable */
+.omi-pulse { animation: omi-pulse 1.4s ease infinite; }
+@keyframes omi-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(143, 188, 143, 0.55); }
+  70%  { box-shadow: 0 0 0 10px rgba(143, 188, 143, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(143, 188, 143, 0); }
+}
+
+/* Scrollbar styling (subtle) */
+.omi-panel-body::-webkit-scrollbar,
+.omi-logs::-webkit-scrollbar { width: 8px; height: 8px; }
+.omi-panel-body::-webkit-scrollbar-thumb,
+.omi-logs::-webkit-scrollbar-thumb {
+  background: rgba(146, 125, 92, 0.3);
+  border-radius: 4px;
+}
+.omi-panel-body::-webkit-scrollbar-thumb:hover,
+.omi-logs::-webkit-scrollbar-thumb:hover { background: rgba(146, 125, 92, 0.5); }
