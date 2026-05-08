@@ -1,2 +1,2 @@
 #!/bin/sh
-exec python3 /opt/oms-cli/oms.py list "$@"
+exec python3 -m oh_my_skill.oms list "$@"

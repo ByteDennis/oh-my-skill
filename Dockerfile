@@ -18,11 +18,9 @@ COPY oh_my_skill/ oh_my_skill/
 RUN pip install --no-cache-dir ".[prod]"
 
 # Symlink CLI helpers onto PATH so the chat workspace can call them.
-RUN ln -sf /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-save  /usr/local/bin/oms-save  && \
-    ln -sf /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-show  /usr/local/bin/oms-show  && \
-    ln -sf /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-tag   /usr/local/bin/oms-tag   && \
-    ln -sf /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-untag /usr/local/bin/oms-untag && \
-    ln -sf /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-list  /usr/local/bin/oms-list  && \
+RUN for s in save show tag untag list lesson; do \
+        ln -sf /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-$s /usr/local/bin/oms-$s; \
+    done && \
     chmod +x /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-*
 
 ENV OMI_DATA_DIR=/data \

@@ -65,6 +65,42 @@ def _lookup_card(card_id: str) -> dict | None:
     return d
 
 
+def _lookup_lessons_card() -> dict | None:
+    """Return the first card tagged 'meta-lessons', if any.
+    Used to inject self-maintained lessons into every CLAUDE.md."""
+    try:
+        conn = sqlite3.connect(SKILLCARDS_DB)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute('SELECT * FROM cards').fetchall()
+        conn.close()
+    except Exception:
+        return None
+    for r in rows:
+        try:
+            tags = json.loads(r['tags'] or '[]')
+        except Exception:
+            tags = []
+        if 'meta-lessons' in tags:
+            d = dict(r); d['tags'] = tags
+            return d
+    return None
+
+
+def _lessons_section() -> str:
+    """A heading to splice into CLAUDE.md. Empty if no lessons card yet."""
+    card = _lookup_lessons_card()
+    if not card or not (card.get('content') or '').strip():
+        return ("\n## Self-growing lessons\n\n"
+                "_(no lessons yet — when the user has to correct you, "
+                "run `oms-lesson \"<one-line summary>\"` BEFORE continuing.)_\n")
+    body = card['content'].strip()
+    return ("\n## Self-growing lessons (read these BEFORE editing — DO NOT repeat)\n\n"
+            f"{body}\n\n"
+            "_If the user has to correct you about something not yet listed above, "
+            "run `oms-lesson \"<one-line summary>\"` BEFORE continuing the work — "
+            "future sessions will read it and avoid the same mistake._\n")
+
+
 def _claude_md_for_card(card: dict) -> str:
     return f"""# Editing skill card {card['id']}
 
@@ -86,10 +122,11 @@ The H1 in card.md becomes the title; everything below becomes the body.
 ## CLI helpers
 
 ```bash
-oms-save        # save ./card.md back to the DB (title from H1, body from rest)
-oms-tag <tag>   # add a tag
-oms-untag <tag> # remove a tag
-oms-show        # print the current saved version
+oms-save             # save ./card.md back to the DB (title from H1, body from rest)
+oms-tag <tag>        # add a tag
+oms-untag <tag>      # remove a tag
+oms-show             # print the current saved version
+oms-lesson "<text>"  # append a one-line lesson to the self-growing lessons card
 ```
 
 ## How to make changes
@@ -104,7 +141,7 @@ oms-show        # print the current saved version
 
 The skill-card style brain is appended to your system prompt. Follow it:
 精简, scannable, table-heavy, fenced code blocks for multi-line snippets.
-"""
+{_lessons_section()}"""
 
 
 def _claude_md_workspace(project: str) -> str:
@@ -115,10 +152,11 @@ Free-form oh-my-skill workspace.
 ## Tools available
 
 - `oms-save` / `oms-tag` / `oms-untag` / `oms-show` — card CLI helpers
+- `oms-lesson "<text>"` — record a one-line mistake to avoid in future sessions
 - `Read`, `Edit`, `Write`, `Bash`, `Glob`, `Grep`
 
 The skill-card style brain is appended to your system prompt.
-"""
+{_lessons_section()}"""
 
 
 def _ensure_workspace(project: str, card_id: str = '') -> tuple[str, dict | None]:

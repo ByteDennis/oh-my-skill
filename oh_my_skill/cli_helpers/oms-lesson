@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 -m oh_my_skill.oms lesson "$@"
