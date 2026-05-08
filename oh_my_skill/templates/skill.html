@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>oh-my-skill</title>
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260505g">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260507a">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -61,6 +61,17 @@
   body.modal-open .omi-main > aside.omi-panel { display: none; }
   body.modal-open .omi-main { grid-template-columns: 1fr !important; }
   .em-pane-preview .pv:empty::before { content: "Preview appears here as you type…"; color: var(--omi-muted); font-style: italic; display: block; padding-top: 8px; }
+
+  /* ─── Single-scrollbar editor: hide outer pane scrollbar + textarea
+         internal scrollbar; only the preview pane shows one bar. JS keeps
+         them in sync. ─── */
+  .editor-modal .em-pane-edit { overflow: hidden; }
+  .editor-modal .em-pane-edit textarea {
+    overflow-y: auto;
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* IE/old-Edge */
+  }
+  .editor-modal .em-pane-edit textarea::-webkit-scrollbar { display: none; }
 
   /* ─── Frontmatter table (rendered above markdown body) ─── */
   .fm-table {
@@ -660,8 +671,9 @@ function renderMarkdown(md) {
       const icons = {note:'ℹ️', tip:'💡', important:'❗', warning:'⚠️', caution:'🛑'};
       return `<blockquote class="alert-${t}"><p><strong>${icons[t]||''} ${type[0]+type.slice(1).toLowerCase()}</strong><br>${body}</p>`;
     });
-  // ==highlight==
-  html = html.replace(/==([^=]+?)==/g, '<mark>$1</mark>');
+  // ==highlight== — content must be 1+ non-space chars adjacent to the
+  // markers so `0.5000` == `0.5` (with spaces around ==) does NOT highlight.
+  html = html.replace(/==(\S(?:[^=]*?\S)?)==/g, '<mark>$1</mark>');
   return fmHtml + html;
 }
 function renderPreview() {
@@ -781,8 +793,40 @@ window.openCard = function (id) {
   applyPreviewMode();
   document.body.classList.add('modal-open');
   $('#editorModal').showModal();
+  setupEditorScrollSync();
   setTimeout(() => $('#emContent').focus(), 100);
 };
+
+// ─── Sync edit ↔ preview scroll (single visible scrollbar = preview's) ───
+let _scrollSyncWired = false;
+let _syncingScroll = false;
+function setupEditorScrollSync() {
+  if (_scrollSyncWired) return;
+  const editEl = $('#emContent');
+  const prevPane = document.querySelector('#editorModal .em-pane-preview');
+  if (!editEl || !prevPane) return;
+  const _ratio = (el) => {
+    const span = Math.max(1, el.scrollHeight - el.clientHeight);
+    return el.scrollTop / span;
+  };
+  const _apply = (el, r) => {
+    const span = Math.max(0, el.scrollHeight - el.clientHeight);
+    el.scrollTop = r * span;
+  };
+  editEl.addEventListener('scroll', () => {
+    if (_syncingScroll) return;
+    _syncingScroll = true;
+    _apply(prevPane, _ratio(editEl));
+    requestAnimationFrame(() => { _syncingScroll = false; });
+  });
+  prevPane.addEventListener('scroll', () => {
+    if (_syncingScroll) return;
+    _syncingScroll = true;
+    _apply(editEl, _ratio(prevPane));
+    requestAnimationFrame(() => { _syncingScroll = false; });
+  });
+  _scrollSyncWired = true;
+}
 function renderEmTags() {
   const tags = CURRENT.tags || [];
   $('#emTagsContainer').innerHTML = tags.map((t, i) =>
