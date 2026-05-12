@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>oh-my-skill</title>
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260507a">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260512a">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -674,6 +674,10 @@ function renderMarkdown(md) {
   // ==highlight== — content must be 1+ non-space chars adjacent to the
   // markers so `0.5000` == `0.5` (with spaces around ==) does NOT highlight.
   html = html.replace(/==(\S(?:[^=]*?\S)?)==/g, '<mark>$1</mark>');
+  // Route absolute-path <img src> through /file?path=... so the Flask
+  // server can serve them (with whitelist + image-MIME-only).
+  html = html.replace(/<img([^>]*?)\ssrc="(\/[^"]+)"/g,
+                      (m, pre, src) => `<img${pre} src="/file?path=${encodeURIComponent(src)}"`);
   return fmHtml + html;
 }
 function renderPreview() {

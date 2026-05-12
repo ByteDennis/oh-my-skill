@@ -126,6 +126,41 @@ def create_app() -> Flask:
                 put_setting('global', 'claude_code_oauth_token', v)
         return jsonify({'ok': True})
 
+    # ── Serve local image files for inline preview ─────────────────────
+    # Card markdown can reference absolute paths like
+    # `![](/home/dalab2/.local/files/images/foo.png)`. The browser asks the
+    # Flask server for that URL, which it doesn't own; we serve it here,
+    # whitelisting image MIME types and limiting to a few safe roots.
+    _IMG_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.bmp'}
+    _MIME = {
+        '.png':  'image/png',  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp', '.gif': 'image/gif',  '.svg':  'image/svg+xml',
+        '.bmp':  'image/bmp',
+    }
+    _ALLOWED_ROOTS = [
+        os.path.realpath(os.path.expanduser('~')),
+        os.path.realpath(_DATA_DIR),
+        '/home', '/tmp', '/data',
+    ]
+
+    @app.route('/file')
+    def serve_local_file():
+        p = request.args.get('path', '')
+        if not p:
+            return 'path required', 400
+        try:
+            real = os.path.realpath(os.path.expanduser(p))
+        except Exception:
+            return 'bad path', 400
+        if not os.path.isfile(real):
+            return 'not found', 404
+        if not any(real == r or real.startswith(r + os.sep) for r in _ALLOWED_ROOTS):
+            return 'forbidden', 403
+        ext = os.path.splitext(real)[1].lower()
+        if ext not in _IMG_EXTS:
+            return 'not an image', 415
+        return send_file(real, mimetype=_MIME.get(ext, 'application/octet-stream'))
+
     # ── Helper for `oms-save` — the CLI in the chat workspace calls this
     @app.route('/api/cards/<card_id>/sync-from-disk', methods=['POST'])
     def card_sync_from_disk(card_id):
