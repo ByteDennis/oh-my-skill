@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>oh-my-skill</title>
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260512b">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260512c">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -211,6 +211,204 @@
   .icon-btn { display:inline-flex; align-items:center; gap:6px; }
   .icon-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
   .omi-btn.primary svg { stroke: #fff; }
+
+  /* ─── VSCode-style find/replace widget (editor modal) ─── */
+  .em-pane-edit { position: relative; }
+  .find-widget {
+    position: absolute; top: 6px; right: 14px; z-index: 30;
+    background: var(--omi-card-bg, rgba(255,251,244,0.95));
+    border: 1px solid var(--omi-border-strong);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(86, 72, 53, 0.18);
+    padding: 6px; display: none;
+    min-width: 320px; backdrop-filter: blur(8px);
+    font-size: 12px;
+  }
+  .find-widget.show { display: block; }
+  .find-widget .fw-row { display: flex; align-items: center; gap: 4px; }
+  .find-widget .fw-row + .fw-row { margin-top: 4px; }
+  .find-widget input[type="text"] {
+    flex: 1; min-width: 0;
+    background: var(--omi-bg-1); color: var(--omi-fg);
+    border: 1px solid var(--omi-border); border-radius: 5px;
+    padding: 4px 8px; font-size: 12px; font-family: var(--omi-font-mono, monospace);
+    outline: none;
+  }
+  .find-widget input[type="text"]:focus { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
+  .find-widget input[type="text"].err { border-color: var(--omi-error-deep); box-shadow: 0 0 0 2px rgba(177,90,88,0.18); }
+  .find-widget .fw-count {
+    color: var(--omi-muted); font-size: 11px; padding: 0 6px;
+    min-width: 64px; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .find-widget .fw-count.no-match { color: var(--omi-error-deep); }
+  .find-widget .fw-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0; border-radius: 5px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--omi-muted); cursor: pointer; font-size: 11px; line-height: 1;
+    transition: all 0.1s ease;
+  }
+  .find-widget .fw-btn:hover:not(:disabled) {
+    background: rgba(232, 224, 208, 0.6);
+    color: var(--omi-fg); border-color: var(--omi-border);
+  }
+  .find-widget .fw-btn.active {
+    background: var(--omi-accent-deep); color: #fff; border-color: var(--omi-accent-deep);
+  }
+  .find-widget .fw-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .find-widget .fw-btn svg { width: 13px; height: 13px; }
+  .find-widget .fw-toggle { font-weight: 600; font-size: 10.5px; }
+  .find-widget .fw-replace-row { display: none; }
+  .find-widget.replace-mode .fw-replace-row { display: flex; }
+  .find-widget .fw-replace-toggle {
+    width: 18px; height: 100%; min-height: 24px; padding: 0; border: none; background: transparent;
+    color: var(--omi-muted); cursor: pointer; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .find-widget .fw-replace-toggle:hover { background: rgba(232, 224, 208, 0.6); color: var(--omi-fg); }
+  .find-widget .fw-replace-toggle svg { width: 11px; height: 11px; transition: transform 0.15s ease; }
+  .find-widget.replace-mode .fw-replace-toggle svg { transform: rotate(90deg); }
+
+  /* Highlighted overlay rendered behind the textarea text. Gated with
+     display:none by default so its inline width/height (set when find is
+     opened) never bleeds into the layout when the edit pane is collapsed. */
+  .em-pane-edit { position: relative; }
+  .find-highlights {
+    display: none;                       /* hidden until find widget activates */
+    position: absolute; pointer-events: none;
+    overflow: hidden; z-index: 1;
+    color: transparent; white-space: pre-wrap; word-wrap: break-word;
+  }
+  .find-highlights.active { display: block; }
+  .find-highlights mark { background: rgba(255, 200, 80, 0.45); color: transparent; border-radius: 2px; padding: 0; }
+  .find-highlights mark.current { background: rgba(255, 140, 40, 0.75); }
+  /* When highlights are active, lift the textarea above them and make it transparent. */
+  .editor-modal .em-pane-edit.find-active textarea { position: relative; z-index: 2; background: transparent; }
+  .editor-modal .em-pane-edit.find-active { background: var(--omi-card-bg, rgba(255,251,244,0.78)); }
+
+  /* ─── Editor sizing: fullscreen + wide ─────────────────────────────
+     Three sizes: default (modal default), wide (90vw × 90vh), and
+     fullscreen (100vw × 100vh, no rounded corners). Theme-aligned with
+     omi-shadow + omi-border. */
+  .editor-modal { transition: width 0.2s ease, height 0.2s ease, max-width 0.2s ease, max-height 0.2s ease, border-radius 0.2s ease; }
+  .editor-modal.size-wide       { width: 90vw !important; max-width: 90vw !important; height: 90vh !important; max-height: 90vh !important; }
+  .editor-modal.size-fullscreen { width: 100vw !important; max-width: 100vw !important; height: 100vh !important; max-height: 100vh !important; border-radius: 0 !important; margin: 0 !important; top: 0 !important; left: 0 !important; }
+
+  /* ─── Floating reference windows (frosted-glass card windows) ─────
+     Spawned from the 📎 Reference picker. Each is draggable by its
+     header, resizable from the bottom-right, minimizable to a pill that
+     docks at the bottom edge. Stays interactive while the editor modal
+     remains focused. */
+  .ref-layer {
+    position: fixed; inset: 0; pointer-events: none; z-index: 1500;
+  }
+  .ref-window {
+    pointer-events: auto;
+    position: absolute;
+    background: linear-gradient(180deg, rgba(255, 251, 244, 0.92), rgba(244, 238, 225, 0.88));
+    backdrop-filter: blur(14px) saturate(1.05);
+    -webkit-backdrop-filter: blur(14px) saturate(1.05);
+    border: 1px solid var(--omi-border-strong);
+    border-radius: var(--omi-radius);
+    box-shadow: 0 22px 60px rgba(86, 72, 53, 0.28), 0 4px 12px rgba(79, 66, 49, 0.14);
+    display: flex; flex-direction: column; overflow: hidden;
+    min-width: 220px; min-height: 140px;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .ref-window.entering { opacity: 0; transform: scale(0.96) translateY(6px); }
+  .ref-window.focused { box-shadow: 0 22px 60px rgba(86, 72, 53, 0.36), 0 0 0 1px var(--omi-accent-deep), 0 0 0 4px var(--omi-accent-ring); }
+  .ref-window-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px 6px 12px;
+    background: rgba(255, 250, 241, 0.78);
+    border-bottom: 1px solid var(--omi-border);
+    cursor: move; user-select: none; flex-shrink: 0;
+  }
+  .ref-window-header .ref-title {
+    flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--omi-fg);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ref-window-header .ref-tags { color: var(--omi-muted); font-size: 11px; font-weight: 400; margin-left: 6px; }
+  .ref-window-header button {
+    width: 22px; height: 22px; padding: 0; border: 1px solid transparent;
+    background: transparent; color: var(--omi-muted); border-radius: 5px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 11px; line-height: 1;
+  }
+  .ref-window-header button:hover { background: rgba(232, 224, 208, 0.6); color: var(--omi-fg); border-color: var(--omi-border); }
+  .ref-window-header button.danger:hover { background: rgba(177, 90, 88, 0.12); color: var(--omi-error-deep); border-color: rgba(177, 90, 88, 0.35); }
+  .ref-window-body {
+    flex: 1; min-height: 0; overflow: auto;
+    padding: 14px 18px 18px;
+    color: var(--omi-fg); font-size: 13px; line-height: 1.6;
+  }
+  .ref-window-body .pv h1 { color: var(--omi-accent-deep); font-size: 18px; border-bottom: 1px solid var(--omi-border); padding-bottom: 5px; margin: 0 0 10px; }
+  .ref-window-body .pv h2 { color: var(--omi-accent-deep); font-size: 15px; margin: 16px 0 6px; }
+  .ref-window-body .pv h3 { color: var(--omi-fg-soft); font-size: 13px; margin: 12px 0 4px; }
+  .ref-window-body .pv p { margin: 5px 0; }
+  .ref-window-body .pv code { background: rgba(232, 224, 208, 0.5); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .ref-window-body .pv pre { background: var(--omi-bg-1); border: 1px solid var(--omi-border); border-radius: 6px; padding: 10px; overflow-x: auto; font-size: 12px; }
+  /* 8-direction resize handles — invisible hit zones along every edge
+     and corner. Corner handles get the diagonal grip indicator. */
+  .ref-resize { position: absolute; z-index: 2; }
+  .ref-resize.n { top: -4px;  left: 8px; right: 8px; height: 8px; cursor: ns-resize; }
+  .ref-resize.s { bottom: -4px; left: 8px; right: 8px; height: 8px; cursor: ns-resize; }
+  .ref-resize.e { right: -4px; top: 8px; bottom: 8px; width: 8px; cursor: ew-resize; }
+  .ref-resize.w { left: -4px;  top: 8px; bottom: 8px; width: 8px; cursor: ew-resize; }
+  .ref-resize.nw { top: -4px; left: -4px; width: 14px; height: 14px; cursor: nwse-resize; }
+  .ref-resize.ne { top: -4px; right: -4px; width: 14px; height: 14px; cursor: nesw-resize; }
+  .ref-resize.sw { bottom: -4px; left: -4px; width: 14px; height: 14px; cursor: nesw-resize; }
+  .ref-resize.se {
+    bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; opacity: 0.4;
+    background: linear-gradient(135deg, transparent 50%, var(--omi-muted) 50%, var(--omi-muted) 60%, transparent 60%, transparent 70%, var(--omi-muted) 70%, var(--omi-muted) 80%, transparent 80%);
+  }
+  .ref-resize.se:hover { opacity: 0.8; }
+
+  .ref-window.minimized {
+    pointer-events: auto; height: 30px !important; width: auto !important; max-width: 240px;
+    bottom: 14px !important; top: auto !important; left: auto !important;
+    border-radius: var(--omi-radius-pill);
+  }
+  .ref-window.minimized .ref-window-body, .ref-window.minimized .ref-resize { display: none; }
+  .ref-window.minimized .ref-window-header { padding: 4px 10px; cursor: pointer; border-bottom: none; background: transparent; }
+  .ref-dock {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 1499; display: flex; gap: 6px; pointer-events: none;
+    /* Minimized refs nest themselves into this dock via .minimized state */
+  }
+
+  /* Reference picker palette — opens above the modal. */
+  .ref-picker-overlay {
+    position: fixed; inset: 0; z-index: 1600; background: rgba(15, 15, 20, 0.45);
+    backdrop-filter: blur(4px);
+    display: none; align-items: flex-start; justify-content: center; padding-top: 80px;
+  }
+  .ref-picker-overlay.show { display: flex; }
+  .ref-picker {
+    background: var(--omi-card-bg, rgba(255, 251, 244, 0.96));
+    border: 1px solid var(--omi-border-strong); border-radius: var(--omi-radius);
+    box-shadow: var(--omi-shadow-lg);
+    width: min(560px, 92vw); max-height: 70vh; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .ref-picker-search {
+    padding: 12px 16px; border-bottom: 1px solid var(--omi-border);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .ref-picker-search input {
+    flex: 1; background: var(--omi-bg-1); color: var(--omi-fg);
+    border: 1px solid var(--omi-border); border-radius: 6px; padding: 6px 10px;
+    font-size: 13px; outline: none;
+  }
+  .ref-picker-search input:focus { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
+  .ref-picker-list { overflow-y: auto; flex: 1; }
+  .ref-picker-item {
+    padding: 8px 16px; cursor: pointer; border-bottom: 1px solid var(--omi-border);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .ref-picker-item:hover, .ref-picker-item.active { background: rgba(232, 224, 208, 0.45); }
+  .ref-picker-item .t { font-weight: 600; color: var(--omi-fg); font-size: 13px; }
+  .ref-picker-item .m { font-size: 11px; color: var(--omi-muted); }
+  .ref-picker-empty { padding: 24px; text-align: center; color: var(--omi-muted); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -372,6 +570,14 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       <span id="emPreviewLabel">Split</span>
     </button>
+    <button class="omi-btn ghost sm icon-btn" id="emRefOpen" title="Open another card as a floating reference window">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      Reference
+    </button>
+    <button class="omi-btn ghost sm icon-btn" id="emSize" title="Cycle modal size: default → wide → fullscreen (F11)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      <span id="emSizeLabel">Default</span>
+    </button>
     <button class="omi-btn secondary sm icon-btn" id="emAi" title="Chat with Claude about this card">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       Edit w/ AI
@@ -397,7 +603,40 @@
   <div class="em-body" id="emBody">
     <div class="em-pane em-pane-edit">
       <div class="em-label">Edit</div>
+      <div class="find-highlights" id="findHighlights" aria-hidden="true"></div>
       <textarea id="emContent" placeholder="# Title&#10;&#10;markdown content…"></textarea>
+      <div class="find-widget" id="findWidget" role="dialog" aria-label="Find / Replace">
+        <div class="fw-row">
+          <button class="fw-replace-toggle" id="fwToggleReplace" title="Toggle replace (Ctrl+H)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <input type="text" id="fwFind" placeholder="Find" autocomplete="off" spellcheck="false">
+          <span class="fw-count" id="fwCount">No results</span>
+          <button class="fw-btn fw-toggle" id="fwCase" title="Match case (Alt+C)">Aa</button>
+          <button class="fw-btn fw-toggle" id="fwWord" title="Whole word (Alt+W)">⟨W⟩</button>
+          <button class="fw-btn fw-toggle" id="fwRegex" title="Regex (Alt+R)">.*</button>
+          <button class="fw-btn" id="fwPrev" title="Previous (Shift+Enter)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+          <button class="fw-btn" id="fwNext" title="Next (Enter)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="fw-btn" id="fwClose" title="Close (Esc)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="fw-row fw-replace-row">
+          <span style="width:18px"></span>
+          <input type="text" id="fwReplace" placeholder="Replace" autocomplete="off" spellcheck="false">
+          <span class="fw-count" style="visibility:hidden">───</span>
+          <button class="fw-btn" id="fwReplaceOne" title="Replace (Enter in Replace box)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11l-3-3"/><path d="M21 17H10l3 3"/><circle cx="18" cy="7" r="2"/><circle cx="6" cy="17" r="2"/></svg>
+          </button>
+          <button class="fw-btn" id="fwReplaceAll" title="Replace all">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h7l-2-2"/><path d="M21 17H14l2 2"/><path d="M3 17h5"/><path d="M16 7h5"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
     <div class="resizer-h" id="resizerEditor" title="Drag to resize edit/preview"></div>
     <div class="em-pane em-pane-preview">
@@ -406,6 +645,19 @@
     </div>
   </div>
 </dialog>
+
+<!-- ─── Floating reference windows + dock ───────────────────── -->
+<div class="ref-layer" id="refLayer"></div>
+<div class="ref-dock" id="refDock"></div>
+<div class="ref-picker-overlay" id="refPickerOverlay">
+  <div class="ref-picker">
+    <div class="ref-picker-search">
+      <span style="color:var(--omi-muted)">📎</span>
+      <input id="refPickerInput" placeholder="Pin a card as a floating reference window — type to filter, ↑↓ to choose, Enter to open" autocomplete="off">
+    </div>
+    <div class="ref-picker-list" id="refPickerList"></div>
+  </div>
+</div>
 
 <!-- ─── Sync Center dialog ────────────────────────────────────── -->
 <dialog id="syncDlg" class="omi-dialog sync-modal">
@@ -658,10 +910,41 @@ function toYamlish(v, depth) {
   }
   return pad + String(v);
 }
+function _protectKatex(text) {
+  // Pull math out BEFORE marked.parse so it doesn't mangle backslashes,
+  // underscores, or pipes inside formulas. Return placeholder text + rendered
+  // HTML chunks to splice back in after marked is done.
+  const chunks = [];
+  const stash = (rendered) => {
+    const i = chunks.length;
+    chunks.push(rendered);
+    return `\x00KATEX${i}\x00`;
+  };
+  // 1) display math: $$...$$ (multi-line allowed)
+  let out = (text || '').replace(/\$\$([\s\S]+?)\$\$/g, (m, tex) => {
+    try {
+      return stash(katex.renderToString(tex.trim(),
+        {throwOnError: false, displayMode: true}));
+    } catch (e) {
+      return stash(`<pre class="math-err">${escapeHtml(m)}</pre>`);
+    }
+  });
+  // 2) inline math: $...$, single line, no $ inside, not preceded by backslash
+  out = out.replace(/(^|[^\\$])\$([^\$\n]+?)\$/g, (_m, pre, tex) => {
+    try {
+      return pre + stash(katex.renderToString(tex,
+        {throwOnError: false, displayMode: false}));
+    } catch {
+      return pre + stash(`<code>${escapeHtml('$' + tex + '$')}</code>`);
+    }
+  });
+  return {text: out, chunks};
+}
 function renderMarkdown(md) {
   const {fm, body} = extractFrontmatter(md);
   const fmHtml = renderFrontmatterTable(fm);
-  let html = marked.parse(body || '');
+  const {text: bodySafe, chunks: katexChunks} = _protectKatex(body || '');
+  let html = marked.parse(bodySafe);
   html = html.replace(/<pre><code class="hljs language-(\w+)">/g,
                       '<pre data-lang="$1"><code class="hljs language-$1">');
   // GitHub-style alerts: > [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING], > [!CAUTION]
@@ -698,6 +981,8 @@ function renderMarkdown(md) {
   // server can serve them (with whitelist + image-MIME-only).
   html = html.replace(/<img([^>]*?)\ssrc="(\/[^"]+)"/g,
                       (m, pre, src) => `<img${pre} src="/file?path=${encodeURIComponent(src)}"`);
+  // Splice the pre-rendered KaTeX chunks back in.
+  html = html.replace(/\x00KATEX(\d+)\x00/g, (_m, i) => katexChunks[+i] || '');
   return fmHtml + html;
 }
 function renderPreview() {
@@ -1898,6 +2183,495 @@ document.addEventListener('keydown', e => {
     }
   }
 });
+
+// ─── Find / Replace widget (VSCode-style) ─────────────────────────
+(function () {
+  const ta = document.getElementById('emContent');
+  const widget = document.getElementById('findWidget');
+  const findIn = document.getElementById('fwFind');
+  const repIn  = document.getElementById('fwReplace');
+  const countEl = document.getElementById('fwCount');
+  const hl    = document.getElementById('findHighlights');
+  const btnCase  = document.getElementById('fwCase');
+  const btnWord  = document.getElementById('fwWord');
+  const btnRegex = document.getElementById('fwRegex');
+  const btnPrev  = document.getElementById('fwPrev');
+  const btnNext  = document.getElementById('fwNext');
+  const btnClose = document.getElementById('fwClose');
+  const btnRepOne = document.getElementById('fwReplaceOne');
+  const btnRepAll = document.getElementById('fwReplaceAll');
+  const btnToggleRep = document.getElementById('fwToggleReplace');
+
+  let matches = [];        // [{start, end}, ...]
+  let cur = -1;
+  let opts = { case: false, word: false, regex: false };
+
+  function escapeReg(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function buildRegex(pattern) {
+    if (!pattern) return null;
+    let src = opts.regex ? pattern : escapeReg(pattern);
+    if (opts.word) src = `\\b${src}\\b`;
+    return new RegExp(src, 'g' + (opts.case ? '' : 'i'));
+  }
+
+  function syncOverlayStyle() {
+    const cs = getComputedStyle(ta);
+    const props = ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','wordSpacing',
+                   'paddingTop','paddingRight','paddingBottom','paddingLeft',
+                   'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth',
+                   'boxSizing','textAlign','tabSize'];
+    for (const p of props) hl.style[p] = cs[p];
+    hl.style.left = ta.offsetLeft + 'px';
+    hl.style.top  = ta.offsetTop  + 'px';
+    hl.style.width  = ta.clientWidth + 'px';
+    hl.style.height = ta.clientHeight + 'px';
+  }
+  function syncScroll() { hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; }
+  ta.addEventListener('scroll', syncScroll);
+  window.addEventListener('resize', () => { if (widget.classList.contains('show')) { syncOverlayStyle(); render(); } });
+
+  function escapeHTML(s) { return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  function recompute() {
+    const pat = findIn.value;
+    matches = [];
+    findIn.classList.remove('err');
+    if (!pat) { cur = -1; updateUI(); return; }
+    let re;
+    try { re = buildRegex(pat); } catch (e) { findIn.classList.add('err'); cur = -1; updateUI(); return; }
+    const text = ta.value;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      if (m[0].length === 0) { re.lastIndex++; continue; }
+      matches.push({ start: m.index, end: m.index + m[0].length });
+      if (matches.length > 5000) break;
+    }
+    if (cur >= matches.length) cur = matches.length - 1;
+    if (matches.length && cur < 0) cur = 0;
+    updateUI();
+  }
+
+  function render() {
+    if (!widget.classList.contains('show') || !matches.length) {
+      hl.innerHTML = '';
+      return;
+    }
+    syncOverlayStyle();
+    const text = ta.value;
+    let html = '';
+    let last = 0;
+    for (let i = 0; i < matches.length; i++) {
+      const { start, end } = matches[i];
+      html += escapeHTML(text.substring(last, start));
+      const cls = i === cur ? 'current' : '';
+      html += `<mark class="${cls}">${escapeHTML(text.substring(start, end))}</mark>`;
+      last = end;
+    }
+    html += escapeHTML(text.substring(last));
+    hl.innerHTML = html;
+    syncScroll();
+  }
+
+  function scrollMatchIntoView(idx) {
+    if (idx < 0 || idx >= matches.length) return;
+    const { start, end } = matches[idx];
+    // Compute line number of match for centered scroll
+    const before = ta.value.substring(0, start);
+    const lineNum = (before.match(/\n/g) || []).length;
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 16;
+    const target = lineNum * lh - ta.clientHeight / 2 + lh / 2;
+    ta.scrollTop = Math.max(0, target);
+    ta.setSelectionRange(start, end);
+  }
+
+  function updateUI() {
+    if (!findIn.value) { countEl.textContent = 'No results'; countEl.classList.remove('no-match'); }
+    else if (!matches.length) { countEl.textContent = 'No results'; countEl.classList.add('no-match'); }
+    else { countEl.textContent = `${cur + 1} of ${matches.length}`; countEl.classList.remove('no-match'); }
+    btnPrev.disabled = btnNext.disabled = matches.length === 0;
+    btnRepOne.disabled = btnRepAll.disabled = matches.length === 0 || !widget.classList.contains('replace-mode');
+    render();
+  }
+
+  function next(dir) {
+    if (!matches.length) return;
+    cur = (cur + dir + matches.length) % matches.length;
+    scrollMatchIntoView(cur);
+    render();
+    countEl.textContent = `${cur + 1} of ${matches.length}`;
+  }
+
+  function open(replaceMode) {
+    syncOverlayStyle();
+    widget.classList.add('show');
+    hl.classList.add('active');
+    ta.parentElement.classList.add('find-active');
+    widget.classList.toggle('replace-mode', !!replaceMode);
+    // Prefill from current selection
+    const sel = ta.value.substring(ta.selectionStart, ta.selectionEnd);
+    if (sel && !sel.includes('\n')) findIn.value = sel;
+    setTimeout(() => { findIn.focus(); findIn.select(); recompute(); }, 0);
+  }
+  function close() {
+    widget.classList.remove('show', 'replace-mode');
+    hl.classList.remove('active');
+    ta.parentElement.classList.remove('find-active');
+    hl.innerHTML = '';
+    matches = []; cur = -1;
+    ta.focus();
+  }
+
+  // ── Trigger keys (only when editor modal is open) ─────────────────
+  document.addEventListener('keydown', (e) => {
+    const dlg = document.getElementById('editorModal');
+    if (!dlg || !dlg.open) return;
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault(); open(false); return;
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'h' || e.key === 'H' || e.key === 'r' || e.key === 'R')) {
+      e.preventDefault(); open(true); return;
+    }
+    if (e.key === 'F3') {
+      e.preventDefault();
+      if (!widget.classList.contains('show')) open(false);
+      else next(e.shiftKey ? -1 : 1);
+      return;
+    }
+    // While widget is open, intercept Escape before the modal's own Escape handler.
+    if (widget.classList.contains('show') && e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation(); close(); return;
+    }
+  }, true);  // capture so the global modal-Escape handler doesn't win
+
+  // ── Widget-local key bindings ─────────────────────────────────────
+  findIn.addEventListener('input', recompute);
+  findIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); next(e.shiftKey ? -1 : 1); }
+    if (e.altKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); btnCase.click(); }
+    if (e.altKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); btnWord.click(); }
+    if (e.altKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); btnRegex.click(); }
+  });
+  repIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); replaceOne(); }
+    if (e.key === 'Enter' && e.shiftKey)  { e.preventDefault(); replaceAll(); }
+  });
+
+  function toggle(btn, key) {
+    btn.classList.toggle('active');
+    opts[key] = btn.classList.contains('active');
+    recompute();
+    findIn.focus();
+  }
+  btnCase.onclick  = () => toggle(btnCase, 'case');
+  btnWord.onclick  = () => toggle(btnWord, 'word');
+  btnRegex.onclick = () => toggle(btnRegex, 'regex');
+  btnPrev.onclick  = () => next(-1);
+  btnNext.onclick  = () => next(+1);
+  btnClose.onclick = close;
+  btnToggleRep.onclick = () => {
+    widget.classList.toggle('replace-mode');
+    if (widget.classList.contains('replace-mode')) setTimeout(() => repIn.focus(), 0);
+    updateUI();
+  };
+
+  function replaceOne() {
+    if (cur < 0 || cur >= matches.length) return;
+    const { start, end } = matches[cur];
+    const replacement = opts.regex ? interpRegexReplacement(repIn.value, ta.value.substring(start, end)) : repIn.value;
+    ta.setRangeText(replacement, start, end, 'end');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    recompute();
+    if (matches.length) { cur = Math.min(cur, matches.length - 1); scrollMatchIntoView(cur); render(); }
+  }
+  function replaceAll() {
+    if (!matches.length) return;
+    let text = ta.value;
+    // Iterate from end so indices stay valid
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const { start, end } = matches[i];
+      const replacement = opts.regex ? interpRegexReplacement(repIn.value, text.substring(start, end)) : repIn.value;
+      text = text.substring(0, start) + replacement + text.substring(end);
+    }
+    ta.value = text;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    recompute();
+  }
+  function interpRegexReplacement(template, matched) {
+    // Re-run a fresh regex on the matched text once to capture groups for $1, $2 …
+    try {
+      const re = buildRegex(findIn.value);
+      const m = re.exec(matched);
+      if (!m) return template;
+      return template.replace(/\$(\d+|&|`|')/g, (_, g) => {
+        if (g === '&') return m[0];
+        if (g === '`') return ''; if (g === "'") return '';
+        const n = parseInt(g, 10); return m[n] != null ? m[n] : '';
+      });
+    } catch { return template; }
+  }
+  btnRepOne.onclick = replaceOne;
+  btnRepAll.onclick = replaceAll;
+
+  // Re-render highlights whenever editor content changes (e.g. via AI sync)
+  ta.addEventListener('input', () => { if (widget.classList.contains('show')) recompute(); });
+})();
+
+// ─── Editor sizing: default → wide → fullscreen ───────────────────
+// Label shows the FUTURE state (what the next click will switch to),
+// not the current one.
+(function () {
+  const sizes = ['', 'size-wide', 'size-fullscreen'];
+  const labels = ['Default', 'Wide', 'Fullscreen'];
+  let i = 0;
+  const dlg = document.getElementById('editorModal');
+  const lbl = document.getElementById('emSizeLabel');
+  function apply() {
+    sizes.forEach(s => s && dlg.classList.remove(s));
+    if (sizes[i]) dlg.classList.add(sizes[i]);
+    if (lbl) lbl.textContent = labels[(i + 1) % sizes.length];
+    const hl = document.getElementById('findHighlights');
+    if (hl && hl.classList.contains('active')) {
+      window.dispatchEvent(new Event('resize'));
+    }
+  }
+  apply();  // set the initial label to "Wide" (the next click destination)
+  document.getElementById('emSize').onclick = () => { i = (i + 1) % sizes.length; apply(); };
+  document.addEventListener('keydown', (e) => {
+    if (!dlg.open) return;
+    if (e.key === 'F11') { e.preventDefault(); i = (i + 1) % sizes.length; apply(); }
+  });
+})();
+
+// ─── Floating reference windows ──────────────────────────────────
+// Open any other card as a frosted-glass, draggable, resizable window
+// pinned over the editor. Multiple supported, auto-stagger, minimize-
+// to-pill that docks at the bottom edge.
+(function () {
+  const layer  = document.getElementById('refLayer');
+  const dock   = document.getElementById('refDock');
+  const ovr    = document.getElementById('refPickerOverlay');
+  const input  = document.getElementById('refPickerInput');
+  const list   = document.getElementById('refPickerList');
+  const dlgEd  = document.getElementById('editorModal');
+
+  // The editor uses <dialog>.showModal() which puts it in the browser's
+  // top layer. Anything outside the dialog (even with z-index: 99999) is
+  // painted *behind* it. So when the editor is open, move the floating
+  // reference layer + picker into the dialog so they ride the same top
+  // layer. position:fixed children of a dialog still position relative
+  // to the viewport.
+  function attachToTopLayer() {
+    if (dlgEd.open) {
+      if (layer.parentElement !== dlgEd) dlgEd.appendChild(layer);
+      if (dock.parentElement  !== dlgEd) dlgEd.appendChild(dock);
+      if (ovr.parentElement   !== dlgEd) dlgEd.appendChild(ovr);
+    }
+  }
+  // Re-parent on every editor open. The dialog's `close` event puts them
+  // back to body so they're not lost if the dialog is destroyed.
+  dlgEd.addEventListener('close', () => {
+    if (layer.parentElement !== document.body) document.body.appendChild(layer);
+    if (dock.parentElement  !== document.body) document.body.appendChild(dock);
+    if (ovr.parentElement   !== document.body) document.body.appendChild(ovr);
+  });
+  let openWins = [];           // tracked for stagger + z-order
+  let topZ = 1500;
+  let pickerActive = -1;       // active list index
+  let filtered = [];
+
+  function openPicker() {
+    attachToTopLayer();
+    input.value = '';
+    pickerActive = -1;
+    renderList('');
+    ovr.classList.add('show');
+    setTimeout(() => input.focus(), 0);
+  }
+  function closePicker() { ovr.classList.remove('show'); }
+
+  function renderList(q) {
+    const cards = (typeof CARDS !== 'undefined' ? CARDS : []).slice();
+    const cur = (typeof CURRENT !== 'undefined' && CURRENT && CURRENT.id) || null;
+    const term = q.trim().toLowerCase();
+    filtered = cards
+      .filter(c => c.id !== cur)
+      .filter(c => !term || (c.title || '').toLowerCase().includes(term) || (c.tags || []).some(t => t.toLowerCase().includes(term)));
+    pickerActive = filtered.length ? 0 : -1;
+    if (!filtered.length) {
+      list.innerHTML = '<div class="ref-picker-empty">No matching cards</div>';
+      return;
+    }
+    list.innerHTML = filtered.map((c, idx) => `
+      <div class="ref-picker-item${idx === pickerActive ? ' active' : ''}" data-idx="${idx}">
+        <div class="t">${escHTML(c.title || '(untitled)')}</div>
+        <div class="m">${(c.tags || []).slice(0, 4).map(t => '#' + escHTML(t)).join(' ')}</div>
+      </div>`).join('');
+    list.querySelectorAll('.ref-picker-item').forEach(el => {
+      el.onclick = () => { const i = parseInt(el.dataset.idx); if (filtered[i]) { spawnWindow(filtered[i]); closePicker(); } };
+      el.onmouseenter = () => { pickerActive = parseInt(el.dataset.idx); markActive(); };
+    });
+  }
+  function markActive() {
+    list.querySelectorAll('.ref-picker-item').forEach((el, i) => el.classList.toggle('active', i === pickerActive));
+    const a = list.querySelector('.ref-picker-item.active');
+    if (a) a.scrollIntoView({ block: 'nearest' });
+  }
+  function escHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  input.addEventListener('input', () => renderList(input.value));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closePicker(); return; }
+    if (e.key === 'ArrowDown') { if (filtered.length) { pickerActive = (pickerActive + 1) % filtered.length; markActive(); } e.preventDefault(); }
+    if (e.key === 'ArrowUp')   { if (filtered.length) { pickerActive = (pickerActive - 1 + filtered.length) % filtered.length; markActive(); } e.preventDefault(); }
+    if (e.key === 'Enter')     { if (pickerActive >= 0 && filtered[pickerActive]) { spawnWindow(filtered[pickerActive]); closePicker(); } e.preventDefault(); }
+  });
+  ovr.addEventListener('click', (e) => { if (e.target === ovr) closePicker(); });
+  document.getElementById('emRefOpen').onclick = openPicker;
+  // Global hotkey while editor open: Ctrl+Shift+P
+  document.addEventListener('keydown', (e) => {
+    const dlg = document.getElementById('editorModal');
+    if (!dlg.open) return;
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) { e.preventDefault(); openPicker(); }
+  });
+
+  function spawnWindow(card) {
+    attachToTopLayer();
+    // Prevent dupes — surface the existing window
+    const existing = openWins.find(w => w.cardId === card.id);
+    if (existing) { focusWin(existing); return; }
+
+    const w = document.createElement('div');
+    w.className = 'ref-window entering';
+    const offset = openWins.length * 28;
+    // Default ~2× the previous size, capped to 80% viewport so it always fits.
+    const baseW = Math.min(760, Math.round(window.innerWidth  * 0.55));
+    const baseH = Math.min(640, Math.round(window.innerHeight * 0.65));
+    const right = 28 + offset, bottom = 60 + offset;
+    w.style.cssText = `right: ${right}px; bottom: ${bottom}px; width: ${baseW}px; height: ${baseH}px; z-index: ${++topZ};`;
+    const tags = (card.tags || []).slice(0, 3).map(t => '#' + escHTML(t)).join(' ');
+    w.innerHTML = `
+      <div class="ref-window-header">
+        <span class="ref-title" title="${escHTML(card.title || '')}">${escHTML(card.title || '(untitled)')}</span>
+        <span class="ref-tags">${tags}</span>
+        <button class="ref-min" title="Minimize">−</button>
+        <button class="ref-pop" title="Open this card in editor">↗</button>
+        <button class="ref-x danger" title="Close">×</button>
+      </div>
+      <div class="ref-window-body"><div class="pv"></div></div>
+      <div class="ref-resize n"></div><div class="ref-resize s"></div>
+      <div class="ref-resize e"></div><div class="ref-resize w"></div>
+      <div class="ref-resize ne"></div><div class="ref-resize nw"></div>
+      <div class="ref-resize se"></div><div class="ref-resize sw"></div>`;
+    layer.appendChild(w);
+
+    const winState = { el: w, cardId: card.id };
+    openWins.push(winState);
+    requestAnimationFrame(() => w.classList.remove('entering'));
+
+    // Render markdown via the same pipeline used by the preview pane.
+    const pv = w.querySelector('.pv');
+    try {
+      pv.innerHTML = (typeof renderMarkdown === 'function')
+        ? renderMarkdown(card.content || '')
+        : escHTML(card.content || '');
+      if (typeof renderMathInElement === 'function') {
+        try { renderMathInElement(pv, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}], throwOnError: false }); } catch {}
+      }
+    } catch (e) { pv.textContent = card.content || ''; }
+
+    // Header drag
+    const header = w.querySelector('.ref-window-header');
+    header.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      if (w.classList.contains('minimized')) return;
+      focusWin(winState);
+      const r = w.getBoundingClientRect();
+      const ox = e.clientX - r.left, oy = e.clientY - r.top;
+      // Lock to top/left during drag for predictable math
+      w.style.right = ''; w.style.bottom = '';
+      w.style.left = r.left + 'px'; w.style.top = r.top + 'px';
+      const mv = (ev) => {
+        w.style.left = Math.max(0, Math.min(window.innerWidth  - 60, ev.clientX - ox)) + 'px';
+        w.style.top  = Math.max(0, Math.min(window.innerHeight - 30, ev.clientY - oy)) + 'px';
+      };
+      const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+      document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+      e.preventDefault();
+    });
+
+    // 8-direction resize — N, S, E, W, NE, NW, SE, SW
+    w.querySelectorAll('.ref-resize').forEach(handle => {
+      const dir = handle.classList.contains('nw') ? 'nw'
+                : handle.classList.contains('ne') ? 'ne'
+                : handle.classList.contains('sw') ? 'sw'
+                : handle.classList.contains('se') ? 'se'
+                : handle.classList.contains('n')  ? 'n'
+                : handle.classList.contains('s')  ? 's'
+                : handle.classList.contains('e')  ? 'e' : 'w';
+      handle.addEventListener('mousedown', (e) => {
+        focusWin(winState);
+        const r = w.getBoundingClientRect();
+        const sx = e.clientX, sy = e.clientY;
+        const sw = r.width, sh = r.height, sl = r.left, st = r.top;
+        // Lock to top/left so resize math is consistent regardless of
+        // whether the window was originally placed via right/bottom.
+        w.style.right = ''; w.style.bottom = '';
+        w.style.left = sl + 'px'; w.style.top = st + 'px';
+        const minW = 240, minH = 160;
+        const mv = (ev) => {
+          const dx = ev.clientX - sx, dy = ev.clientY - sy;
+          let nw = sw, nh = sh, nl = sl, nt = st;
+          if (dir.includes('e')) nw = Math.max(minW, sw + dx);
+          if (dir.includes('w')) { nw = Math.max(minW, sw - dx); nl = sl + (sw - nw); }
+          if (dir.includes('s')) nh = Math.max(minH, sh + dy);
+          if (dir.includes('n')) { nh = Math.max(minH, sh - dy); nt = st + (sh - nh); }
+          w.style.width = nw + 'px'; w.style.height = nh + 'px';
+          w.style.left  = nl + 'px'; w.style.top    = nt + 'px';
+        };
+        const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+        document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+        e.preventDefault(); e.stopPropagation();
+      });
+    });
+
+    // Buttons
+    w.querySelector('.ref-min').onclick = () => {
+      if (w.classList.contains('minimized')) {
+        // Restore — bring back to last position
+        w.classList.remove('minimized');
+        layer.appendChild(w);
+        focusWin(winState);
+        return;
+      }
+      w.classList.add('minimized');
+      // Expand click target to whole header to restore
+      w.querySelector('.ref-window-header').onclick = (ev) => {
+        if (ev.target.closest('button.ref-x')) return;
+        w.classList.remove('minimized');
+        layer.appendChild(w);
+        focusWin(winState);
+      };
+      dock.appendChild(w);
+    };
+    w.querySelector('.ref-pop').onclick = () => {
+      // Promote this reference into the main editor.
+      if (typeof window.openCard === 'function') window.openCard(card.id);
+    };
+    w.querySelector('.ref-x').onclick = () => {
+      w.remove();
+      openWins = openWins.filter(x => x !== winState);
+    };
+
+    w.addEventListener('mousedown', () => focusWin(winState), true);
+    focusWin(winState);
+  }
+
+  function focusWin(ws) {
+    openWins.forEach(o => o.el.classList.remove('focused'));
+    ws.el.classList.add('focused');
+    ws.el.style.zIndex = ++topZ;
+  }
+})();
 
 bootstrap();
 </script>
