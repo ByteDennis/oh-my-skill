@@ -86,6 +86,29 @@ def list_cards():
     return jsonify(cards)
 
 
+def _merge_link_meta(existing_meta_json: str, parent_id, links) -> str:
+    """Merge parent_id + links into the existing metadata JSON blob.
+    Pass `None` to leave a field untouched; pass '' / [] to clear it."""
+    try:
+        meta = json.loads(existing_meta_json or '{}')
+    except (json.JSONDecodeError, TypeError):
+        meta = {}
+    if parent_id is not None:
+        if parent_id == '' or parent_id is False:
+            meta.pop('parent_id', None)
+        else:
+            meta['parent_id'] = str(parent_id)
+    if links is not None:
+        if isinstance(links, list):
+            # De-dup, drop empties, drop self-refs handled at write time
+            cleaned = sorted({str(x) for x in links if x})
+            if cleaned:
+                meta['links'] = cleaned
+            else:
+                meta.pop('links', None)
+    return json.dumps(meta)
+
+
 @skillcards_bp.route('/skill-cards/api/cards', methods=['POST'])
 def create_card():
     data = request.get_json()
@@ -94,14 +117,21 @@ def create_card():
     now = datetime.utcnow().isoformat() + 'Z'
     card_id = data.get('id') or _gen_id()
     tags = json.dumps(data.get('tags', []))
+    meta_json = _merge_link_meta('{}', data.get('parent_id'), data.get('links'))
     conn = _db()
     conn.execute(
-        'INSERT INTO cards (id, title, content, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        (card_id, data['title'].strip(), data.get('content', ''), tags, now, now)
+        'INSERT INTO cards (id, title, content, tags, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        (card_id, data['title'].strip(), data.get('content', ''), tags, meta_json, now, now)
     )
     conn.commit()
     conn.close()
-    return jsonify({'id': card_id, 'title': data['title'].strip(), 'content': data.get('content', ''), 'tags': data.get('tags', []), 'created_at': now, 'updated_at': now}), 201
+    out = {
+        'id': card_id, 'title': data['title'].strip(),
+        'content': data.get('content', ''), 'tags': data.get('tags', []),
+        'metadata': json.loads(meta_json),
+        'created_at': now, 'updated_at': now,
+    }
+    return jsonify(out), 201
 
 
 @skillcards_bp.route('/skill-cards/api/cards/<card_id>', methods=['PUT'])
@@ -109,16 +139,29 @@ def update_card(card_id):
     data = request.get_json()
     if not data or not data.get('title', '').strip():
         return jsonify({'error': 'title required'}), 400
+    # Self-link guard
+    if data.get('parent_id') == card_id:
+        return jsonify({'error': 'card cannot be its own parent'}), 400
+    if isinstance(data.get('links'), list) and card_id in data['links']:
+        data['links'] = [x for x in data['links'] if x != card_id]
     now = datetime.utcnow().isoformat() + 'Z'
     tags = json.dumps(data.get('tags', []))
     conn = _db()
+    row = conn.execute('SELECT metadata FROM cards WHERE id=?', (card_id,)).fetchone()
+    cur_meta = row['metadata'] if row else '{}'
+    meta_json = _merge_link_meta(cur_meta, data.get('parent_id'), data.get('links'))
     conn.execute(
-        'UPDATE cards SET title=?, content=?, tags=?, updated_at=? WHERE id=?',
-        (data['title'].strip(), data.get('content', ''), tags, now, card_id)
+        'UPDATE cards SET title=?, content=?, tags=?, metadata=?, updated_at=? WHERE id=?',
+        (data['title'].strip(), data.get('content', ''), tags, meta_json, now, card_id)
     )
     conn.commit()
     conn.close()
-    return jsonify({'id': card_id, 'title': data['title'].strip(), 'content': data.get('content', ''), 'tags': data.get('tags', []), 'updated_at': now})
+    return jsonify({
+        'id': card_id, 'title': data['title'].strip(),
+        'content': data.get('content', ''), 'tags': data.get('tags', []),
+        'metadata': json.loads(meta_json),
+        'updated_at': now,
+    })
 
 
 @skillcards_bp.route('/skill-cards/api/cards/<card_id>', methods=['DELETE'])

@@ -141,6 +141,22 @@ oms-lesson "<text>"  # append a one-line lesson to the self-growing lessons card
 
 The skill-card style brain is appended to your system prompt. Follow it:
 精简, scannable, table-heavy, fenced code blocks for multi-line snippets.
+
+## Markdown features available in this editor
+
+If the user asks about which markdown syntax is supported (callouts,
+wiki-links, image sizing, math, frontmatter, …), don't guess — read the
+canonical cheatsheet card first:
+
+```bash
+oms-show 6a030f9960ffc | head -200    # card-id: Markdown Cheatsheet
+```
+
+It documents every supported feature with copy-pasteable examples and
+notes any oh-my-skill-specific extensions (`==highlight==`, `[[wiki-links]]`,
+`> [!NOTE]` admonitions, image sizing dialects, etc.). When you build new
+cards or edit existing ones, prefer those features over alternatives the
+renderer doesn't support.
 {_lessons_section()}"""
 
 
@@ -166,8 +182,23 @@ def _ensure_workspace(project: str, card_id: str = '') -> tuple[str, dict | None
     os.makedirs(cwd, exist_ok=True)
     card = _lookup_card(card_id) if card_id else None
     if card:
+        # Emit YAML-ish frontmatter for parent_id / links so they survive
+        # the disk round-trip (Claude edits ./card.md, oms-save parses it).
+        meta = card.get('metadata') or {}
+        if isinstance(meta, str):
+            try:
+                import json as _j
+                meta = _j.loads(meta)
+            except Exception:
+                meta = {}
+        fm_lines = []
+        if meta.get('parent_id'):
+            fm_lines.append(f"parent: {meta['parent_id']}")
+        if meta.get('links'):
+            fm_lines.append('links: [' + ', '.join(meta['links']) + ']')
+        fm_block = ('---\n' + '\n'.join(fm_lines) + '\n---\n\n') if fm_lines else ''
         with open(os.path.join(cwd, 'card.md'), 'w') as f:
-            f.write(f"# {card['title']}\n\n{card.get('content', '')}\n")
+            f.write(f"{fm_block}# {card['title']}\n\n{card.get('content', '')}\n")
         with open(os.path.join(cwd, 'CLAUDE.md'), 'w') as f:
             f.write(_claude_md_for_card(card))
     else:

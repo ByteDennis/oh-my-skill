@@ -93,8 +93,9 @@ def cmd_save(_):
     print(f"saved · {res.get('title', '?')} · {res.get('updated_at', '')}")
 
 
-def cmd_show(_):
-    cid = _require_card_id()
+def cmd_show(args):
+    # Optional explicit card_id argument; falls back to OMI_CARD_ID env.
+    cid = (getattr(args, 'card_id', None) or '').strip() or _require_card_id()
     card = _get_card(cid)
     if not card:
         sys.stderr.write(f'card {cid} not found\n')
@@ -203,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog='oms', description=__doc__.split('\n')[0])
     sub = p.add_subparsers(dest='cmd', required=True)
     sub.add_parser('save').set_defaults(func=cmd_save)
-    sub.add_parser('show').set_defaults(func=cmd_show)
+    s = sub.add_parser('show'); s.add_argument('card_id', nargs='?', help='card id (default: $OMI_CARD_ID)'); s.set_defaults(func=cmd_show)
     sub.add_parser('list').set_defaults(func=cmd_list)
     t = sub.add_parser('tag'); t.add_argument('tag'); t.set_defaults(func=cmd_tag)
     u = sub.add_parser('untag'); u.add_argument('tag'); u.set_defaults(func=cmd_untag)

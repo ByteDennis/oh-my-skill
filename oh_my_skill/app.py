@@ -96,6 +96,22 @@ def create_app() -> Flask:
     def themes_list():
         return jsonify({'colors': list_colors(), 'fonts': list_fonts()})
 
+    @app.route('/api/runtime')
+    def runtime_info():
+        """Container/host paths the UI uses to surface real filesystem
+        locations to the user (card workspace, DBs, etc.)."""
+        host_home = os.environ.get('HOST_HOME') or os.path.expanduser('~')
+        # The DB lives under /data inside the container; for the host path
+        # we assume the conventional bind-mount: $HOST_HOME/.local/files/oh-my-skill/data
+        host_data = os.path.join(host_home, '.local/files/oh-my-skill/data')
+        return jsonify({
+            'host_home': host_home,
+            'host_data_dir': host_data,
+            'host_db_path': os.path.join(host_data, 'skillcards.db'),
+            'host_workspace_root': os.path.join(host_data, 'projects'),
+            'container_data_dir': _DATA_DIR,
+        })
+
     # ── Settings (per-service) ─────────────────────────────────────────
     @app.route('/api/settings', methods=['GET'])
     def settings_get():
@@ -164,7 +180,19 @@ def create_app() -> Flask:
     # ── Helper for `oms-save` — the CLI in the chat workspace calls this
     @app.route('/api/cards/<card_id>/sync-from-disk', methods=['POST'])
     def card_sync_from_disk(card_id):
-        """Read ./card.md from a project workspace and update the card in DB."""
+        """Read ./card.md from a project workspace and update the card in DB.
+
+        Parses optional YAML-ish frontmatter for `parent:` and `links:` so
+        cascade linkage round-trips through git/disk:
+
+            ---
+            parent: <card-id>
+            links: [<card-id>, <card-id>]
+            ---
+            # Title
+            …content…
+        """
+        import json as _json
         skillcards_db = os.environ.get('SKILLCARDS_DB',
                                        os.path.join(_DATA_DIR, 'skillcards.db'))
         data = request.get_json() or {}
@@ -174,9 +202,33 @@ def create_app() -> Flask:
             return jsonify({'error': 'card.md not found'}), 404
         raw = open(md_path).read()
         lines = raw.splitlines()
+
+        # ── Frontmatter parse ────────────────────────────────────────
+        parent_id, links = None, None
+        body_start = 0
+        if lines and lines[0].strip() == '---':
+            for i in range(1, min(len(lines), 30)):
+                if lines[i].strip() == '---':
+                    body_start = i + 1
+                    for fm in lines[1:i]:
+                        m = fm.strip()
+                        if m.startswith('parent:'):
+                            parent_id = m.split(':', 1)[1].strip().strip('"\'') or ''
+                        elif m.startswith('links:'):
+                            v = m.split(':', 1)[1].strip()
+                            if v.startswith('['):
+                                try:
+                                    links = [str(x).strip().strip('"\'') for x in _json.loads(v.replace("'", '"'))]
+                                except Exception:
+                                    links = []
+                            else:
+                                links = [s.strip() for s in v.split(',') if s.strip()]
+                    break
+
+        # ── Title + content extract ──────────────────────────────────
         title = ''
-        content_start = 0
-        for i, ln in enumerate(lines):
+        content_start = body_start
+        for i, ln in enumerate(lines[body_start:], start=body_start):
             if ln.startswith('# '):
                 title = ln[2:].strip()
                 content_start = i + 1
@@ -188,17 +240,38 @@ def create_app() -> Flask:
         from datetime import datetime
         now = datetime.utcnow().isoformat() + 'Z'
         conn = sqlite3.connect(skillcards_db)
-        cur = conn.execute('SELECT id FROM cards WHERE id=?', (card_id,))
-        if not cur.fetchone():
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute('SELECT metadata FROM cards WHERE id=?', (card_id,))
+        row = cur.fetchone()
+        if not row:
             conn.close()
             return jsonify({'error': 'card not found in DB'}), 404
+        # Merge parent_id / links into existing metadata if frontmatter set them
+        try:
+            meta = _json.loads(row['metadata'] or '{}')
+        except Exception:
+            meta = {}
+        if parent_id is not None:
+            if parent_id == '' or parent_id == card_id:
+                meta.pop('parent_id', None)
+            else:
+                meta['parent_id'] = parent_id
+        if links is not None:
+            cleaned = sorted({x for x in links if x and x != card_id})
+            if cleaned:
+                meta['links'] = list(cleaned)
+            else:
+                meta.pop('links', None)
         conn.execute(
-            'UPDATE cards SET title=?, content=?, updated_at=? WHERE id=?',
-            (title, content, now, card_id),
+            'UPDATE cards SET title=?, content=?, metadata=?, updated_at=? WHERE id=?',
+            (title, content, _json.dumps(meta), now, card_id),
         )
         conn.commit()
         conn.close()
-        return jsonify({'ok': True, 'id': card_id, 'title': title, 'updated_at': now})
+        return jsonify({'ok': True, 'id': card_id, 'title': title,
+                        'parent_id': meta.get('parent_id'),
+                        'links': meta.get('links') or [],
+                        'updated_at': now})
 
     # ── API logs (lightweight passthrough to logger) ───────────────────
     @app.route('/api/logs', methods=['GET'])

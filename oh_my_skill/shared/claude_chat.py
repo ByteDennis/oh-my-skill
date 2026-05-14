@@ -119,12 +119,17 @@ def _build_cmd(session: dict) -> list[str]:
     return cmd
 
 
-def _build_env() -> dict:
+def _build_env(card_id: str = '') -> dict:
     env = os.environ.copy()
     env['HOME'] = env.get('HOME', '/root')
     token = get_setting('global', 'claude_code_oauth_token')
     if token:
         env['CLAUDE_CODE_OAUTH_TOKEN'] = token
+    # The `oms` CLI (oms-save / oms-tag / etc.) keys off this env var to
+    # know which card the chat is scoped to. Without it the helpers exit
+    # with "OMI_CARD_ID not set".
+    if card_id:
+        env['OMI_CARD_ID'] = card_id
     return env
 
 
@@ -165,7 +170,7 @@ def send(chat_id: str, user_message: str):
     yield _ev({'type': 'user_message', 'text': user_message})
 
     cmd = _build_cmd({'claude_session_id': sess.get('claude_session_id') or None})
-    env = _build_env()
+    env = _build_env(card_id=sess.get('card_id') or '')
     t0 = time.time()
 
     try:

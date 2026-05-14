@@ -528,28 +528,135 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   background: rgba(232, 224, 208, 0.55);
   font-weight: 600; color: var(--omi-fg);
 }
-.editor-modal .pv pre {
-  background: rgba(40, 35, 25, 0.92); color: #e6edf3;
-  border-radius: var(--omi-radius-sm); padding: 12px 14px;
-  overflow-x: auto; margin: 10px 0;
-  font-size: 12.5px; line-height: 1.5;
-  position: relative;
-}
-.editor-modal .pv pre::after {
-  content: attr(data-lang); position: absolute; top: 6px; right: 10px;
-  font-size: 10px; color: rgba(230, 237, 243, 0.5); font-family: var(--omi-font-mono);
-  text-transform: uppercase;
-}
 .editor-modal .pv code:not(pre code) {
   background: rgba(146, 125, 92, 0.18); padding: 1px 6px;
   border-radius: 4px; font-family: var(--omi-font-mono);
   font-size: 12.5px; color: var(--omi-fg);
 }
+
+/* ─── Code block — header strip (lang + copy) + warm dark body ──────
+   Markup produced by renderMarkdown:
+     <div class="pv-code" data-lang="python">
+       <div class="pv-code-head">
+         <span class="pv-code-lang">python</span>
+         <button class="pv-code-copy">…</button>
+       </div>
+       <pre><code class="hljs language-python">…</code></pre>
+     </div>
+   Used by editor preview, ref-windows, and any .pv container. */
+.pv-code {
+  margin: 12px 0;
+  border-radius: var(--omi-radius-sm);
+  border: 1px solid var(--omi-border);
+  background: #2c2722;       /* warm dark — slightly lighter than near-black; brown undertone matches the paper theme */
+  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.10);
+  overflow: hidden;
+}
+.pv-code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 10px 5px 14px;
+  background: #231f1b;       /* slightly darker than body for the header strip */
+  border-bottom: 1px solid #3b342c;   /* warm divider, harmonizes with body+header */
+  height: 28px;
+}
+.pv-code-lang {
+  color: #9a8c78; font-size: 10.5px; font-weight: 600;   /* warm muted */
+  font-family: var(--omi-font-mono);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  user-select: none;
+}
+.pv-code-lang:empty { color: #6a7280; }
+.pv-code-lang:empty::before { content: 'plain'; }
+.pv-code-copy {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 4px;
+  width: auto; height: 22px; padding: 0 8px;
+  background: transparent; color: #9a8c78;
+  border: 1px solid transparent; border-radius: 4px;
+  cursor: pointer; font-size: 10.5px; font-weight: 600;
+  font-family: var(--omi-font-mono); letter-spacing: 0.04em;
+  text-transform: uppercase; line-height: 1;
+  transition: all 0.12s ease;
+}
+.pv-code-copy:hover { background: rgba(255, 251, 244, 0.08); color: #d8cdb6; border-color: #3b342c; }
+.pv-code-copy svg { width: 12px; height: 12px; }
+.pv-code-copy .label { display: none; }
+.pv-code-copy:hover .label { display: inline; }
+.pv-code-copy.done { color: #6f8159; background: rgba(143, 188, 143, 0.12); border-color: rgba(143, 188, 143, 0.45); }
+.pv-code-copy.done .label { display: inline; }
+.pv-code-copy.fail { color: var(--omi-error-deep); background: rgba(177, 90, 88, 0.10); border-color: rgba(177, 90, 88, 0.45); }
+.pv-code-copy.fail .label { display: inline; }
+.pv-code pre {
+  margin: 0; padding: 12px 14px;
+  background: transparent; color: #e6edf3;
+  font-family: var(--omi-font-mono);
+  font-size: 12.5px; line-height: 1.55;
+  overflow-x: auto;
+}
+.pv-code pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
 .editor-modal .pv blockquote {
   border-left: 3px solid var(--omi-accent);
   padding: 4px 12px; margin: 8px 0;
   background: rgba(212, 228, 193, 0.2);
   color: var(--omi-fg-soft); font-style: italic;
+}
+
+/* ─── Admonitions (callouts) — MkDocs Material / Docusaurus inspired ──
+   Markdown:  > [!NOTE] / TIP / IMPORTANT / WARNING / CAUTION
+   The markdown step rebuilds these as:
+     <blockquote class="adm adm-note">
+       <div class="adm-title"><span class="adm-icon">…</span><span class="adm-label">Note</span></div>
+       <div class="adm-body"><p>…</p></div>
+     </blockquote>
+   Colored title strip on top, paper-white body, soft shadow, rounded
+   corners. Per-type accent threaded through left border + title bar
+   tint + icon color, all kept light enough to stay friendly on the
+   warm-paper background. Selectors target .pv so it works in the main
+   editor preview AND inside floating reference windows. */
+.pv blockquote.adm {
+  --adm-accent: #5b8aa6;
+  --adm-tint:   rgba(91, 138, 166, 0.10);
+  font-style: normal;
+  margin: 14px 0;
+  padding: 0;
+  border: 1px solid var(--omi-border);
+  border-left: 3px solid var(--adm-accent);
+  border-radius: 6px;
+  background: rgba(255, 251, 244, 0.85);
+  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.06);
+  overflow: hidden;
+  color: var(--omi-fg);
+}
+.pv blockquote.adm-tip       { --adm-accent: #6f8159; --adm-tint: rgba(143, 188, 143, 0.16); }
+.pv blockquote.adm-important { --adm-accent: #8a5fa8; --adm-tint: rgba(170, 134, 196, 0.14); }
+.pv blockquote.adm-warning   { --adm-accent: #c8973a; --adm-tint: rgba(212, 160, 74, 0.16); }
+.pv blockquote.adm-caution   { --adm-accent: #b15a58; --adm-tint: rgba(177, 90, 88, 0.14); }
+.pv blockquote.adm > .adm-title {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px;
+  background: var(--adm-tint);
+  border-bottom: 1px solid color-mix(in srgb, var(--adm-accent) 18%, transparent);
+  color: var(--adm-accent);
+  font-weight: 700; font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+.pv blockquote.adm > .adm-title .adm-icon { display: inline-flex; flex-shrink: 0; }
+.pv blockquote.adm > .adm-title .adm-icon svg { width: 16px; height: 16px; }
+.pv blockquote.adm > .adm-title .adm-label { line-height: 1; }
+.pv blockquote.adm > .adm-body {
+  padding: 10px 14px;
+  color: var(--omi-fg);
+  font-style: normal;
+}
+.pv blockquote.adm > .adm-body > p { margin: 4px 0; font-style: normal; line-height: 1.55; }
+.pv blockquote.adm > .adm-body > p:first-child { margin-top: 0; }
+.pv blockquote.adm > .adm-body > p:last-child  { margin-bottom: 0; }
+.pv blockquote.adm > .adm-body > pre { margin: 8px 0; }
+.pv blockquote.adm > .adm-body > ul,
+.pv blockquote.adm > .adm-body > ol { margin: 4px 0 4px 20px; }
+.pv blockquote.adm > .adm-body code:not(pre code) {
+  background: var(--adm-tint);
+  color: var(--omi-fg);
 }
 
 /* ─── Manus/oh-my-ppt-style chat panel ───────────────────────────── */

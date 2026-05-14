@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>oh-my-skill</title>
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260512c">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260514h">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -212,6 +212,222 @@
   .icon-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
   .omi-btn.primary svg { stroke: #fff; }
 
+  /* ─── Save-confirm dialog (Save / Discard / Cancel) ─── */
+  .save-confirm {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(15, 15, 20, 0.45); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .save-confirm.show { display: flex; }
+  .save-confirm-card {
+    width: min(420px, 92vw);
+    background: var(--omi-card-bg, rgba(255,251,244,0.96));
+    border: 1px solid var(--omi-border-strong);
+    border-radius: var(--omi-radius);
+    box-shadow: var(--omi-shadow-lg);
+    padding: 18px 20px 14px;
+  }
+  .save-confirm-card h3 { margin: 0 0 6px; font-size: 14px; color: var(--omi-fg); font-weight: 700; }
+  .save-confirm-card p { margin: 0 0 14px; font-size: 12.5px; color: var(--omi-muted); line-height: 1.5; }
+  .save-confirm-actions {
+    display: flex; justify-content: flex-end; gap: 6px;
+  }
+  .save-confirm-actions .omi-btn { min-width: 74px; }
+
+  /* ─── Card info chip + popover (id, paths, timestamps) ─── */
+  .info-trigger {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; padding: 0; margin-left: -2px;
+    background: transparent; border: 1px solid transparent; border-radius: 5px;
+    color: var(--omi-muted); cursor: pointer; transition: all 0.12s ease;
+    flex-shrink: 0;
+  }
+  .info-trigger svg { width: 13px; height: 13px; }
+  .info-trigger:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); border-color: var(--omi-border); }
+  .info-pop {
+    display: none; position: fixed; z-index: 80;
+    width: 480px; max-width: calc(100vw - 32px);
+    background: var(--omi-card-bg, rgba(255,251,244,0.96));
+    backdrop-filter: blur(14px) saturate(1.05);
+    border: 1px solid var(--omi-border-strong);
+    border-radius: var(--omi-radius);
+    box-shadow: var(--omi-shadow-lg);
+    padding: 12px; font-size: 12px;
+    flex-direction: column; gap: 8px;
+  }
+  .info-pop.show { display: flex; }
+  .info-row { display: flex; align-items: center; gap: 6px; }
+  .info-row .info-label {
+    flex-shrink: 0; width: 88px;
+    font-size: 10.5px; color: var(--omi-muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .info-row .info-val {
+    flex: 1; min-width: 0; padding: 3px 8px;
+    background: var(--omi-bg-1); color: var(--omi-fg);
+    border: 1px solid var(--omi-border); border-radius: 5px;
+    font-family: var(--omi-font-mono); font-size: 11.5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    user-select: all; cursor: text;
+  }
+  .info-row .info-val.empty { color: var(--omi-muted); font-style: italic; }
+  .info-row .info-copy {
+    width: 26px; height: 26px; padding: 0; flex-shrink: 0;
+    background: transparent; color: var(--omi-muted);
+    border: 1px solid var(--omi-border); border-radius: 5px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .info-row .info-copy:hover { color: var(--omi-fg); border-color: var(--omi-border-strong); background: rgba(232,224,208,0.6); }
+  .info-row .info-copy svg { width: 12px; height: 12px; }
+  .info-pop .info-foot {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    font-size: 10.5px; color: var(--omi-muted);
+    padding-top: 6px; border-top: 1px solid var(--omi-border);
+  }
+
+  /* ─── Cascade trigger + popover (parent/sibling/children linkage) ─── */
+  .cascade-trigger {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; padding: 0; margin-left: -2px;
+    background: transparent; border: 1px solid transparent; border-radius: 5px;
+    color: var(--omi-muted); cursor: pointer; transition: all 0.12s ease;
+    flex-shrink: 0;
+  }
+  .cascade-trigger[hidden] { display: none; }
+  .cascade-trigger svg { width: 12px; height: 12px; }
+  .cascade-trigger:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); border-color: var(--omi-border); }
+  .cascade-trigger.has-link { color: var(--omi-accent-deep); }
+  .em-header:hover .cascade-trigger { display: inline-flex; }   /* surface on header hover even if not linked */
+
+  .cascade-pop {
+    display: none; position: absolute; z-index: 80;
+    width: 640px; height: 320px;
+    background: var(--omi-card-bg, rgba(255,251,244,0.96));
+    backdrop-filter: blur(14px) saturate(1.05);
+    border: 1px solid var(--omi-border-strong);
+    border-radius: var(--omi-radius);
+    box-shadow: var(--omi-shadow-lg);
+    overflow: hidden;
+    flex-direction: column;
+  }
+  .cascade-pop.show { display: flex; }
+  .cascade-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 10px; font-size: 11.5px;
+    background: rgba(255, 250, 241, 0.78);
+    border-bottom: 1px solid var(--omi-border);
+    color: var(--omi-muted); flex-shrink: 0;
+  }
+  .cascade-bar .crumb { color: var(--omi-muted); cursor: pointer; padding: 1px 4px; border-radius: 3px; }
+  .cascade-bar .crumb:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); }
+  .cascade-bar .crumb.cur { color: var(--omi-accent-deep); font-weight: 600; cursor: default; }
+  .cascade-bar .crumb.cur:hover { background: transparent; }
+  .cascade-bar .sep { opacity: 0.45; }
+  .cascade-bar input.cascade-filter {
+    margin-left: auto; flex: 0 1 200px; min-width: 80px;
+    background: var(--omi-bg-1); color: var(--omi-fg);
+    border: 1px solid var(--omi-border); border-radius: 5px;
+    padding: 3px 8px; font-size: 12px; outline: none;
+  }
+  .cascade-bar input.cascade-filter:focus { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
+  .cascade-bar .closer {
+    width: 22px; height: 22px; padding: 0; border: 1px solid transparent;
+    background: transparent; color: var(--omi-muted); border-radius: 5px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cascade-bar .closer:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); border-color: var(--omi-border); }
+
+  .cascade-cols {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    flex: 1; min-height: 0;
+  }
+  .cascade-col {
+    border-right: 1px solid var(--omi-border);
+    overflow-y: auto; padding: 4px 0;
+    font-size: 12px;
+  }
+  .cascade-col:last-child { border-right: none; }
+  .cascade-col-label {
+    padding: 4px 12px 6px; font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--omi-muted); position: sticky; top: 0;
+    background: rgba(255, 251, 244, 0.96); border-bottom: 1px solid var(--omi-border);
+    z-index: 1;
+  }
+  .cascade-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; cursor: pointer; user-select: none;
+    color: var(--omi-fg); transition: background 0.08s ease;
+    border-left: 2px solid transparent;
+  }
+  .cascade-item:hover { background: rgba(232, 224, 208, 0.45); }
+  .cascade-item.path { background: rgba(232, 224, 208, 0.28); border-left-color: var(--omi-border-strong); }
+  .cascade-item.cur  { background: rgba(212, 228, 193, 0.42); border-left-color: var(--omi-accent-deep); font-weight: 600; }
+  .cascade-item .marker { width: 14px; flex-shrink: 0; text-align: center; color: var(--omi-muted); font-size: 10px; }
+  .cascade-item.path .marker, .cascade-item.cur .marker { color: var(--omi-accent-deep); }
+  .cascade-item .label {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cascade-item .count {
+    color: var(--omi-muted); font-size: 10.5px; padding: 0 6px;
+    border-radius: 999px; background: rgba(146, 125, 92, 0.08);
+  }
+  .cascade-item .chev {
+    color: var(--omi-muted); font-size: 12px; flex-shrink: 0; opacity: 0.4;
+    width: 16px; height: 16px; line-height: 16px; text-align: center;
+    border-radius: 4px; cursor: pointer;
+  }
+  .cascade-item:hover .chev { opacity: 0.85; }
+  .cascade-item .chev:hover { opacity: 1; background: rgba(146, 125, 92, 0.18); color: var(--omi-fg); }
+  .cascade-add {
+    margin: 6px 8px 4px;
+    padding: 4px 8px; font-size: 11px;
+    color: var(--omi-muted); cursor: pointer; border-radius: 5px;
+    border: 1px dashed var(--omi-border); text-align: center;
+  }
+  .cascade-add:hover { color: var(--omi-fg); border-color: var(--omi-border-strong); background: rgba(232, 224, 208, 0.3); }
+
+  .cascade-aux {
+    border-top: 1px solid var(--omi-border);
+    padding: 6px 10px;
+    background: rgba(255, 250, 241, 0.78);
+    font-size: 11px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .cascade-aux .aux-section { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .cascade-aux .aux-label { color: var(--omi-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 2px; }
+  .cascade-aux .pill {
+    padding: 1.5px 8px; border-radius: 999px;
+    background: rgba(146, 125, 92, 0.12); color: var(--omi-fg);
+    cursor: pointer; font-size: 11px;
+    border: 1px solid transparent;
+  }
+  .cascade-aux .pill:hover { background: rgba(146, 125, 92, 0.22); border-color: var(--omi-border); }
+  .cascade-aux .pill.tag { background: rgba(212, 228, 193, 0.45); }
+  .cascade-aux .pill.tag:hover { background: rgba(212, 228, 193, 0.7); }
+  .cascade-aux .tree-btn {
+    margin-left: auto;
+    padding: 3px 10px; font-size: 11px; border-radius: 5px;
+    background: transparent; color: var(--omi-muted);
+    border: 1px solid var(--omi-border); cursor: pointer;
+  }
+  .cascade-aux .tree-btn:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); border-color: var(--omi-border-strong); }
+
+  /* Cascade item dragging visual feedback */
+  .cascade-item[draggable="true"]:active { opacity: 0.6; }
+  .cascade-item.dragging { opacity: 0.4; }
+  .cascade-item.drop-hover {
+    background: rgba(143, 188, 143, 0.28) !important;
+    outline: 2px solid var(--omi-accent-deep);
+    outline-offset: -2px;
+  }
+  .cascade-col.drop-hover-col {
+    background: rgba(143, 188, 143, 0.10);
+    outline: 2px dashed var(--omi-accent);
+    outline-offset: -3px;
+  }
+  .editor-modal .em-pane-edit textarea.drop-target { outline: 2px dashed var(--omi-accent-deep); outline-offset: -4px; }
+
   /* ─── VSCode-style find/replace widget (editor modal) ─── */
   .em-pane-edit { position: relative; }
   .find-widget {
@@ -345,8 +561,55 @@
   .ref-window-body .pv h2 { color: var(--omi-accent-deep); font-size: 15px; margin: 16px 0 6px; }
   .ref-window-body .pv h3 { color: var(--omi-fg-soft); font-size: 13px; margin: 12px 0 4px; }
   .ref-window-body .pv p { margin: 5px 0; }
-  .ref-window-body .pv code { background: rgba(232, 224, 208, 0.5); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
-  .ref-window-body .pv pre { background: var(--omi-bg-1); border: 1px solid var(--omi-border); border-radius: 6px; padding: 10px; overflow-x: auto; font-size: 12px; }
+  /* Inline code on paper background — readable on the warm card. */
+  .ref-window-body .pv code:not(pre code) {
+    background: rgba(146, 125, 92, 0.18);
+    color: var(--omi-fg);
+    padding: 1px 6px; border-radius: 4px;
+    font-family: var(--omi-font-mono); font-size: 12px;
+  }
+  /* Code blocks inherit the .pv .pv-code rules from omi.css — header
+     strip with lang label + copy button on a warm-dark body. */
+  /* Callouts / blockquotes — sage halo, soft fg colour. */
+  .ref-window-body .pv blockquote {
+    border-left: 3px solid var(--omi-accent);
+    padding: 4px 12px; margin: 8px 0;
+    background: rgba(212, 228, 193, 0.2);
+    color: var(--omi-fg-soft); font-style: italic;
+  }
+  .ref-window-body .pv table { border-collapse: collapse; margin: 10px 0; font-size: 12.5px; }
+  .ref-window-body .pv th, .ref-window-body .pv td {
+    border: 1px solid var(--omi-border); padding: 5px 10px; color: var(--omi-fg);
+  }
+  .ref-window-body .pv th { background: rgba(232, 224, 208, 0.55); font-weight: 600; }
+
+  /* In-window find bar — slides down from the header when activated */
+  .ref-find-bar {
+    display: none; padding: 6px 8px;
+    border-bottom: 1px solid var(--omi-border);
+    background: rgba(255, 250, 241, 0.78);
+    align-items: center; gap: 4px; flex-shrink: 0;
+  }
+  .ref-window.find-on .ref-find-bar { display: flex; }
+  .ref-find-bar input {
+    flex: 1; min-width: 0; background: var(--omi-bg-1); color: var(--omi-fg);
+    border: 1px solid var(--omi-border); border-radius: 5px;
+    padding: 3px 8px; font-size: 12px; outline: none;
+  }
+  .ref-find-bar input:focus { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
+  .ref-find-bar input.err { border-color: var(--omi-error-deep); box-shadow: 0 0 0 2px rgba(177,90,88,0.18); }
+  .ref-find-bar .rfb-count { color: var(--omi-muted); font-size: 11px; padding: 0 4px; min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+  .ref-find-bar .rfb-count.no-match { color: var(--omi-error-deep); }
+  .ref-find-bar button {
+    width: 22px; height: 22px; padding: 0; border: 1px solid transparent;
+    background: transparent; color: var(--omi-muted); border-radius: 5px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .ref-find-bar button:hover:not(:disabled) { background: rgba(232,224,208,0.6); color: var(--omi-fg); border-color: var(--omi-border); }
+  .ref-find-bar button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .ref-find-bar button svg { width: 13px; height: 13px; }
+  .ref-window-body mark.ref-find    { background: rgba(255,200,80,0.45); color: inherit; padding: 0; border-radius: 2px; }
+  .ref-window-body mark.ref-find.current { background: rgba(255,140,40,0.85); color: #1c1f24; }
   /* 8-direction resize handles — invisible hit zones along every edge
      and corner. Corner handles get the diagonal grip indicator. */
   .ref-resize { position: absolute; z-index: 2; }
@@ -504,7 +767,7 @@
         <button class="omi-btn ghost sm" id="focusOpen" title="Open in editor">✏ Edit</button>
         <button class="omi-btn ghost sm" id="focusReload" title="Reload from DB">↻</button>
       </div>
-      <div class="focus-body" id="focusBody"></div>
+      <div class="focus-body pv" id="focusBody"></div>
     </div>
   </section>
 
@@ -529,7 +792,7 @@
       <div class="omi-chat" id="chatRoot">
         <div class="omi-chat-empty" id="chatEmpty">
           <div class="glyph">💬</div>
-          <div>Open a card and click <strong>🖥 Edit w/ AI</strong> to chat-edit it.<br>Or paste rough notes above and hit <strong>Extract</strong> to skip straight to a clean card.</div>
+          <div>Open a card and click <strong>💬 Chat</strong> to chat-edit it.<br>Or paste rough notes above and hit <strong>Extract</strong> to skip straight to a clean card.</div>
         </div>
         <div class="omi-chat-context" id="chatContext" style="display:none">
           <div class="meta">
@@ -566,6 +829,12 @@
 <dialog id="editorModal" class="omi-dialog editor-modal">
   <div class="em-header">
     <input id="emTitle" class="em-title" placeholder="Untitled card">
+    <button class="cascade-trigger" id="cascadeTrigger" title="Linked cards (parent / siblings / children)" aria-label="Card cascade" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <button class="info-trigger" id="infoTrigger" title="Card ID, workspace path, timestamps" aria-label="Card info">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>
+    </button>
     <button class="omi-btn ghost sm icon-btn" id="emPreviewMode" title="Cycle edit / split / preview">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       <span id="emPreviewLabel">Split</span>
@@ -578,13 +847,13 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
       <span id="emSizeLabel">Default</span>
     </button>
-    <button class="omi-btn secondary sm icon-btn" id="emAi" title="Chat with Claude about this card">
+    <button class="omi-btn secondary sm icon-btn" id="emAi" title="Open an AI chat scoped to this card (Claude can read &amp; edit it)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      Edit w/ AI
+      Chat
     </button>
-    <button class="omi-btn ghost sm icon-btn" id="emSyncFromAi" title="Pull workspace card.md back into editor">
+    <button class="omi-btn ghost sm icon-btn" id="emSyncFromAi" title="Pull the latest version Claude saved (greyed out when no chat exists for this card)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      from AI
+      Pull
     </button>
     <button class="omi-btn primary sm icon-btn" id="emSave">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -645,6 +914,60 @@
     </div>
   </div>
 </dialog>
+
+<!-- ─── Save-confirm dialog (Save / Discard / Cancel) ──────── -->
+<div class="save-confirm" id="saveConfirm" role="dialog" aria-label="Unsaved changes">
+  <div class="save-confirm-card">
+    <h3 id="scTitle">Save changes?</h3>
+    <p id="scMsg">You have unsaved changes. Save before closing?</p>
+    <div class="save-confirm-actions">
+      <button class="omi-btn ghost sm" id="scCancel">Cancel</button>
+      <button class="omi-btn ghost sm" id="scDiscard" style="color: var(--omi-error-deep)">Discard</button>
+      <button class="omi-btn primary sm" id="scSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Card info popover (id, paths, timestamps) ──────────── -->
+<div class="info-pop" id="infoPop" role="dialog" aria-label="Card info">
+  <div class="info-row">
+    <span class="info-label">Card ID</span>
+    <span class="info-val" id="ipId">—</span>
+    <button class="info-copy" data-target="ipId" title="Copy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Workspace</span>
+    <span class="info-val" id="ipPath">—</span>
+    <button class="info-copy" data-target="ipPath" title="Copy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+  </div>
+  <div class="info-row">
+    <span class="info-label">DB</span>
+    <span class="info-val" id="ipDb">—</span>
+    <button class="info-copy" data-target="ipDb" title="Copy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+  </div>
+  <div class="info-foot">
+    <span>created <span id="ipCreated">—</span></span>
+    <span>updated <span id="ipUpdated">—</span></span>
+    <span style="margin-left:auto">storage: SQLite (canonical) · disk = chat scratch</span>
+  </div>
+</div>
+
+<!-- ─── Cascade popover (parent / siblings / children) ──────── -->
+<div class="cascade-pop" id="cascadePop" role="dialog" aria-label="Card cascade">
+  <div class="cascade-bar">
+    <div id="cascCrumb" style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow:hidden"></div>
+    <input class="cascade-filter" id="cascFilter" placeholder="filter…" autocomplete="off" spellcheck="false">
+    <button class="closer" id="cascClose" title="Close (Esc)">×</button>
+  </div>
+  <div class="cascade-cols" id="cascCols"></div>
+  <div class="cascade-aux" id="cascAux"></div>
+</div>
 
 <!-- ─── Floating reference windows + dock ───────────────────── -->
 <div class="ref-layer" id="refLayer"></div>
@@ -945,14 +1268,75 @@ function renderMarkdown(md) {
   const fmHtml = renderFrontmatterTable(fm);
   const {text: bodySafe, chunks: katexChunks} = _protectKatex(body || '');
   let html = marked.parse(bodySafe);
-  html = html.replace(/<pre><code class="hljs language-(\w+)">/g,
-                      '<pre data-lang="$1"><code class="hljs language-$1">');
-  // GitHub-style alerts: > [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING], > [!CAUTION]
-  html = html.replace(/<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*<br>?([\s\S]*?)<\/p>/gi,
-    (m, type, body) => {
+  // Wrap every <pre><code …> in a .pv-code card with a header strip
+  // (lang label + copy button). Marked v9 emits <pre><code class="language-X">
+  // (no `hljs` prefix); we also apply hljs.highlight ourselves below since
+  // marked v9 removed the `highlight` setOptions callback.
+  const COPY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  function _wrapCode(lang, codeHtml) {
+    const langLabel = lang || '';
+    // codeHtml is the inner HTML of <code> as marked produced it (entity-
+    // escaped plain text). If we have a language, run hljs on the *text*
+    // version so syntax tokens get applied; otherwise leave as-is.
+    let inner = codeHtml, finalLang = langLabel;
+    if (lang) {
+      try {
+        // Decode entities to plain text by parsing into a temp <textarea>
+        const t = document.createElement('textarea');
+        t.innerHTML = codeHtml;
+        const plain = t.value;
+        if (typeof hljs !== 'undefined' && hljs.getLanguage(lang)) {
+          inner = hljs.highlight(plain, { language: lang, ignoreIllegals: true }).value;
+        }
+      } catch {}
+    }
+    const codeAttr = lang ? ` class="hljs language-${lang}"` : ' class="hljs"';
+    return (
+      `<div class="pv-code"${lang ? ` data-lang="${lang}"` : ''}>` +
+        `<div class="pv-code-head">` +
+          `<span class="pv-code-lang">${langLabel}</span>` +
+          `<button class="pv-code-copy" type="button" aria-label="Copy code">${COPY_SVG}<span class="label">copy</span></button>` +
+        `</div>` +
+        `<pre><code${codeAttr}>${inner}</code></pre>` +
+      `</div>`
+    );
+  }
+  // With a language fence: <pre><code class="language-X">…</code></pre>
+  html = html.replace(/<pre><code class="(?:hljs )?language-(\w+)">([\s\S]*?)<\/code><\/pre>/g,
+    (_m, lang, code) => _wrapCode(lang, code));
+  // Without a fence: <pre><code>…</code></pre>
+  html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g,
+    (_m, code) => _wrapCode('', code));
+  // GitHub-flavored callouts (admonition style).
+  // Markdown:  > [!NOTE|TIP|IMPORTANT|WARNING|CAUTION]
+  //            > body line 1
+  //            > body line 2
+  // Captures the whole <blockquote> so multi-paragraph callouts stay
+  // wrapped, then rebuilds it as a Material-style admonition with a
+  // colored title strip + clean SVG icon and a paper-white body.
+  const ADM_ICONS = {
+    note:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>',
+    tip:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.8.6 1.4 1.5 1.6 2.5h4c.2-1 .8-1.9 1.6-2.5A6 6 0 0 0 12 3z"/></svg>',
+    important: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16" r="0.6" fill="currentColor"/></svg>',
+    warning:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>',
+    caution:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.6" fill="currentColor"/></svg>',
+  };
+  html = html.replace(
+    /<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s*<br\s*\/?>)?\s*([\s\S]*?)<\/blockquote>/gi,
+    (m, type, rest) => {
       const t = type.toLowerCase();
-      const icons = {note:'ℹ️', tip:'💡', important:'❗', warning:'⚠️', caution:'🛑'};
-      return `<blockquote class="alert-${t}"><p><strong>${icons[t]||''} ${type[0]+type.slice(1).toLowerCase()}</strong><br>${body}</p>`;
+      const label = type[0] + type.slice(1).toLowerCase();
+      // `rest` already ends with the trailing `</p>` of the last paragraph,
+      // so we prepend a fresh `<p>` to wrap the captured first-paragraph body.
+      return (
+        `<blockquote class="adm adm-${t}">` +
+          `<div class="adm-title">` +
+            `<span class="adm-icon">${ADM_ICONS[t] || ''}</span>` +
+            `<span class="adm-label">${label}</span>` +
+          `</div>` +
+          `<div class="adm-body"><p>${rest}</div>` +
+        `</blockquote>`
+      );
     });
   // ==highlight== — content must be 1+ non-space chars adjacent to the
   // markers so `0.5000` == `0.5` (with spaces around ==) does NOT highlight.
@@ -1104,7 +1488,34 @@ window.openCard = function (id) {
   $('#editorModal').showModal();
   setupEditorScrollSync();
   setTimeout(() => $('#emContent').focus(), 100);
+  if (typeof window._refreshCascadeTrigger === 'function') window._refreshCascadeTrigger();
+  refreshPullButton();
 };
+
+// "Pull" is only meaningful once a chat session exists for this card.
+// Grey it out otherwise (and as a hint that opening Chat is the prerequisite).
+async function refreshPullButton() {
+  const btn = $('#emSyncFromAi');
+  if (!btn || !CURRENT) return;
+  if (!CURRENT.id) {
+    // New unsaved draft — no chat possible yet
+    btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed';
+    btn.title = 'Save the card first, then start a chat with it';
+    return;
+  }
+  try {
+    const sessions = await fetch(`/api/chat?card_id=${encodeURIComponent(CURRENT.id)}`).then(r => r.json());
+    const has = Array.isArray(sessions) && sessions.length > 0;
+    btn.disabled = !has;
+    btn.style.opacity = has ? '' : '0.4';
+    btn.style.cursor  = has ? '' : 'not-allowed';
+    btn.title = has
+      ? 'Pull the latest version Claude saved'
+      : 'No AI chat exists for this card yet — click Chat first';
+  } catch {
+    // Network blip — leave the button alone
+  }
+}
 
 // ─── Sync edit ↔ preview scroll (single visible scrollbar = preview's) ───
 let _scrollSyncWired = false;
@@ -1178,12 +1589,26 @@ $('#emSave').onclick = async () => {
   CURRENT.title = $('#emTitle').value.trim() || 'Untitled';
   CURRENT.content = $('#emContent').value;
   setStatus('saving…');
-  const r = await fetch(`/skill-cards/api/cards/${CURRENT.id}`, {
-    method: 'PUT', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({title: CURRENT.title, content: CURRENT.content, tags: CURRENT.tags || []}),
+  const meta = CURRENT.metadata || {};
+  const isDraft = !CURRENT.id;
+  const url    = isDraft ? '/skill-cards/api/cards' : `/skill-cards/api/cards/${CURRENT.id}`;
+  const method = isDraft ? 'POST' : 'PUT';
+  const r = await fetch(url, {
+    method, headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      title: CURRENT.title, content: CURRENT.content,
+      tags: CURRENT.tags || [],
+      parent_id: meta.parent_id || '',
+      links: meta.links || [],
+    }),
   });
   const j = await r.json();
   if (j.error) { setStatus(j.error, 'error'); return; }
+  if (isDraft && j.id) {
+    CURRENT.id = j.id;
+    CURRENT.created_at = j.created_at;
+  }
+  CURRENT.updated_at = j.updated_at || CURRENT.updated_at;
   setStatus('saved', 'ok');
   $('#emSave').classList.add('omi-pulse');
   setTimeout(() => $('#emSave').classList.remove('omi-pulse'), 1400);
@@ -1193,6 +1618,12 @@ $('#emSave').onclick = async () => {
 };
 $('#emDelete').onclick = async () => {
   if (!CURRENT) return;
+  // Brand-new drafts: no DB row to delete; just discard the in-memory copy.
+  if (!CURRENT.id) {
+    unsavedChanges = false;  // suppress the save-confirm dialog
+    closeModal();
+    return;
+  }
   if (!confirm(`Delete "${CURRENT.title}"?`)) return;
   await fetch(`/skill-cards/api/cards/${CURRENT.id}`, {method: 'DELETE'});
   $('#editorModal').close();
@@ -1201,10 +1632,53 @@ $('#emDelete').onclick = async () => {
   setStatus('deleted', 'ok');
 };
 $('#emClose').onclick = () => closeModal();
-function closeModal() {
-  if (unsavedChanges && !confirm('Discard unsaved changes?')) return;
+async function closeModal() {
+  if (unsavedChanges) {
+    const choice = await askSaveDiscard({
+      title: CURRENT && !CURRENT.id ? 'Keep this new card?' : 'Save changes?',
+      msg:   CURRENT && !CURRENT.id
+        ? 'This is a brand-new card that hasn’t been saved yet.'
+        : 'You have unsaved changes. Save before closing?',
+    });
+    if (choice === 'cancel') return;
+    if (choice === 'save') {
+      await $('#emSave').onclick();
+      // emSave bails on error and leaves unsavedChanges=true; respect that
+      if (unsavedChanges) return;
+    }
+    // 'discard' falls through. If it's an unsaved draft (no id), nothing
+    // to delete from DB. If it's an existing card with edits, we just close
+    // and abandon the in-memory edits — DB still has the prior version.
+  }
   $('#editorModal').close();
   CURRENT = null;
+}
+
+// ─── Save / Discard / Cancel modal ────────────────────────────────
+function askSaveDiscard({ title, msg }) {
+  return new Promise((resolve) => {
+    $('#scTitle').textContent = title;
+    $('#scMsg').textContent = msg;
+    const ovr = $('#saveConfirm');
+    ovr.classList.add('show');
+    const cleanup = (val) => {
+      ovr.classList.remove('show');
+      $('#scSave').onclick = $('#scDiscard').onclick = $('#scCancel').onclick = null;
+      ovr.onclick = null;
+      document.removeEventListener('keydown', onKey, true);
+      resolve(val);
+    };
+    $('#scSave').onclick    = () => cleanup('save');
+    $('#scDiscard').onclick = () => cleanup('discard');
+    $('#scCancel').onclick  = () => cleanup('cancel');
+    ovr.onclick = (e) => { if (e.target === ovr) cleanup('cancel'); };
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cleanup('cancel'); }
+      if (e.key === 'Enter')  { e.preventDefault(); cleanup('save'); }
+    }
+    document.addEventListener('keydown', onKey, true);
+    setTimeout(() => $('#scSave').focus(), 0);
+  });
 }
 $('#editorModal').addEventListener('close', () => {
   CURRENT = null;
@@ -1264,30 +1738,42 @@ $('#focusReload').onclick = async () => {
 
 $('#emSyncFromAi').onclick = async () => {
   if (!CURRENT) return;
+  if ($('#emSyncFromAi').disabled) return;
+  const beforeUpdated = CURRENT.updated_at;
   // Reload card from DB (chat's oms-save already wrote back)
   await loadCards();
   const updated = CARDS.find(c => c.id === CURRENT.id);
-  if (updated) {
-    CURRENT = updated;
-    $('#emTitle').value = updated.title;
-    $('#emContent').value = updated.content || '';
-    renderEmTags(); renderPreview();
-    unsavedChanges = false;
-    setStatus('synced from AI', 'ok');
+  if (!updated) return;
+  CURRENT = updated;
+  $('#emTitle').value = updated.title;
+  $('#emContent').value = updated.content || '';
+  renderEmTags(); renderPreview();
+  unsavedChanges = false;
+  if (typeof window._refreshCascadeTrigger === 'function') window._refreshCascadeTrigger();
+  if (updated.updated_at && updated.updated_at !== beforeUpdated) {
+    setStatus('synced from AI · ' + updated.updated_at.slice(0, 19).replace('T', ' '), 'ok');
+  } else {
+    setStatus('no AI changes — DB matches editor (was Claude’s save successful?)', '');
   }
 };
 
 // ── New card ───────────────────────────────────────────────────────
-$('#newCard').onclick = async () => {
-  const r = await fetch('/skill-cards/api/cards', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({title: 'Untitled', content: '# Untitled\n\n', tags: []}),
-  });
-  const j = await r.json();
-  if (j.error) { setStatus(j.error, 'error'); return; }
-  await loadCards();
-  openCard(j.id);
-  setTimeout(() => $('#emTitle').select(), 200);
+$('#newCard').onclick = () => {
+  // Don't hit the DB yet — open an in-memory draft and let the user
+  // decide whether it's worth saving.
+  CURRENT = { id: null, title: 'Untitled', content: '', tags: [], metadata: {}, created_at: '', updated_at: '' };
+  ORIGINAL = JSON.parse(JSON.stringify(CURRENT));
+  $('#emTitle').value = CURRENT.title;
+  $('#emContent').value = CURRENT.content;
+  renderEmTags(); renderPreview();
+  unsavedChanges = true;          // it's brand-new, every keystroke is "unsaved"
+  applyPreviewMode();
+  document.body.classList.add('modal-open');
+  $('#editorModal').showModal();
+  setupEditorScrollSync();
+  setTimeout(() => $('#emTitle').select(), 100);
+  if (typeof window._refreshCascadeTrigger === 'function') window._refreshCascadeTrigger();
+  refreshPullButton();
 };
 
 // ── Search ─────────────────────────────────────────────────────────
@@ -2176,13 +2662,35 @@ document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && document.activeElement === $('#extractInput')) {
     e.preventDefault(); $('#extractBtn').click();
   }
-  if (e.key === 'Escape' && $('#editorModal').open) {
-    if (unsavedChanges) {
-      e.preventDefault();
-      if (confirm('Discard unsaved changes?')) { unsavedChanges = false; $('#editorModal').close(); }
-    }
-  }
+  // Escape no longer closes the editor — let the in-modal widgets
+  // (find, cascade, ref-window, picker) handle Esc on their own.
 });
+// Native <dialog> closes on Esc by default; suppress that so users
+// don't lose unsaved work by accident. Use the explicit ✕ button instead.
+//
+// Two-layer defense:
+//   1) `cancel` event on the dialog → preventDefault to block the browser
+//      from closing the dialog when nothing else handled the keypress.
+//   2) Capture-phase keydown on document → if ESC is pressed and NO inner
+//      widget overlay is open to consume it, swallow the event entirely so
+//      it never reaches the dialog's cancel pipeline. (Some browsers fire
+//      `cancel` regardless of cancellation; we belt-and-suspender it.)
+$('#editorModal').addEventListener('cancel', (e) => { e.preventDefault(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const dlg = document.getElementById('editorModal');
+  if (!dlg || !dlg.open) return;
+  // Inner widgets that legitimately want ESC — let them handle it
+  const innerOpen = (
+    document.getElementById('cascadePop')?.classList.contains('show') ||
+    document.getElementById('findWidget')?.classList.contains('show') ||
+    document.getElementById('refPickerOverlay')?.classList.contains('show') ||
+    document.querySelector('.ref-window.find-on')
+  );
+  if (innerOpen) return;
+  // Swallow before the browser routes ESC to the dialog's cancel handler
+  e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+}, true);
 
 // ─── Find / Replace widget (VSCode-style) ─────────────────────────
 (function () {
@@ -2325,6 +2833,9 @@ document.addEventListener('keydown', e => {
   document.addEventListener('keydown', (e) => {
     const dlg = document.getElementById('editorModal');
     if (!dlg || !dlg.open) return;
+    // If focus is inside a floating reference window, let *its* find bar
+    // handle Ctrl+F / Esc — don't intercept here.
+    if (e.target && e.target.closest && e.target.closest('.ref-window')) return;
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
       e.preventDefault(); open(false); return;
     }
@@ -2553,11 +3064,27 @@ document.addEventListener('keydown', e => {
       <div class="ref-window-header">
         <span class="ref-title" title="${escHTML(card.title || '')}">${escHTML(card.title || '(untitled)')}</span>
         <span class="ref-tags">${tags}</span>
+        <button class="ref-find-btn" title="Find in this card (Ctrl+F)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
         <button class="ref-min" title="Minimize">−</button>
         <button class="ref-pop" title="Open this card in editor">↗</button>
         <button class="ref-x danger" title="Close">×</button>
       </div>
-      <div class="ref-window-body"><div class="pv"></div></div>
+      <div class="ref-find-bar">
+        <input type="text" class="rfb-input" placeholder="Find" autocomplete="off" spellcheck="false">
+        <span class="rfb-count">No results</span>
+        <button class="rfb-prev" title="Previous (Shift+Enter)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+        <button class="rfb-next" title="Next (Enter)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <button class="rfb-close" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="ref-window-body" tabindex="0"><div class="pv"></div></div>
       <div class="ref-resize n"></div><div class="ref-resize s"></div>
       <div class="ref-resize e"></div><div class="ref-resize w"></div>
       <div class="ref-resize ne"></div><div class="ref-resize nw"></div>
@@ -2663,6 +3190,108 @@ document.addEventListener('keydown', e => {
     };
 
     w.addEventListener('mousedown', () => focusWin(winState), true);
+
+    // ─── Per-window find ─────────────────────────────────────────
+    // (`pv` is already declared above for the markdown render block)
+    const findBar  = w.querySelector('.ref-find-bar');
+    const findInp  = w.querySelector('.rfb-input');
+    const findCnt  = w.querySelector('.rfb-count');
+    let originalHTML = '';      // snapshot before highlights
+    let rfMatches = [];         // <mark> elements
+    let rfIdx = -1;
+
+    function rfOpen() {
+      if (!w.classList.contains('find-on')) {
+        originalHTML = pv.innerHTML;
+        w.classList.add('find-on');
+      }
+      // Prefill from current selection
+      const sel = window.getSelection().toString();
+      if (sel && !sel.includes('\n')) findInp.value = sel;
+      setTimeout(() => { findInp.focus(); findInp.select(); rfRecompute(); }, 0);
+    }
+    function rfClose() {
+      w.classList.remove('find-on');
+      if (originalHTML) { pv.innerHTML = originalHTML; originalHTML = ''; }
+      rfMatches = []; rfIdx = -1;
+      const body = w.querySelector('.ref-window-body');
+      body && body.focus();
+    }
+    function rfEscape(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+    function rfWalk(node, re, out) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.nodeValue; if (!text) return;
+        let m, last = 0; const frags = [];
+        re.lastIndex = 0;
+        while ((m = re.exec(text)) !== null) {
+          if (m[0].length === 0) { re.lastIndex++; continue; }
+          if (m.index > last) frags.push(document.createTextNode(text.slice(last, m.index)));
+          const mark = document.createElement('mark');
+          mark.className = 'ref-find';
+          mark.textContent = m[0];
+          frags.push(mark); out.push(mark);
+          last = m.index + m[0].length;
+        }
+        if (frags.length) {
+          if (last < text.length) frags.push(document.createTextNode(text.slice(last)));
+          const parent = node.parentNode;
+          for (const f of frags) parent.insertBefore(f, node);
+          parent.removeChild(node);
+        }
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        // Don't descend into <mark>, <script>, <style>
+        if (/^(MARK|SCRIPT|STYLE)$/.test(node.tagName)) return;
+        for (const ch of [...node.childNodes]) rfWalk(ch, re, out);
+      }
+    }
+    function rfRecompute() {
+      // Restore baseline before re-walking
+      if (originalHTML) pv.innerHTML = originalHTML;
+      else originalHTML = pv.innerHTML;
+      rfMatches = [];
+      findInp.classList.remove('err');
+      const pat = findInp.value;
+      if (!pat) { rfIdx = -1; rfUpdate(); return; }
+      let re;
+      try { re = new RegExp(rfEscape(pat), 'gi'); } catch { findInp.classList.add('err'); return; }
+      rfWalk(pv, re, rfMatches);
+      rfIdx = rfMatches.length ? 0 : -1;
+      if (rfIdx === 0) rfMatches[0].classList.add('current');
+      if (rfIdx === 0) rfMatches[0].scrollIntoView({ block: 'center' });
+      rfUpdate();
+    }
+    function rfUpdate() {
+      if (!findInp.value) { findCnt.textContent = 'No results'; findCnt.classList.remove('no-match'); }
+      else if (!rfMatches.length) { findCnt.textContent = 'No results'; findCnt.classList.add('no-match'); }
+      else { findCnt.textContent = `${rfIdx + 1} of ${rfMatches.length}`; findCnt.classList.remove('no-match'); }
+      w.querySelector('.rfb-prev').disabled = w.querySelector('.rfb-next').disabled = rfMatches.length === 0;
+    }
+    function rfNext(dir) {
+      if (!rfMatches.length) return;
+      rfMatches.forEach(m => m.classList.remove('current'));
+      rfIdx = (rfIdx + dir + rfMatches.length) % rfMatches.length;
+      rfMatches[rfIdx].classList.add('current');
+      rfMatches[rfIdx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+      findCnt.textContent = `${rfIdx + 1} of ${rfMatches.length}`;
+    }
+
+    w.querySelector('.ref-find-btn').onclick = rfOpen;
+    w.querySelector('.rfb-close').onclick    = rfClose;
+    w.querySelector('.rfb-prev').onclick     = () => rfNext(-1);
+    w.querySelector('.rfb-next').onclick     = () => rfNext(+1);
+    findInp.addEventListener('input', rfRecompute);
+    findInp.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); rfClose(); }
+      if (e.key === 'Enter')  { e.preventDefault(); rfNext(e.shiftKey ? -1 : 1); }
+    });
+    // Ctrl+F while focus is anywhere inside this window → open this find bar
+    w.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault(); e.stopPropagation();
+        rfOpen();
+      }
+    }, true);
+
     focusWin(winState);
   }
 
@@ -2672,6 +3301,639 @@ document.addEventListener('keydown', e => {
     ws.el.style.zIndex = ++topZ;
   }
 })();
+
+// ─── Cascade — parent / siblings / children + tag clusters + links ───
+// Compact 3-column Miller cascade triggered by the title chevron.
+// Linkage model: each card optionally has metadata.parent_id; the union
+// across all cards forms a forest. metadata.links is a free-form DAG of
+// cross-references (rendered in the "↔ related" pill row at the bottom).
+(function () {
+  const dlgEd   = document.getElementById('editorModal');
+  const trigger = document.getElementById('cascadeTrigger');
+  const pop     = document.getElementById('cascadePop');
+  const colsEl  = document.getElementById('cascCols');
+  const auxEl   = document.getElementById('cascAux');
+  const crumbEl = document.getElementById('cascCrumb');
+  const filterIn= document.getElementById('cascFilter');
+
+  // ── Tree helpers ─────────────────────────────────────────────────
+  function metaOf(c) { return (c && c.metadata) || {}; }
+  function parentOf(c) { return metaOf(c).parent_id || null; }
+  function linksOf(c) { return Array.isArray(metaOf(c).links) ? metaOf(c).links : []; }
+  function byId(id) { return (CARDS || []).find(c => c.id === id) || null; }
+  function childrenOf(id) {
+    return (CARDS || []).filter(c => parentOf(c) === id)
+                        .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+  }
+  function rootCards() {
+    return (CARDS || []).filter(c => !parentOf(c) || !byId(parentOf(c)))
+                        .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+  }
+  function ancestryOf(c) {
+    // Returns [root, …, parent, c]; cycle-safe
+    const out = [c]; const seen = new Set([c.id]);
+    let cur = c;
+    while (true) {
+      const p = byId(parentOf(cur));
+      if (!p || seen.has(p.id)) break;
+      out.unshift(p); seen.add(p.id); cur = p;
+    }
+    return out;
+  }
+  function tagClustersFor(c) {
+    // Cards sharing any tag with c (excluding c). Capped to 6 per cluster.
+    const out = {};
+    for (const t of (c.tags || [])) {
+      const peers = (CARDS || []).filter(x => x.id !== c.id && (x.tags || []).includes(t));
+      if (peers.length) out[t] = peers.slice(0, 6);
+    }
+    return out;
+  }
+
+  // ── State ────────────────────────────────────────────────────────
+  // colState[i] = id of selected card in column i (or '' for "root")
+  let colState = ['', '', ''];
+  let filterText = '';
+
+  // ── UI: chevron visibility ───────────────────────────────────────
+  function refreshTrigger() {
+    if (!CURRENT) { trigger.hidden = true; return; }
+    const hasParent = !!parentOf(CURRENT) && !!byId(parentOf(CURRENT));
+    const hasChildren = childrenOf(CURRENT.id).length > 0;
+    const hasLinks = linksOf(CURRENT).length > 0;
+    const linked = hasParent || hasChildren || hasLinks;
+    trigger.hidden = false;            // always shown when editor's open
+    trigger.classList.toggle('has-link', linked);
+    trigger.title = linked
+      ? `Linked: ${hasParent?'parent ':''}${hasChildren?'children ':''}${hasLinks?'related':''}`.trim()
+      : 'Link this card (parent / children / related)';
+  }
+  window._refreshCascadeTrigger = refreshTrigger;  // used by save / openCard
+
+  // ── Open / close ─────────────────────────────────────────────────
+  function open() {
+    if (!CURRENT) return;
+    // Reparent into dialog top layer (same trick as ref-windows)
+    if (dlgEd.open && pop.parentElement !== dlgEd) dlgEd.appendChild(pop);
+    // Anchor below the title chevron
+    const r = trigger.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - 660, r.left)) + 'px';
+    pop.style.top  = Math.min(window.innerHeight - 340, r.bottom + 6) + 'px';
+    pop.style.position = 'fixed';
+
+    // Initialize column state from current card's ancestry
+    const path = ancestryOf(CURRENT);
+    // Path is [L1, L2, …, current]. For 3-col: pin first 2 + show current's level
+    if (path.length === 1) colState = ['', '', ''];
+    else if (path.length === 2) colState = [path[0].id, '', ''];
+    else colState = [path[path.length - 3].id, path[path.length - 2].id, ''];
+    filterText = '';
+    filterIn.value = '';
+
+    pop.classList.add('show');
+    render();
+    setTimeout(() => filterIn.focus(), 0);
+  }
+  function close() { pop.classList.remove('show'); }
+
+  trigger.addEventListener('click', (e) => { e.stopPropagation(); pop.classList.contains('show') ? close() : open(); });
+  document.getElementById('cascClose').onclick = close;
+  document.addEventListener('click', (e) => {
+    if (!pop.classList.contains('show')) return;
+    if (e.target.closest('#cascadePop, #cascadeTrigger')) return;
+    close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!pop.classList.contains('show')) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+  }, true);
+  filterIn.addEventListener('input', () => { filterText = filterIn.value.trim().toLowerCase(); render(); });
+
+  // ── Render ───────────────────────────────────────────────────────
+  function escHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function render() {
+    if (!CURRENT) return;
+    renderCrumb();
+    renderColumns();
+    renderAux();
+  }
+
+  function renderCrumb() {
+    const path = ancestryOf(CURRENT);
+    if (path.length <= 1) {
+      crumbEl.innerHTML = `<span class="crumb cur">${escHTML(CURRENT.title || '(untitled)')}</span>`;
+      return;
+    }
+    const parts = path.map((c, i) => {
+      const isCur = (c.id === CURRENT.id);
+      return `<span class="crumb ${isCur ? 'cur' : ''}" data-jump="${escHTML(c.id)}">${escHTML(c.title || '(untitled)')}</span>` +
+             (i < path.length - 1 ? '<span class="sep">›</span>' : '');
+    }).join('');
+    crumbEl.innerHTML = parts;
+    crumbEl.querySelectorAll('.crumb[data-jump]').forEach(el => {
+      if (el.classList.contains('cur')) return;
+      el.onclick = () => { promote(el.dataset.jump); };
+    });
+  }
+
+  function colItems(colIdx) {
+    if (colIdx === 0) return rootCards();
+    const parentId = colState[colIdx - 1];
+    if (!parentId) return [];
+    return childrenOf(parentId);
+  }
+
+  function renderColumns() {
+    const colLabels = ['L1 — Topics', 'L2 — Subtopics', 'L3 — Cards'];
+    const path = ancestryOf(CURRENT).map(c => c.id);
+    let html = '';
+    for (let i = 0; i < 3; i++) {
+      let items = colItems(i);
+      if (filterText) {
+        items = items.filter(c => (c.title || '').toLowerCase().includes(filterText)
+                              || (c.tags || []).some(t => t.toLowerCase().includes(filterText)));
+      }
+      const parentForAdd = i === 0 ? '' : colState[i - 1];
+      const showAdd = i === 0 || (parentForAdd && byId(parentForAdd));
+      const addLabel = i === 0 ? '+ new top-level' : `+ new child of ${escHTML((byId(parentForAdd) || {}).title || '')}`;
+      html += `<div class="cascade-col" data-col="${i}">
+        <div class="cascade-col-label">${colLabels[i]}</div>
+        ${items.length === 0 ? `<div style="padding:10px 12px;color:var(--omi-muted);font-size:11px">${i === 0 ? 'no cards yet' : 'no children'}</div>` : ''}
+        ${items.map(c => {
+          const isCur  = c.id === CURRENT.id;
+          const isPath = path.includes(c.id);
+          const childCount = childrenOf(c.id).length;
+          const cls = isCur ? 'cur' : (isPath ? 'path' : '');
+          const marker = isCur ? '★' : (isPath ? '●' : '▸');
+          return `<div class="cascade-item ${cls}" draggable="true" data-id="${escHTML(c.id)}" data-col="${i}" title="${escHTML(c.title || '')}">
+            <span class="marker">${marker}</span>
+            <span class="label">${escHTML(c.title || '(untitled)')}</span>
+            ${childCount ? `<span class="count">${childCount}</span>` : ''}
+            <span class="chev">›</span>
+          </div>`;
+        }).join('')}
+        ${showAdd ? `<div class="cascade-add" data-add-col="${i}">${addLabel}</div>` : ''}
+      </div>`;
+    }
+    colsEl.innerHTML = html;
+
+    // Wire item clicks:
+    //   • click on the row body → OPEN that card (default action)
+    //   • click on the right-side ›   → drill into its children (cascade only)
+    colsEl.querySelectorAll('.cascade-item').forEach(el => {
+      const colIdx = parseInt(el.dataset.col), id = el.dataset.id;
+      // Cascade-only when user clicks the chevron explicitly
+      const chev = el.querySelector('.chev');
+      if (chev) {
+        chev.title = 'Show children (drill in without opening)';
+        chev.onclick = (e) => {
+          e.stopPropagation();
+          colState[colIdx] = id;
+          for (let k = colIdx + 1; k < 3; k++) colState[k] = '';
+          render();
+        };
+      }
+      el.onclick = (e) => {
+        if (e.target.closest('.chev')) return;   // chev handled above
+        promote(id);
+      };
+      // Drag → either drop into editor textarea (inserts [[card-name]])
+      // OR drop onto another cascade item to RE-PARENT (set parent_id).
+      el.ondragstart = (ev) => {
+        const card = byId(id); if (!card) return;
+        const wikiref = `[[${card.title}]]`;
+        ev.dataTransfer.setData('text/plain', wikiref);
+        ev.dataTransfer.setData('application/x-omi-card-id', id);
+        ev.dataTransfer.effectAllowed = 'copyLink';
+        el.classList.add('dragging');
+      };
+      el.ondragend = () => el.classList.remove('dragging');
+
+      // Drop target: drop another card here → that card becomes a child
+      // of THIS card.
+      el.ondragover = (ev) => {
+        const draggedId = ev.dataTransfer.types.includes('application/x-omi-card-id');
+        if (!draggedId) return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'move';
+        el.classList.add('drop-hover');
+      };
+      el.ondragleave = () => el.classList.remove('drop-hover');
+      el.ondrop = async (ev) => {
+        el.classList.remove('drop-hover');
+        const sourceId = ev.dataTransfer.getData('application/x-omi-card-id');
+        if (!sourceId || sourceId === id) return;
+        ev.preventDefault(); ev.stopPropagation();
+        await reparent(sourceId, id);
+      };
+    });
+
+    // Drop on the empty column body (below all items) → make the source a
+    // CHILD of the column's currently-selected parent (or top-level for L1).
+    colsEl.querySelectorAll('.cascade-col').forEach(colEl => {
+      const ci = parseInt(colEl.dataset.col);
+      colEl.ondragover = (ev) => {
+        if (!ev.dataTransfer.types.includes('application/x-omi-card-id')) return;
+        // Only highlight when the actual cursor is in column whitespace, not on a child item.
+        if (ev.target.closest('.cascade-item')) return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'move';
+        colEl.classList.add('drop-hover-col');
+      };
+      colEl.ondragleave = (ev) => {
+        if (ev.target === colEl) colEl.classList.remove('drop-hover-col');
+      };
+      colEl.ondrop = async (ev) => {
+        colEl.classList.remove('drop-hover-col');
+        if (ev.target.closest('.cascade-item')) return;     // item handler took it
+        const sourceId = ev.dataTransfer.getData('application/x-omi-card-id');
+        if (!sourceId) return;
+        ev.preventDefault();
+        // Column 0 = top-level (no parent); columns 1+ = child of prev col's selection
+        const newParent = ci === 0 ? '' : (colState[ci - 1] || '');
+        await reparent(sourceId, newParent);
+      };
+    });
+
+    // Wire "+ new" buttons
+    colsEl.querySelectorAll('.cascade-add').forEach(el => {
+      const ci = parseInt(el.dataset.addCol);
+      el.onclick = () => {
+        const parent = ci === 0 ? '' : colState[ci - 1];
+        createChildOf(parent);
+      };
+    });
+  }
+
+  // ── Re-parent: source becomes a child of target (or top-level if '') ──
+  async function reparent(sourceId, newParentId) {
+    if (sourceId === newParentId) return;
+    const source = byId(sourceId);
+    if (!source) return;
+    // Cycle check: walk newParent's ancestry — if sourceId appears, abort.
+    if (newParentId) {
+      let cur = byId(newParentId);
+      const seen = new Set();
+      while (cur) {
+        if (cur.id === sourceId) {
+          alert(`Can't make "${source.title}" a child of "${(byId(newParentId) || {}).title || ''}" — that would create a cycle (target is a descendant of source).`);
+          return;
+        }
+        if (seen.has(cur.id)) break;
+        seen.add(cur.id);
+        cur = byId(parentOf(cur));
+      }
+    }
+    // Skip no-op reparents
+    if ((parentOf(source) || '') === (newParentId || '')) {
+      const where = newParentId ? `"${(byId(newParentId) || {}).title || ''}"` : 'top level';
+      // Subtle status update — no alert
+      const ws = document.getElementById('status');
+      if (ws) { const prev = ws.textContent; ws.textContent = `already a child of ${where}`; setTimeout(() => { ws.textContent = prev; }, 1200); }
+      return;
+    }
+    const meta = source.metadata || {};
+    const r = await fetch(`/skill-cards/api/cards/${sourceId}`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        title: source.title, content: source.content || '',
+        tags: source.tags || [],
+        parent_id: newParentId || '',
+        links: meta.links || [],
+      }),
+    });
+    const j = await r.json();
+    if (j.error) { alert('reparent failed: ' + j.error); return; }
+    await loadCards();
+    // If the moved card was CURRENT, refresh its metadata too
+    if (CURRENT && CURRENT.id === sourceId) {
+      const refreshed = byId(sourceId);
+      if (refreshed) CURRENT = refreshed;
+      if (typeof window._refreshCascadeTrigger === 'function') window._refreshCascadeTrigger();
+    }
+    // Reset cascade columns to follow the moved card's new ancestry so
+    // the user sees where it landed.
+    if (CURRENT) {
+      const path = ancestryOf(CURRENT);
+      if (path.length === 1) colState = ['', '', ''];
+      else if (path.length === 2) colState = [path[0].id, '', ''];
+      else colState = [path[path.length - 3].id, path[path.length - 2].id, ''];
+    }
+    render();
+  }
+
+  function renderAux() {
+    const links = linksOf(CURRENT);
+    const tagCl = tagClustersFor(CURRENT);
+    const linkCards = links.map(byId).filter(Boolean);
+    const tagEntries = Object.entries(tagCl);
+    const auxParts = [];
+
+    if (linkCards.length) {
+      auxParts.push(`<div class="aux-section">
+        <span class="aux-label">↔ related</span>
+        ${linkCards.map(c => `<span class="pill" data-jump="${escHTML(c.id)}" title="${escHTML(c.title)}">${escHTML(c.title)}</span>`).join('')}
+        <span class="pill" id="addLinkPill" title="Add a related card link">+</span>
+      </div>`);
+    } else {
+      auxParts.push(`<div class="aux-section"><span class="aux-label">↔ related</span><span class="pill" id="addLinkPill" title="Add a related card link">+ link</span></div>`);
+    }
+
+    if (tagEntries.length) {
+      auxParts.push(`<div class="aux-section">
+        <span class="aux-label">🏷 by tag</span>
+        ${tagEntries.slice(0, 3).map(([t, peers]) => peers.slice(0, 4).map(p =>
+          `<span class="pill tag" data-jump="${escHTML(p.id)}" title="#${escHTML(t)} · ${escHTML(p.title)}">#${escHTML(t)} → ${escHTML(p.title)}</span>`
+        ).join('')).join('')}
+      </div>`);
+    }
+
+    auxParts.push(`<button class="tree-btn" id="cascTreeBtn" title="Open the full tree as a draggable reference window">🌲 full tree</button>`);
+
+    auxEl.innerHTML = auxParts.join('');
+
+    auxEl.querySelectorAll('.pill[data-jump]').forEach(el => {
+      el.onclick = () => promote(el.dataset.jump);
+    });
+    const addLink = document.getElementById('addLinkPill');
+    if (addLink) addLink.onclick = openLinkPicker;
+    document.getElementById('cascTreeBtn').onclick = openFullTree;
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────
+  async function promote(id) {
+    if (!id || id === CURRENT.id) return;
+    if (typeof unsavedChanges !== 'undefined' && unsavedChanges) {
+      if (!confirm('Discard unsaved changes and switch card?')) return;
+      unsavedChanges = false;
+    }
+    close();
+    if (typeof window.openCard === 'function') window.openCard(id);
+  }
+
+  async function createChildOf(parentId) {
+    const title = prompt(parentId ? 'New child card title:' : 'New top-level card title:');
+    if (!title || !title.trim()) return;
+    const r = await fetch('/skill-cards/api/cards', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ title: title.trim(), content: '', tags: [], parent_id: parentId || '' }),
+    });
+    const j = await r.json();
+    if (j.error) { alert('create failed: ' + j.error); return; }
+    await loadCards();
+    refreshTrigger();
+    render();
+  }
+
+  async function openLinkPicker() {
+    // Reuse the existing reference picker UX — but on selection, attach
+    // the picked card as a link instead of opening a window.
+    const ovr = document.getElementById('refPickerOverlay');
+    const input = document.getElementById('refPickerInput');
+    const list = document.getElementById('refPickerList');
+    if (!ovr) return;
+    // Re-attach to dialog top layer
+    if (dlgEd.open && ovr.parentElement !== dlgEd) dlgEd.appendChild(ovr);
+    input.value = ''; ovr.classList.add('show');
+    setTimeout(() => input.focus(), 0);
+
+    const cur = CURRENT.id;
+    const existing = new Set(linksOf(CURRENT));
+    function fillList(q) {
+      const term = (q || '').toLowerCase();
+      const filtered = (CARDS || []).filter(c =>
+        c.id !== cur && !existing.has(c.id) &&
+        (!term || (c.title || '').toLowerCase().includes(term) || (c.tags || []).some(t => t.toLowerCase().includes(term)))
+      );
+      list.innerHTML = filtered.length
+        ? filtered.map(c => `<div class="ref-picker-item" data-id="${escHTML(c.id)}"><div class="t">${escHTML(c.title)}</div><div class="m">${(c.tags || []).slice(0,4).map(t => '#' + escHTML(t)).join(' ')}</div></div>`).join('')
+        : '<div class="ref-picker-empty">No matching cards</div>';
+      list.querySelectorAll('.ref-picker-item').forEach(el => {
+        el.onclick = async () => {
+          const id = el.dataset.id;
+          const meta = CURRENT.metadata = (CURRENT.metadata || {});
+          meta.links = [...new Set([...(meta.links || []), id])];
+          // Persist immediately (PUT) so the link survives without an explicit save
+          await fetch(`/skill-cards/api/cards/${cur}`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ title: CURRENT.title, content: CURRENT.content || '', tags: CURRENT.tags || [], parent_id: meta.parent_id || '', links: meta.links }),
+          });
+          ovr.classList.remove('show');
+          await loadCards();
+          refreshTrigger(); render();
+        };
+      });
+    }
+    input.oninput = () => fillList(input.value);
+    fillList('');
+  }
+
+  // ── Full tree view as a floating reference window ────────────────
+  function openFullTree() {
+    if (typeof window.spawnTreeReference === 'function') { window.spawnTreeReference(); return; }
+    // Fallback: render an indented tree in a one-off window using ref-window CSS
+    const layer = document.getElementById('refLayer');
+    if (dlgEd.open && layer.parentElement !== dlgEd) dlgEd.appendChild(layer);
+    const w = document.createElement('div');
+    w.className = 'ref-window';
+    const baseW = Math.min(560, Math.round(window.innerWidth * 0.45));
+    const baseH = Math.min(720, Math.round(window.innerHeight * 0.7));
+    w.style.cssText = `right:28px; top:80px; width:${baseW}px; height:${baseH}px; z-index: 1700;`;
+    w.innerHTML = `
+      <div class="ref-window-header">
+        <span class="ref-title">🌲 Card tree</span>
+        <button class="treex" title="Close">×</button>
+      </div>
+      <div class="ref-window-body" tabindex="0">
+        <div class="tree-render" style="font-size:12.5px"></div>
+      </div>`;
+    layer.appendChild(w);
+    function renderTree() {
+      const out = [];
+      function walk(card, depth) {
+        const isCur = CURRENT && card.id === CURRENT.id;
+        const indent = '&nbsp;'.repeat(depth * 4);
+        const childCount = childrenOf(card.id).length;
+        out.push(`<div class="t-row" data-id="${escHTML(card.id)}" style="padding:3px 8px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:6px;${isCur ? 'background:rgba(212,228,193,0.45);border-left:2px solid var(--omi-accent-deep);font-weight:600' : ''}">
+          <span style="color:var(--omi-muted);font-family:var(--omi-font-mono)">${indent}${depth ? '└─' : '▸'}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHTML(card.title || '(untitled)')}</span>
+          ${childCount ? `<span style="color:var(--omi-muted);font-size:10.5px;padding:0 6px;border-radius:999px;background:rgba(146,125,92,0.08)">${childCount}</span>` : ''}
+        </div>`);
+        for (const ch of childrenOf(card.id)) walk(ch, depth + 1);
+      }
+      for (const r of rootCards()) walk(r, 0);
+      // Orphan cards — parent_id pointing to non-existent card
+      const orphans = (CARDS || []).filter(c => parentOf(c) && !byId(parentOf(c)));
+      if (orphans.length) {
+        out.push(`<div style="margin-top:14px;font-size:10.5px;color:var(--omi-muted);text-transform:uppercase;letter-spacing:0.06em;padding:4px 8px">Broken parent (orphans)</div>`);
+        for (const o of orphans) walk(o, 0);
+      }
+      const root = w.querySelector('.tree-render');
+      root.innerHTML = out.join('');
+      root.querySelectorAll('.t-row').forEach(el => el.onclick = () => promote(el.dataset.id));
+    }
+    renderTree();
+    w.querySelector('.treex').onclick = () => w.remove();
+    // Drag handle
+    const hd = w.querySelector('.ref-window-header');
+    hd.style.cursor = 'move';
+    hd.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      const r = w.getBoundingClientRect();
+      const ox = e.clientX - r.left, oy = e.clientY - r.top;
+      w.style.right = ''; w.style.left = r.left + 'px'; w.style.top = r.top + 'px';
+      const mv = (ev) => { w.style.left = (ev.clientX - ox) + 'px'; w.style.top = (ev.clientY - oy) + 'px'; };
+      const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+      document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+    });
+    close();  // close the cascade pop, leave the tree window
+  }
+
+  // ── Drop into editor textarea inserts the [[card-name]] reference ──
+  const ta = document.getElementById('emContent');
+  if (ta) {
+    ta.addEventListener('dragover', (e) => {
+      if (e.dataTransfer && e.dataTransfer.types.includes('application/x-omi-card-id')) {
+        e.preventDefault(); e.dataTransfer.dropEffect = 'link';
+        ta.classList.add('drop-target');
+      }
+    });
+    ta.addEventListener('dragleave', () => ta.classList.remove('drop-target'));
+    ta.addEventListener('drop', (e) => {
+      ta.classList.remove('drop-target');
+      const id = e.dataTransfer.getData('application/x-omi-card-id');
+      const text = e.dataTransfer.getData('text/plain');
+      if (!id || !text) return;
+      e.preventDefault();
+      // Insert at cursor
+      const start = ta.selectionStart, end = ta.selectionEnd;
+      ta.setRangeText(text, start, end, 'end');
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      // Also persist as a `links` cross-reference (DAG)
+      const meta = CURRENT.metadata = (CURRENT.metadata || {});
+      meta.links = [...new Set([...(meta.links || []), id])];
+      markDirty();
+      refreshTrigger();
+    });
+  }
+})();
+
+// ─── Card info popover (id, paths, timestamps) ──────────────────
+(function () {
+  const dlgEd = document.getElementById('editorModal');
+  const trig  = document.getElementById('infoTrigger');
+  const pop   = document.getElementById('infoPop');
+  let runtime = null;  // cached /api/runtime response
+
+  async function ensureRuntime() {
+    if (runtime) return runtime;
+    try { runtime = await fetch('/api/runtime').then(r => r.json()); }
+    catch { runtime = {}; }
+    return runtime;
+  }
+
+  function setVal(id, v) {
+    const el = document.getElementById(id);
+    if (!v) { el.textContent = '—'; el.classList.add('empty'); }
+    else    { el.textContent = v; el.classList.remove('empty'); }
+  }
+
+  async function open() {
+    if (!CURRENT) return;
+    if (dlgEd.open && pop.parentElement !== dlgEd) dlgEd.appendChild(pop);
+    const r = trig.getBoundingClientRect();
+    pop.style.position = 'fixed';
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - 500, r.left)) + 'px';
+    pop.style.top  = Math.min(window.innerHeight - 200, r.bottom + 6) + 'px';
+
+    const rt = await ensureRuntime();
+    setVal('ipId', CURRENT.id);
+    const wsRoot = rt.host_workspace_root || '';
+    // Workspace dir is `card-<id-prefix>` where prefix = id[:8] (matches
+    // routes/chat.py default project naming). If the user later opens an AI
+    // chat, _ensure_workspace creates this directory; before that, the path
+    // is "expected" rather than "existing" — but it's still useful to show.
+    const wsDir = wsRoot ? `${wsRoot}/card-${CURRENT.id.slice(0, 8)}/card.md` : '(unknown)';
+    setVal('ipPath', wsDir);
+    setVal('ipDb', rt.host_db_path || '(unknown)');
+    setVal('ipCreated', (CURRENT.created_at || '—').slice(0, 19).replace('T', ' '));
+    setVal('ipUpdated', (CURRENT.updated_at || '—').slice(0, 19).replace('T', ' '));
+    pop.classList.add('show');
+  }
+  function close() { pop.classList.remove('show'); }
+
+  trig.addEventListener('click', (e) => { e.stopPropagation(); pop.classList.contains('show') ? close() : open(); });
+  document.addEventListener('click', (e) => {
+    if (!pop.classList.contains('show')) return;
+    if (e.target.closest('#infoPop, #infoTrigger')) return;
+    close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!pop.classList.contains('show')) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+  }, true);
+
+  // Copy buttons
+  pop.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.info-copy');
+    if (!btn) return;
+    const valEl = document.getElementById(btn.dataset.target);
+    if (!valEl) return;
+    try {
+      await navigator.clipboard.writeText(valEl.textContent);
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      setTimeout(() => { btn.innerHTML = orig; }, 1100);
+    } catch {}
+  });
+})();
+
+// ─── Code-block copy buttons (delegated, capture phase, with fallback) ─
+function _copyToClipboard(text) {
+  // navigator.clipboard.writeText is the modern path but rejects on
+  // unfocused / non-secure / permission-blocked contexts. Fall back to
+  // the execCommand textarea hack so we never silently fail.
+  return new Promise((resolve) => {
+    const tryModern = navigator.clipboard && window.isSecureContext;
+    if (tryModern) {
+      navigator.clipboard.writeText(text).then(() => resolve(true)).catch(() => fallback());
+    } else {
+      fallback();
+    }
+    function fallback() {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        resolve(!!ok);
+      } catch { resolve(false); }
+    }
+  });
+}
+const COPY_DONE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const COPY_FAIL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.pv-code-copy');
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  const codeEl = btn.closest('.pv-code')?.querySelector('pre code');
+  if (!codeEl) return;
+  const ok = await _copyToClipboard(codeEl.innerText);
+  const orig = btn.innerHTML;
+  if (ok) {
+    btn.classList.add('done');
+    btn.innerHTML = COPY_DONE_SVG + '<span class="label">copied</span>';
+  } else {
+    btn.classList.add('fail');
+    btn.innerHTML = COPY_FAIL_SVG + '<span class="label">failed</span>';
+  }
+  setTimeout(() => { btn.classList.remove('done', 'fail'); btn.innerHTML = orig; }, 1400);
+}, true);   // capture, so no inner stopPropagation eats it
 
 bootstrap();
 </script>
