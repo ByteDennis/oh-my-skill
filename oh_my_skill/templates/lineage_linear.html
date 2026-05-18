@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lineage · Linear · oh·my·skill</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260514h">
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { font-family: var(--omi-font-body); color: var(--omi-fg); background: var(--omi-bg, #faf6ee); }
+
+  .lv-topbar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid var(--omi-border);
+    background: rgba(255, 251, 244, 0.7);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .lv-topbar h1 { font-size: 14px; font-weight: 600; margin: 0; letter-spacing: 0.02em; }
+  .lv-topbar .meta { color: var(--omi-muted); font-size: 12px; }
+  .lv-topbar .grow { flex: 1; }
+
+  .lv-body { max-width: 780px; margin: 0 auto; padding: 28px 24px 60px; }
+
+  .lv-topic { margin-bottom: 40px; }
+  .lv-topic-title {
+    font-size: 17px; font-weight: 700; color: var(--omi-fg);
+    font-family: var(--omi-font-heading, var(--omi-font-body));
+    border-bottom: 2px solid var(--omi-border); padding-bottom: 5px;
+    margin-bottom: 14px;
+  }
+  .lv-topic-num { color: var(--omi-muted); font-weight: 400; margin-right: 6px; }
+
+  .lv-group { margin-bottom: 10px; }
+  .lv-subtopic-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    font-weight: 700; color: var(--omi-accent-deep);
+    margin: 8px 0 4px 0;
+  }
+
+  .lv-cards { margin: 0; padding: 0; list-style: none; }
+  .lv-card {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 4px 0 4px 14px;
+    border-left: 2px solid var(--omi-border);
+    margin-bottom: 3px;
+    font-size: 13px;
+  }
+  .lv-card.missing { opacity: 0.4; font-style: italic; }
+  .lv-card-title { color: var(--omi-fg); font-weight: 500; }
+  .lv-tags { display: flex; gap: 3px; flex-wrap: wrap; }
+  .lv-tag {
+    font-size: 10px; padding: 1px 5px; border-radius: var(--omi-radius-pill);
+    background: rgba(214, 199, 168, 0.40); color: var(--omi-fg-soft);
+  }
+
+  .lv-empty { color: var(--omi-muted); font-size: 13px; font-style: italic; padding: 40px 0; text-align: center; }
+
+  @media print {
+    .lv-topbar { display: none; }
+    body { background: white; }
+    .lv-body { max-width: none; padding: 16px; }
+    .lv-card, .lv-topic { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<header class="lv-topbar">
+  <a class="omi-btn ghost sm icon-btn" href="/lineage">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    Lineage
+  </a>
+  <h1>Linear</h1>
+  <span class="meta">{{ topics|length }} topic{{ 's' if topics|length != 1 else '' }}</span>
+  <span class="grow"></span>
+  <button class="omi-btn ghost sm" onclick="window.print()">Print</button>
+</header>
+
+<div class="lv-body">
+  {% if not topics %}
+    <p class="lv-empty">No topics in the lineage yet.</p>
+  {% else %}
+    {% for topic in topics %}
+    <section class="lv-topic">
+      <div class="lv-topic-title">
+        <span class="lv-topic-num">{{ loop.index }}.</span>{{ topic.title }}
+      </div>
+      {% for group in topic.groups %}
+        <div class="lv-group">
+          {% if group.subtopic %}
+          <div class="lv-subtopic-label">{{ group.subtopic }}</div>
+          {% endif %}
+          {% if group.cards %}
+          <ul class="lv-cards">
+            {% for card in group.cards %}
+            <li class="lv-card{% if not card.card_title %} missing{% endif %}">
+              {% if card.card_title %}
+                <span class="lv-card-title">{{ card.card_title }}</span>
+                {% if card.card_tags %}
+                <span class="lv-tags">
+                  {% for tag in card.card_tags[:4] %}<span class="lv-tag">{{ tag }}</span>{% endfor %}
+                </span>
+                {% endif %}
+              {% else %}
+                <span class="lv-card-title">(missing card)</span>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </section>
+    {% endfor %}
+  {% endif %}
+</div>
+</body>
+</html>

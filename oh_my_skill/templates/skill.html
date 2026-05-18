@@ -18,30 +18,6 @@
   .page-title h1 svg { width: 22px; height: 22px; }
   .page-title .meta { color: var(--omi-muted); font-size: 12px; }
 
-  /* ─── Extract composer (top of cards section) ─── */
-  .compose {
-    margin: 12px 0 4px;
-    background: rgba(255,251,244,0.85);
-    border: 1px solid var(--omi-border);
-    border-radius: var(--omi-radius);
-    box-shadow: var(--omi-shadow-sm);
-    padding: 12px 14px;
-    transition: all .2s ease;
-  }
-  .compose .row { display: flex; gap: 8px; align-items: flex-start; }
-  .compose textarea {
-    flex: 1; min-height: 38px; max-height: 220px;
-    padding: 9px 12px; border-radius: 8px;
-    border: 1px solid var(--omi-border);
-    background: rgba(255,255,255,.65);
-    color: var(--omi-fg); font: inherit; font-size: 13px;
-    line-height: 1.5; resize: vertical;
-  }
-  .compose textarea:focus { outline:none; border-color: var(--omi-accent); box-shadow: 0 0 0 3px var(--omi-accent-ring); }
-  .compose .hint { font-size: 11px; color: var(--omi-muted); margin-top: 6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
-  .compose .hint .ex { cursor:pointer; padding: 2px 8px; border-radius: 12px; background: rgba(238,231,217,.6); border: 1px solid var(--omi-border); }
-  .compose .hint .ex:hover { background: rgba(238,231,217,1); }
-
   /* ─── Search bar (existing) ─── */
   .search-bar { margin-top: 12px; position: relative; }
   .search-bar input {
@@ -54,7 +30,56 @@
   }
   .search-bar input:focus { outline:none; border-color: var(--omi-accent); box-shadow: 0 0 0 3px var(--omi-accent-ring), var(--omi-shadow-sm); }
   .search-bar .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--omi-muted); }
-  .tag-row { margin-top: 12px; display:flex; gap:6px; flex-wrap:wrap; padding-bottom: 4px; }
+  /* Tag row is hidden behind a small dashed-bordered placeholder by default.
+     Mousing over the placeholder (or pinning a filter with .is-active) swaps
+     the placeholder for the full tag cloud. The wrapper has a min-height so
+     the layout doesn't jump when chips appear. */
+  .tag-row {
+    margin-top: 12px;
+    position: relative;
+    cursor: pointer;
+  }
+  .tag-row .tag-row-hint {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 14px;
+    border: 1.5px dashed color-mix(in srgb, var(--omi-accent-deep) 40%, transparent);
+    border-radius: 14px;
+    background: rgba(255, 251, 244, 0.4);
+    font-size: 11.5px; font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--omi-muted);
+    user-select: none;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+  .tag-row .tag-row-hint:hover,
+  .tag-row:focus-within .tag-row-hint {
+    color: var(--omi-fg);
+    border-color: var(--omi-accent-deep);
+    background: rgba(255, 251, 244, 0.85);
+  }
+  .tag-row .tag-row-hint .tag-row-count {
+    color: var(--omi-accent-deep);
+    font-weight: 700;
+  }
+  .tag-row .tag-row-hint .tag-row-caret {
+    font-size: 9px; line-height: 1;
+    color: var(--omi-accent-deep);
+    transition: transform 0.2s ease;
+  }
+  .tag-row .tag-row-chips {
+    display: none;
+    flex-wrap: wrap; gap: 6px;
+    padding: 2px 0 4px;
+  }
+  /* Expand triggers: hovering the hint chip, keyboard focus on a chip,
+     or .is-active (a filter is pinned and we want it visible). */
+  .tag-row:hover .tag-row-hint,
+  .tag-row.is-active .tag-row-hint { display: none; }
+  .tag-row:hover .tag-row-chips,
+  .tag-row:focus-within .tag-row-chips,
+  .tag-row.is-active .tag-row-chips { display: flex; }
+  /* When a filter is pinned but mouse isn't hovering, still show chips. */
+  .tag-row.is-active .tag-row-hint { display: none; }
   .grid-area { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 24px 24px; }
 
   /* ─── Modal hides AI panel quirk ─── */
@@ -299,134 +324,160 @@
   .cascade-trigger.has-link { color: var(--omi-accent-deep); }
   .em-header:hover .cascade-trigger { display: inline-flex; }   /* surface on header hover even if not linked */
 
+  /* ── Cascade popup (mini lineage editor) ─────────────────── */
   .cascade-pop {
-    display: none; position: absolute; z-index: 80;
-    width: 640px; height: 320px;
-    background: var(--omi-card-bg, rgba(255,251,244,0.96));
+    display: none; position: fixed; z-index: 1200;
+    background: var(--omi-card-bg, rgba(255,251,244,0.97));
     backdrop-filter: blur(14px) saturate(1.05);
     border: 1px solid var(--omi-border-strong);
     border-radius: var(--omi-radius);
     box-shadow: var(--omi-shadow-lg);
-    overflow: hidden;
-    flex-direction: column;
+    overflow: hidden; flex-direction: column;
   }
   .cascade-pop.show { display: flex; }
-  .cascade-bar {
-    display: flex; align-items: center; gap: 6px;
-    padding: 7px 10px; font-size: 11.5px;
-    background: rgba(255, 250, 241, 0.78);
-    border-bottom: 1px solid var(--omi-border);
-    color: var(--omi-muted); flex-shrink: 0;
+  @keyframes cascShake {
+    0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 60%{transform:translateX(5px)} 80%{transform:translateX(-3px)}
   }
-  .cascade-bar .crumb { color: var(--omi-muted); cursor: pointer; padding: 1px 4px; border-radius: 3px; }
-  .cascade-bar .crumb:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); }
-  .cascade-bar .crumb.cur { color: var(--omi-accent-deep); font-weight: 600; cursor: default; }
-  .cascade-bar .crumb.cur:hover { background: transparent; }
-  .cascade-bar .sep { opacity: 0.45; }
-  .cascade-bar input.cascade-filter {
-    margin-left: auto; flex: 0 1 200px; min-width: 80px;
-    background: var(--omi-bg-1); color: var(--omi-fg);
-    border: 1px solid var(--omi-border); border-radius: 5px;
-    padding: 3px 8px; font-size: 12px; outline: none;
+  .casc-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-bottom: 1px solid var(--omi-border);
+    background: rgba(255,250,241,0.82); flex-shrink: 0;
+    cursor: move; user-select: none;
   }
-  .cascade-bar input.cascade-filter:focus { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
-  .cascade-bar .closer {
-    width: 22px; height: 22px; padding: 0; border: 1px solid transparent;
-    background: transparent; color: var(--omi-muted); border-radius: 5px; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-  }
-  .cascade-bar .closer:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); border-color: var(--omi-border); }
-
-  .cascade-cols {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    flex: 1; min-height: 0;
-  }
-  .cascade-col {
-    border-right: 1px solid var(--omi-border);
-    overflow-y: auto; padding: 4px 0;
-    font-size: 12px;
-  }
-  .cascade-col:last-child { border-right: none; }
-  .cascade-col-label {
-    padding: 4px 12px 6px; font-size: 9.5px; font-weight: 700;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--omi-muted); position: sticky; top: 0;
-    background: rgba(255, 251, 244, 0.96); border-bottom: 1px solid var(--omi-border);
-    z-index: 1;
-  }
-  .cascade-item {
-    display: flex; align-items: center; gap: 6px;
-    padding: 5px 10px; cursor: pointer; user-select: none;
-    color: var(--omi-fg); transition: background 0.08s ease;
-    border-left: 2px solid transparent;
-  }
-  .cascade-item:hover { background: rgba(232, 224, 208, 0.45); }
-  .cascade-item.path { background: rgba(232, 224, 208, 0.28); border-left-color: var(--omi-border-strong); }
-  .cascade-item.cur  { background: rgba(212, 228, 193, 0.42); border-left-color: var(--omi-accent-deep); font-weight: 600; }
-  .cascade-item .marker { width: 14px; flex-shrink: 0; text-align: center; color: var(--omi-muted); font-size: 10px; }
-  .cascade-item.path .marker, .cascade-item.cur .marker { color: var(--omi-accent-deep); }
-  .cascade-item .label {
-    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .cascade-item .count {
-    color: var(--omi-muted); font-size: 10.5px; padding: 0 6px;
-    border-radius: 999px; background: rgba(146, 125, 92, 0.08);
-  }
-  .cascade-item .chev {
-    color: var(--omi-muted); font-size: 12px; flex-shrink: 0; opacity: 0.4;
-    width: 16px; height: 16px; line-height: 16px; text-align: center;
-    border-radius: 4px; cursor: pointer;
-  }
-  .cascade-item:hover .chev { opacity: 0.85; }
-  .cascade-item .chev:hover { opacity: 1; background: rgba(146, 125, 92, 0.18); color: var(--omi-fg); }
-  .cascade-add {
-    margin: 6px 8px 4px;
-    padding: 4px 8px; font-size: 11px;
-    color: var(--omi-muted); cursor: pointer; border-radius: 5px;
-    border: 1px dashed var(--omi-border); text-align: center;
-  }
-  .cascade-add:hover { color: var(--omi-fg); border-color: var(--omi-border-strong); background: rgba(232, 224, 208, 0.3); }
-
-  .cascade-aux {
-    border-top: 1px solid var(--omi-border);
-    padding: 6px 10px;
-    background: rgba(255, 250, 241, 0.78);
-    font-size: 11px; flex-shrink: 0;
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  }
-  .cascade-aux .aux-section { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-  .cascade-aux .aux-label { color: var(--omi-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 2px; }
-  .cascade-aux .pill {
-    padding: 1.5px 8px; border-radius: 999px;
-    background: rgba(146, 125, 92, 0.12); color: var(--omi-fg);
-    cursor: pointer; font-size: 11px;
-    border: 1px solid transparent;
-  }
-  .cascade-aux .pill:hover { background: rgba(146, 125, 92, 0.22); border-color: var(--omi-border); }
-  .cascade-aux .pill.tag { background: rgba(212, 228, 193, 0.45); }
-  .cascade-aux .pill.tag:hover { background: rgba(212, 228, 193, 0.7); }
-  .cascade-aux .tree-btn {
-    margin-left: auto;
-    padding: 3px 10px; font-size: 11px; border-radius: 5px;
+  .casc-drag { color: var(--omi-muted); font-size: 14px; }
+  .casc-title { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+  .casc-meta { color: var(--omi-muted); font-size: 11px; }
+  .casc-grow { flex: 1; }
+  .casc-hbtn {
+    padding: 2px 8px; font-size: 11px; border-radius: 5px;
     background: transparent; color: var(--omi-muted);
     border: 1px solid var(--omi-border); cursor: pointer;
   }
-  .cascade-aux .tree-btn:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); border-color: var(--omi-border-strong); }
-
-  /* Cascade item dragging visual feedback */
-  .cascade-item[draggable="true"]:active { opacity: 0.6; }
-  .cascade-item.dragging { opacity: 0.4; }
-  .cascade-item.drop-hover {
-    background: rgba(143, 188, 143, 0.28) !important;
-    outline: 2px solid var(--omi-accent-deep);
-    outline-offset: -2px;
+  .casc-hbtn:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); }
+  .casc-closer { font-size: 15px; padding: 0 6px; }
+  .casc-body { display: flex; flex: 1; min-height: 0; }
+  .casc-l0 {
+    width: 200px; flex: 0 0 200px;
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--omi-border);
+    background: rgba(255,251,244,0.55);
   }
-  .cascade-col.drop-hover-col {
-    background: rgba(143, 188, 143, 0.10);
-    outline: 2px dashed var(--omi-accent);
-    outline-offset: -3px;
+  .casc-search {
+    margin: 8px 8px 4px; box-sizing: border-box; width: calc(100% - 16px);
+    border: 1px solid var(--omi-border); border-radius: var(--omi-radius-sm);
+    padding: 5px 7px; font-size: 11px; background: rgba(255,255,255,0.85); outline: none;
   }
+  .casc-search:focus { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
+  .casc-cards { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .casc-cand {
+    background: var(--omi-card-bg); border: 1px solid var(--omi-border);
+    border-radius: var(--omi-radius-sm); padding: 5px 7px; margin-bottom: 4px;
+    cursor: grab; user-select: none; font-size: 11px; line-height: 1.3;
+    box-shadow: var(--omi-shadow-sm);
+  }
+  .casc-cand:active { cursor: grabbing; }
+  .casc-cand.dragging { opacity: 0.4; }
+  .casc-cand .ct { font-weight: 600; display: block; }
+  .casc-cand .cg { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px; }
+  .casc-cand .ck { font-size: 9px; padding: 1px 4px; border-radius: var(--omi-radius-pill); background: rgba(214,199,168,.4); color: var(--omi-fg-soft); }
+  .casc-cand .cu { color: var(--omi-accent-deep); font-size: 9px; margin-left: 3px; }
+  .casc-empty { color: var(--omi-muted); font-size: 11px; text-align: center; padding: 12px 4px; }
+  .casc-trash {
+    margin: 6px 8px 8px; border: 2px dashed var(--omi-border);
+    border-radius: var(--omi-radius-sm); padding: 8px;
+    text-align: center; color: var(--omi-muted); font-size: 10px; transition: all 0.15s;
+  }
+  .casc-trash.drop-hover { border-color: var(--omi-error); color: var(--omi-error-deep); background: rgba(201,122,100,.08); }
+  .casc-board {
+    flex: 1; min-width: 0; display: block;
+    overflow-y: auto; overflow-x: hidden;
+    columns: 192px; column-gap: 8px; padding: 10px;
+  }
+  .casc-topic {
+    display: inline-block; width: 100%; box-sizing: border-box;
+    break-inside: avoid; margin-bottom: 8px;
+    background: rgba(255,251,244,0.55);
+    border: 1px solid var(--omi-border); border-radius: var(--omi-radius);
+  }
+  .casc-topic.shake { animation: cascShake 0.35s ease; }
+  .casc-topic-head {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 8px; border-bottom: 1px solid var(--omi-border);
+    background: rgba(232,224,208,0.4);
+    border-radius: var(--omi-radius) var(--omi-radius) 0 0; cursor: grab;
+  }
+  .casc-topic-head input {
+    flex: 1; border: none; background: transparent; font-size: 12px;
+    font-weight: 600; color: var(--omi-fg); outline: none; min-width: 0;
+  }
+  .casc-collapse-btn {
+    background: none; border: none; color: var(--omi-muted);
+    cursor: pointer; font-size: 10px; padding: 0 2px; flex-shrink: 0;
+  }
+  .casc-collapse-btn:hover { color: var(--omi-fg); }
+  .casc-topic-body {
+    overflow-y: auto; padding: 4px 0; min-height: 20px; max-height: 200px;
+  }
+  .casc-topic-body.drop-hover { background: rgba(143,188,143,0.10); }
+  .casc-topic.collapsed .casc-topic-body,
+  .casc-topic.collapsed .casc-topic-foot { display: none; }
+  .casc-divider {
+    display: flex; align-items: center; gap: 4px; padding: 3px 8px; cursor: grab;
+  }
+  .casc-divider input {
+    flex: 1; border: none; background: transparent; font-size: 10px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--omi-muted); outline: none; min-width: 0;
+  }
+  .casc-divider.dragging { opacity: 0.4; }
+  .casc-chip {
+    display: flex; align-items: center; gap: 4px;
+    margin: 1px 8px; padding: 4px 6px;
+    background: var(--omi-card-bg); border: 1px solid var(--omi-border);
+    border-radius: var(--omi-radius-sm); cursor: pointer; box-shadow: var(--omi-shadow-sm);
+  }
+  .casc-chip:hover { background: rgba(232,224,208,.35); }
+  .casc-chip.dragging { opacity: 0.4; }
+  .casc-chip.missing { opacity: 0.4; font-style: italic; }
+  .casc-chip .cl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; font-size: 11px; }
+  .casc-drop-line {
+    height: 3px; margin: 1px 8px; border-radius: 2px;
+    background: var(--omi-accent-deep); opacity: 0; transition: opacity 0.1s; pointer-events: none;
+  }
+  .casc-drop-line.show { opacity: 1; }
+  .casc-topic-foot {
+    padding: 4px 6px; border-top: 1px solid var(--omi-border); display: flex; gap: 4px;
+  }
+  .casc-mini-btn {
+    flex: 1; background: transparent; border: 1px dashed var(--omi-border);
+    border-radius: 4px; color: var(--omi-muted); font-size: 10px;
+    padding: 3px 0; cursor: pointer; text-align: center;
+  }
+  .casc-mini-btn:hover { color: var(--omi-fg); border-color: var(--omi-border-strong); background: rgba(232,224,208,.3); }
+  .casc-add-topic {
+    display: block; width: 100%; box-sizing: border-box; break-inside: avoid;
+    border: 2px dashed var(--omi-border); border-radius: var(--omi-radius);
+    color: var(--omi-muted); font-size: 12px; cursor: pointer; text-align: center;
+    background: rgba(255,251,244,.3); padding: 10px; min-height: 40px;
+  }
+  .casc-add-topic:hover { border-color: var(--omi-border-strong); color: var(--omi-fg); background: rgba(232,224,208,.2); }
+  .casc-add-topic.drop-hover { border-color: var(--omi-accent-deep); color: var(--omi-accent-deep); background: rgba(212,228,193,.2); }
   .editor-modal .em-pane-edit textarea.drop-target { outline: 2px dashed var(--omi-accent-deep); outline-offset: -4px; }
+
+  /* ─── Lineage rows inside info popover ─── */
+  .info-lineage { padding-top: 6px; border-top: 1px solid var(--omi-border); }
+  .info-lineage-title {
+    font-size: 10px; color: var(--omi-muted); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 4px;
+  }
+  .info-lineage-row {
+    font-size: 11.5px; padding: 2px 6px; border-left: 2px solid var(--omi-border);
+    margin-bottom: 2px; color: var(--omi-fg-soft);
+  }
+  .info-lineage-row .iln-topic { font-weight: 600; color: var(--omi-fg); }
+  .info-lineage-row .iln-sep { color: var(--omi-muted); }
+  .info-lineage-row .iln-sub { color: var(--omi-accent-deep); }
+  .info-lineage-row .iln-card { font-weight: 500; color: var(--omi-fg); }
 
   /* ─── VSCode-style find/replace widget (editor modal) ─── */
   .em-pane-edit { position: relative; }
@@ -688,6 +739,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
     Logs
   </button>
+  <a class="omi-btn ghost icon-btn" href="/lineage" title="Organize cards into Topics → Subtopics">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h6v6H3z"/><path d="M15 5h6v6h-6z"/><path d="M9 13h6v6H9z"/><path d="M9 8h6"/><path d="M12 11v2"/></svg>
+    Lineage
+  </a>
   <button class="omi-btn ghost icon-btn" id="openSync" title="Sync with GitHub">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     Sync
@@ -703,7 +758,7 @@
 </header>
 
 <main class="omi-main" id="main" style="display:flex; padding:0; gap:0">
-  <!-- LEFT: cards + composer -->
+  <!-- LEFT: cards + search -->
   <section class="omi-panel" style="flex:1">
     <div class="page-header">
       <div class="page-title">
@@ -717,23 +772,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New Card
         </button>
-      </div>
-
-      <!-- Extract composer -->
-      <div class="compose" id="compose">
-        <div class="row">
-          <textarea id="extractInput" rows="1" placeholder="✨ Paste rough notes — aliases, env vars, paths, key commands… Claude turns them into a tight skill card."></textarea>
-          <button class="omi-btn primary sm icon-btn" id="extractBtn" title="Extract a skill card from these notes">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-            <span id="extractBtnLabel">Extract</span>
-          </button>
-        </div>
-        <div class="hint">
-          <span>Tries:</span>
-          <span class="ex" data-ex="alias gpu='nvidia-smi'&#10;alias gpuw='watch -n 1 nvidia-smi'&#10;py = python, ipy = ipython, pip = uv pip&#10;CUDA_PATH=/usr/local/cuda-12.6&#10;HF_HOME=$DATA/../huggingface">gpu/ml tools</span>
-          <span class="ex" data-ex="git lg = log --graph --oneline&#10;git st = status -sb&#10;git aa = add -A&#10;edit ~/.gitconfig with [alias] section">git aliases</span>
-          <span class="ex" data-ex="vim splits: ctrl-w v vertical, ctrl-w s horizontal, ctrl-w hjkl move, ctrl-w = equalize, ctrl-w o only">vim splits</span>
-        </div>
       </div>
 
       <div class="search-bar">
@@ -792,7 +830,7 @@
       <div class="omi-chat" id="chatRoot">
         <div class="omi-chat-empty" id="chatEmpty">
           <div class="glyph">💬</div>
-          <div>Open a card and click <strong>💬 Chat</strong> to chat-edit it.<br>Or paste rough notes above and hit <strong>Extract</strong> to skip straight to a clean card.</div>
+          <div>Open a card and click <strong>💬 Chat</strong> to chat-edit it.</div>
         </div>
         <div class="omi-chat-context" id="chatContext" style="display:none">
           <div class="meta">
@@ -842,6 +880,10 @@
     <button class="omi-btn ghost sm icon-btn" id="emRefOpen" title="Open another card as a floating reference window">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
       Reference
+    </button>
+    <button class="omi-btn ghost sm icon-btn" id="emTreeBtn" title="Open card tree">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      Tree
     </button>
     <button class="omi-btn ghost sm icon-btn" id="emSize" title="Cycle modal size: default → wide → fullscreen (F11)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
@@ -956,17 +998,31 @@
     <span>updated <span id="ipUpdated">—</span></span>
     <span style="margin-left:auto">storage: SQLite (canonical) · disk = chat scratch</span>
   </div>
+  <div class="info-lineage" id="ipLineage" hidden>
+    <div class="info-lineage-title">Lineage</div>
+    <div id="ipLineageRows"></div>
+  </div>
 </div>
 
-<!-- ─── Cascade popover (parent / siblings / children) ──────── -->
+<!-- ─── Cascade popover (mini lineage editor) ────────────── -->
 <div class="cascade-pop" id="cascadePop" role="dialog" aria-label="Card cascade">
-  <div class="cascade-bar">
-    <div id="cascCrumb" style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow:hidden"></div>
-    <input class="cascade-filter" id="cascFilter" placeholder="filter…" autocomplete="off" spellcheck="false">
-    <button class="closer" id="cascClose" title="Close (Esc)">×</button>
+  <div class="casc-header" id="cascHeader">
+    <span class="casc-drag">⠿</span>
+    <span class="casc-title">Lineage</span>
+    <span class="casc-meta" id="cascMeta"></span>
+    <span class="casc-grow"></span>
+    <button class="casc-hbtn" onclick="window.open('/lineage/linear','_blank')">Linear</button>
+    <button class="casc-hbtn" id="cascTreeBtn">Tree</button>
+    <button class="casc-hbtn casc-closer" id="cascClose" title="Close (Esc)">×</button>
   </div>
-  <div class="cascade-cols" id="cascCols"></div>
-  <div class="cascade-aux" id="cascAux"></div>
+  <div class="casc-body">
+    <aside class="casc-l0">
+      <input class="casc-search" id="cascSearch" placeholder="filter cards…" autocomplete="off" spellcheck="false">
+      <div class="casc-cards" id="cascCards"></div>
+      <div class="casc-trash" id="cascTrash">drag here to remove</div>
+    </aside>
+    <div class="casc-board" id="cascBoard"></div>
+  </div>
 </div>
 
 <!-- ─── Floating reference windows + dock ───────────────────── -->
@@ -1263,11 +1319,226 @@ function _protectKatex(text) {
   });
   return {text: out, chunks};
 }
-function renderMarkdown(md) {
-  const {fm, body} = extractFrontmatter(md);
-  const fmHtml = renderFrontmatterTable(fm);
-  const {text: bodySafe, chunks: katexChunks} = _protectKatex(body || '');
+function _extractTableColInfo(md) {
+  // Scan GFM separator rows (|:?-+:?|…) and return per-table column widths
+  // (dash-counts) plus alignments derived from leading/trailing colons:
+  //   :---  → left   ---:  → right   :---: → center   ---   → ''
+  const tables = [];
+  for (const line of (md || '').split('\n')) {
+    const t = line.trim();
+    if (!t.includes('-')) continue;
+    const cells = t.split('|').map(s => s.trim()).filter(s => s.length > 0);
+    if (cells.length >= 2 && cells.every(c => /^:?-+:?$/.test(c))) {
+      const widths = cells.map(c => c.replace(/:/g, '').length);
+      const aligns = cells.map(c => {
+        const l = c.startsWith(':'), r = c.endsWith(':');
+        if (l && r) return 'center';
+        if (r) return 'right';
+        if (l) return 'left';
+        return '';
+      });
+      tables.push({widths, aligns});
+    }
+  }
+  return tables;
+}
+function _extractCustomBlocks(md) {
+  // Pre-parse:
+  //   === "Title"           → tabs group (consecutive === blocks combine)
+  //       indented content
+  //   ??? "Title" / ???+ "Title"  → <details> collapse block
+  // The 4-space-indented body is captured verbatim and rendered recursively
+  // as markdown. Each block is replaced with a \x00BLOCK#\x00 placeholder that
+  // is spliced back AFTER marked.parse finishes on the outer text.
+  const lines = (md || '').split('\n');
+  const out = [];
+  const blocks = [];
+  const indentRe = /^(    |\t)/;
+  const dedent = (s) => s.replace(/^(    |\t)/, '');
+  const eatIndented = () => {
+    const buf = [];
+    while (i < lines.length && (lines[i].trim() === '' || indentRe.test(lines[i]))) {
+      buf.push(dedent(lines[i]));
+      i++;
+    }
+    while (buf.length && buf[buf.length - 1].trim() === '') buf.pop();
+    return buf.join('\n');
+  };
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const tabHead = line.match(/^===\s+"([^"]+)"\s*$/);
+    if (tabHead) {
+      const tabs = [];
+      while (i < lines.length) {
+        const h = lines[i].match(/^===\s+"([^"]+)"\s*$/);
+        if (!h) break;
+        i++;
+        tabs.push({title: h[1], content: eatIndented()});
+      }
+      blocks.push({type: 'tabs', tabs});
+      out.push(`\x00BLOCK${blocks.length - 1}\x00`);
+      continue;
+    }
+    const colHead = line.match(/^(\?\?\?\+?)\s+"([^"]+)"\s*$/);
+    if (colHead) {
+      const open = colHead[1].endsWith('+');
+      const title = colHead[2];
+      i++;
+      const content = eatIndented();
+      blocks.push({type: 'collapse', title, open, content});
+      out.push(`\x00BLOCK${blocks.length - 1}\x00`);
+      continue;
+    }
+    out.push(line);
+    i++;
+  }
+  return {text: out.join('\n'), blocks};
+}
+function _extractWikiLinks(text) {
+  // `[[Card Title]]` or `[[Card Title|display text]]`.
+  // Replaced with \x00WIKI#\x00 placeholders so marked.parse doesn't try to
+  // interpret the inner `[Card Title]` as a reference-style link (it would
+  // otherwise leak `[` brackets around the chip).
+  const links = [];
+  const out = (text || '').replace(/\[\[([^\]\n|]+?)(?:\|([^\]\n]+?))?\]\]/g, (_m, title, display) => {
+    links.push({title: title.trim(), display: (display || title).trim()});
+    return `\x00WIKI${links.length - 1}\x00`;
+  });
+  return {text: out, links};
+}
+function _extractFootnotes(text) {
+  // Pulls GFM-style footnote definitions ([^id]: body, with continuation lines
+  // indented by ≥2 spaces) out of the source, then rewrites inline [^id]
+  // references to \x00FN#\x00 placeholders. After marked.parse runs we splice
+  // those placeholders into <sup class="md-fn-ref"> with a hover tooltip and
+  // append a numbered footnotes section at the bottom.
+  const lines = (text || '').split('\n');
+  const defs = {};
+  const kept = [];
+  let i = 0;
+  while (i < lines.length) {
+    const m = lines[i].match(/^\[\^([^\]\s]+)\]:\s*(.*)$/);
+    if (m) {
+      const id = m[1];
+      const buf = [m[2]];
+      i++;
+      while (i < lines.length) {
+        if (lines[i].trim() === '') { buf.push(''); i++; continue; }
+        if (/^\s{2,}\S/.test(lines[i])) { buf.push(lines[i].replace(/^\s+/, '')); i++; continue; }
+        break;
+      }
+      while (buf.length && buf[buf.length - 1] === '') buf.pop();
+      defs[id] = buf.join('\n');
+    } else {
+      kept.push(lines[i]);
+      i++;
+    }
+  }
+  const refOrder = [];
+  const refNum = {};
+  const rewritten = kept.join('\n').replace(/\[\^([^\]\s]+)\]/g, (m, id) => {
+    if (!(id in defs)) return m;
+    if (!(id in refNum)) {
+      refOrder.push(id);
+      refNum[id] = refOrder.length;
+    }
+    return `\x00FN${id}\x00`;
+  });
+  return {text: rewritten, defs, refOrder, refNum};
+}
+function _renderTabsBlock(tabs) {
+  const id = 'mdtabs-' + Math.random().toString(36).slice(2, 8);
+  const bar = tabs.map((t, i) =>
+    `<button type="button" class="md-tab-btn${i === 0 ? ' active' : ''}" data-target="${id}-p${i}">${escapeHtml(t.title)}</button>`
+  ).join('');
+  const panels = tabs.map((t, i) =>
+    `<div class="md-tab-panel${i === 0 ? ' active' : ''}" id="${id}-p${i}">${_renderInner(t.content)}</div>`
+  ).join('');
+  return `<div class="md-tabs"><div class="md-tab-bar" role="tablist">${bar}</div><div class="md-tab-panels">${panels}</div></div>`;
+}
+function _renderCollapseBlock(title, open, content) {
+  return `<details class="md-collapse"${open ? ' open' : ''}><summary>${escapeHtml(title)}</summary><div class="md-collapse-body">${_renderInner(content)}</div></details>`;
+}
+// Shared code-block registry for the current top-level render. Reset by
+// renderMarkdown so that recursive _renderInner calls (tab/collapse bodies)
+// can splice placeholders emitted by the outer scope. Without this, code
+// inside a tab body would extract correctly but the inner splice wouldn't
+// find the entry and the placeholder would leak.
+let _MD_CTX = null;
+function _extractCode(text) {
+  // Pull fenced/inline code out of the source *before* any other pre-processor
+  // touches it, so KaTeX patterns / footnote refs / `===` tabs / `???`
+  // collapse markers / custom blocks inside a code sample are preserved
+  // verbatim. Spliced back as proper <code>/<pre><code> after marked.parse.
+  const fenced = _MD_CTX.fenced;
+  const inline = _MD_CTX.inline;
+  // Fenced: ```lang … ``` or ~~~lang … ~~~. The opening info string captures
+  // the language (first word). Indent on the opening fence is preserved on
+  // the emitted placeholder so the placeholder stays *inside* whatever
+  // containing block held it (tab body, collapse body, list item).
+  // The captured code is dedented by the same amount so the rendered <pre>
+  // doesn't show artificial leading whitespace.
+  let out = (text || '').replace(
+    /^([ \t]*)(`{3,}|~{3,})([^\n`~]*)\n([\s\S]*?)^\1?\2[ \t]*$/gm,
+    (_m, ind, _fence, info, code) => {
+      const lang = (info || '').trim().split(/\s+/)[0] || '';
+      if (ind) {
+        const dedentRe = new RegExp('^' + ind.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gm');
+        code = code.replace(dedentRe, '');
+      }
+      fenced.push({lang, code});
+      return `\n${ind}\x00FCODE${fenced.length - 1}\x00\n`;
+    });
+  // Inline: matched-tick spans `…` / ``…with ` inside…``.
+  // The backref forces equal opening/closing tick counts.
+  out = out.replace(/(`+)([^\n]+?)\1(?!`)/g, (m, _ticks, code) => {
+    if (!code.trim()) return m;
+    inline.push(code);
+    return `\x00ICODE${inline.length - 1}\x00`;
+  });
+  return out;
+}
+function _renderInner(body) {
+  // Body-pipeline: pre-process custom blocks + footnotes, protect KaTeX,
+  // marked.parse, then run all post-processors (tables / code / admonitions /
+  // highlights / images / refs). Used both by renderMarkdown's top-level call
+  // AND recursively for tab and collapse contents.
+  // IMPORTANT: code is extracted FIRST so the markers (KaTeX/footnote/tab/
+  // collapse) inside code samples are never reinterpreted. _MD_CTX (the
+  // shared code registry) is populated by the outer renderMarkdown so
+  // recursive calls can find placeholders that the outer scope created.
+  if (!_MD_CTX) _MD_CTX = {fenced: [], inline: []};   // safety fallback
+  const t0 = _extractCode(body);
+  const tableInfo = _extractTableColInfo(t0);
+  const {text: t1, blocks} = _extractCustomBlocks(t0);
+  const {text: t1b, links: wikiLinks} = _extractWikiLinks(t1);
+  const {text: t2, defs: fnDefs, refOrder: fnOrder, refNum: fnNum} = _extractFootnotes(t1b);
+  const {text: bodySafe, chunks: katexChunks} = _protectKatex(t2);
   let html = marked.parse(bodySafe);
+  if (tableInfo.length) {
+    let tIdx = 0;
+    html = html.replace(/<table>([\s\S]*?)<\/table>/g, (match, inner) => {
+      if (tIdx >= tableInfo.length) return match;
+      const {widths, aligns} = tableInfo[tIdx++];
+      const total = widths.reduce((a, b) => a + b, 0);
+      const pcts = widths.map(w => `${(w / total * 100).toFixed(1)}%`);
+      const newInner = inner.replace(/<tr>([\s\S]*?)<\/tr>/g, (_r, rowInner) => {
+        let cellIdx = 0;
+        const rebuilt = rowInner.replace(/<(th|td)\b([^>]*)>/g, (_m, tag, attrs) => {
+          const a = cellIdx < aligns.length ? aligns[cellIdx] : '';
+          const w = (tag === 'th' && cellIdx < pcts.length) ? `width:${pcts[cellIdx]};` : '';
+          const ta = a ? `text-align:${a};` : '';
+          cellIdx++;
+          const cleaned = attrs.replace(/\s*align="[^"]*"/g, '');
+          const style = (w || ta) ? ` style="${w}${ta}"` : '';
+          return `<${tag}${cleaned}${style}>`;
+        });
+        return `<tr>${rebuilt}</tr>`;
+      });
+      return `<table style="width:100%;table-layout:fixed">${newInner}</table>`;
+    });
+  }
   // Wrap every <pre><code …> in a .pv-code card with a header strip
   // (lang label + copy button). Marked v9 emits <pre><code class="language-X">
   // (no `hljs` prefix); we also apply hljs.highlight ourselves below since
@@ -1301,10 +1572,11 @@ function renderMarkdown(md) {
       `</div>`
     );
   }
-  // With a language fence: <pre><code class="language-X">…</code></pre>
+  // Note: marked will *not* see any fenced code (we extracted it upstream).
+  // It may still emit a <pre><code> for indented-code blocks (4 leading
+  // spaces). Wrap those with the same .pv-code shell so styling is uniform.
   html = html.replace(/<pre><code class="(?:hljs )?language-(\w+)">([\s\S]*?)<\/code><\/pre>/g,
     (_m, lang, code) => _wrapCode(lang, code));
-  // Without a fence: <pre><code>…</code></pre>
   html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g,
     (_m, code) => _wrapCode('', code));
   // GitHub-flavored callouts (admonition style).
@@ -1321,17 +1593,34 @@ function renderMarkdown(md) {
     warning:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>',
     caution:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.6" fill="currentColor"/></svg>',
   };
+  // `[!NOTE]`        → static <blockquote> admonition
+  // `[!NOTE+]`       → <details open> (collapsible, expanded by default)
+  // `[!NOTE-]`       → <details> (collapsible, collapsed by default)
   html = html.replace(
-    /<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s*<br\s*\/?>)?\s*([\s\S]*?)<\/blockquote>/gi,
-    (m, type, rest) => {
+    /<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)([+-]?)\](?:\s*<br\s*\/?>)?\s*([\s\S]*?)<\/blockquote>/gi,
+    (m, type, modifier, rest) => {
       const t = type.toLowerCase();
       const label = type[0] + type.slice(1).toLowerCase();
+      const icon = ADM_ICONS[t] || '';
       // `rest` already ends with the trailing `</p>` of the last paragraph,
       // so we prepend a fresh `<p>` to wrap the captured first-paragraph body.
+      if (modifier === '+' || modifier === '-') {
+        const isOpen = modifier === '+';
+        return (
+          `<details class="adm adm-${t} adm-collapsible"${isOpen ? ' open' : ''}>` +
+            `<summary class="adm-title">` +
+              `<span class="adm-icon">${icon}</span>` +
+              `<span class="adm-label">${label}</span>` +
+              `<span class="adm-caret" aria-hidden="true">▸</span>` +
+            `</summary>` +
+            `<div class="adm-body"><p>${rest}</div>` +
+          `</details>`
+        );
+      }
       return (
         `<blockquote class="adm adm-${t}">` +
           `<div class="adm-title">` +
-            `<span class="adm-icon">${ADM_ICONS[t] || ''}</span>` +
+            `<span class="adm-icon">${icon}</span>` +
             `<span class="adm-label">${label}</span>` +
           `</div>` +
           `<div class="adm-body"><p>${rest}</div>` +
@@ -1365,17 +1654,237 @@ function renderMarkdown(md) {
   // server can serve them (with whitelist + image-MIME-only).
   html = html.replace(/<img([^>]*?)\ssrc="(\/[^"]+)"/g,
                       (m, pre, src) => `<img${pre} src="/file?path=${encodeURIComponent(src)}"`);
+  // Wiki-link splice: resolve [[Card Title]] (or [[Title|display]]) against
+  // the live CARDS array. Matching is case-insensitive on the trimmed title.
+  // Rendered as a styled chip with an icon. Clickable chips (matched cards)
+  // open the target via openCard(); unmatched chips get a "broken" style.
+  // Hover tooltip wired in _attachMdInteractions reads data-card-id / -title.
+  html = html.replace(/\x00WIKI(\d+)\x00/g, (_m, i) => {
+    const link = wikiLinks[+i]; if (!link) return '';
+    const needle = link.title.toLowerCase();
+    const card = (typeof CARDS !== 'undefined' && CARDS) ?
+      CARDS.find(c => (c.title || '').toLowerCase() === needle) : null;
+    const icon = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"/></svg>';
+    if (card) {
+      return `<a class="md-wikilink" href="javascript:void(0)" data-card-id="${escapeHtml(card.id)}" data-card-title="${escapeHtml(card.title || '')}" data-card-tags="${escapeHtml((card.tags || []).join(', '))}">${icon}<span class="md-wikilink-text">${escapeHtml(link.display)}</span></a>`;
+    }
+    return `<span class="md-wikilink md-wikilink--missing" title="No card titled &quot;${escapeHtml(link.title)}&quot;" data-card-title="${escapeHtml(link.title)}">${icon}<span class="md-wikilink-text">${escapeHtml(link.display)}</span></span>`;
+  });
+  // Splice footnote references back in. Plain <sup> (no anchor) so clicking
+  // never causes the browser to jump to the footnote section. Hover behavior
+  // is wired in _attachMdInteractions via a delegated mouseover listener that
+  // reads data-fn-html and shows a floating tooltip.
+  html = html.replace(/\x00FN([^\x00]+?)\x00/g, (_m, id) => {
+    const num = fnNum[id];
+    if (!num) return '';
+    const tipHtml = marked.parseInline(fnDefs[id] || '');
+    return `<sup class="md-fn-ref" data-fn-id="${escapeHtml(id)}" data-fn-html="${escapeHtml(tipHtml)}" tabindex="0" role="note" aria-label="Footnote ${num}">${num}</sup>`;
+  });
+  // Splice tabs / collapse blocks back in. They were emitted as their own
+  // paragraph, so unwrap the surrounding <p>…</p> first.
+  const spliceBlock = (idx) => {
+    const b = blocks[+idx];
+    if (!b) return '';
+    if (b.type === 'tabs') return _renderTabsBlock(b.tabs);
+    if (b.type === 'collapse') return _renderCollapseBlock(b.title, b.open, b.content);
+    return '';
+  };
+  html = html.replace(/<p>\s*\x00BLOCK(\d+)\x00\s*<\/p>/g, (_m, i) => spliceBlock(i));
+  html = html.replace(/\x00BLOCK(\d+)\x00/g, (_m, i) => spliceBlock(i));
   // Splice the pre-rendered KaTeX chunks back in.
   html = html.replace(/\x00KATEX(\d+)\x00/g, (_m, i) => katexChunks[+i] || '');
-  return fmHtml + html;
+  // Splice code placeholders from the *shared* registry. Fenced blocks land
+  // on their own paragraph (unwrap the <p>); inline code is always inline.
+  html = html.replace(/<p>\s*\x00FCODE(\d+)\x00\s*<\/p>/g, (_m, i) => {
+    const b = _MD_CTX.fenced[+i]; if (!b) return '';
+    return _wrapCode(b.lang, escapeHtml(b.code.replace(/\n$/, '')));
+  });
+  html = html.replace(/\x00FCODE(\d+)\x00/g, (_m, i) => {
+    const b = _MD_CTX.fenced[+i]; if (!b) return '';
+    return _wrapCode(b.lang, escapeHtml(b.code.replace(/\n$/, '')));
+  });
+  html = html.replace(/\x00ICODE(\d+)\x00/g, (_m, i) => {
+    const c = _MD_CTX.inline[+i]; if (c == null) return '';
+    return `<code>${escapeHtml(c)}</code>`;
+  });
+  // Append a numbered footnotes section, rendered as a nested markdown body
+  // so footnote definitions can use full markdown (lists, code, etc.).
+  if (fnOrder.length) {
+    const items = fnOrder.map(id => {
+      const num = fnNum[id];
+      const inner = marked.parse(fnDefs[id] || '').trim();
+      return `<li class="md-fn-item" id="fn-${escapeHtml(id)}"><span class="md-fn-num">${num}.</span><div class="md-fn-text">${inner}</div></li>`;
+    }).join('');
+    html += `<section class="md-footnotes"><h4>Footnotes</h4><ol>${items}</ol></section>`;
+  }
+  return html;
+}
+function renderMarkdown(md) {
+  const {fm, body} = extractFrontmatter(md);
+  const fmHtml = renderFrontmatterTable(fm);
+  // Reset the shared code-block registry for this top-level render.
+  // Recursive _renderInner calls (tab/collapse bodies) share these arrays
+  // so placeholders emitted by the outer scope splice correctly inside.
+  _MD_CTX = {fenced: [], inline: []};
+  const out = fmHtml + _renderInner(body || '');
+  _MD_CTX = null;
+  return out;
+}
+// Floating tooltip for footnote refs. Created once, reused for every hover.
+// MkDocs-Material inspired: dark card with a small arrow caret pointing
+// back at the host chip, hover-pinnable so users can click links inside.
+let _fnTipEl = null, _fnHideTimer = null;
+function _getFnTip() {
+  if (_fnTipEl) return _fnTipEl;
+  _fnTipEl = document.createElement('div');
+  _fnTipEl.className = 'md-fn-tooltip';
+  _fnTipEl.innerHTML = '<div class="md-fn-tooltip__inner"></div><span class="md-fn-tooltip__arrow"></span>';
+  document.body.appendChild(_fnTipEl);
+  // Keep the tooltip open while the mouse is inside it (lets users click links).
+  _fnTipEl.addEventListener('mouseenter', () => clearTimeout(_fnHideTimer));
+  _fnTipEl.addEventListener('mouseleave', () => _hideFnTip());
+  return _fnTipEl;
+}
+function _showFnTip(sup) {
+  const tip = _getFnTip();
+  clearTimeout(_fnHideTimer);
+  // Native <dialog> opened via showModal() sits in the browser's top layer,
+  // which covers anything in <body> regardless of z-index. Re-parent the
+  // tooltip into the closest open <dialog> so it shares that top layer.
+  // Position math changes mode in tandem (see .in-dialog in omi.css):
+  //   - inside a dialog → position: absolute, coords are dialog-relative
+  //   - outside a dialog → position: fixed, coords are viewport-relative
+  const host = sup.closest('dialog[open]') || document.body;
+  const inDialog = host.tagName === 'DIALOG';
+  if (tip.parentElement !== host) host.appendChild(tip);
+  tip.classList.toggle('in-dialog', inDialog);
+  tip.querySelector('.md-fn-tooltip__inner').innerHTML = sup.dataset.fnHtml || '';
+  tip.classList.add('show');
+  // Position: prefer above the chip; fall back to below if no room.
+  // Done in rAF so the freshly-rendered content has been laid out.
+  requestAnimationFrame(() => {
+    const r = sup.getBoundingClientRect();
+    const tipW = tip.offsetWidth, tipH = tip.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const above = r.top - tipH - 10 >= 8;
+    const vpTop  = above ? r.top - tipH - 10 : Math.min(vh - tipH - 8, r.bottom + 10);
+    const vpLeft = Math.min(vw - tipW - 12, Math.max(8, r.left + r.width / 2 - tipW / 2));
+    const arrowX = Math.max(10, Math.min(tipW - 10, r.left + r.width / 2 - vpLeft));
+    // Convert viewport → dialog-local when reparented into a dialog. The
+    // dialog itself is positioned so absolute coords inside it are measured
+    // from its top-left.
+    let topPx = vpTop, leftPx = vpLeft;
+    if (inDialog) {
+      const hr = host.getBoundingClientRect();
+      topPx  -= hr.top;
+      leftPx -= hr.left;
+    }
+    tip.style.left = leftPx + 'px';
+    tip.style.top  = topPx + 'px';
+    tip.style.setProperty('--md-fn-arrow-x', arrowX + 'px');
+    tip.classList.toggle('below', !above);
+  });
+}
+function _hideFnTip() {
+  clearTimeout(_fnHideTimer);
+  _fnHideTimer = setTimeout(() => {
+    const tip = _getFnTip();
+    tip.classList.remove('show');
+  }, 120);
+}
+function _attachMdInteractions(root) {
+  if (!root) return;
+  // Tab switching — delegated within `root` (click bubbles, so this survives
+  // re-renders that replace the inner DOM).
+  if (!root._mdTabsBound) {
+    root._mdTabsBound = true;
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest('.md-tab-btn');
+      if (!btn || !root.contains(btn)) return;
+      const tabs = btn.closest('.md-tabs');
+      if (!tabs) return;
+      tabs.querySelectorAll('.md-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      const targetId = btn.dataset.target;
+      tabs.querySelectorAll('.md-tab-panel').forEach(p =>
+        p.classList.toggle('active', p.id === targetId));
+    });
+  }
+  // Footnote tooltips — bind directly on each ref. mouseenter/leave do NOT
+  // bubble, so delegation is unreliable; per-element binding is robust.
+  // The `data-fn-bound` flag prevents double-binding on re-render.
+  root.querySelectorAll('.md-fn-ref').forEach(sup => {
+    if (sup.dataset.fnBound) return;
+    sup.dataset.fnBound = '1';
+    sup.addEventListener('mouseenter', () => _showFnTip(sup));
+    sup.addEventListener('mouseleave', () => _hideFnTip());
+    sup.addEventListener('focus',  () => _showFnTip(sup));
+    sup.addEventListener('blur',   () => _hideFnTip());
+    // Defensive: even though the chip has no <a>, swallow any click that
+    // might still bubble (e.g. wrapper anchors) so the page never jumps.
+    sup.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
+  });
+  // Wiki-links: click to open the target card; hover for a richer tooltip
+  // (title + tags). Missing-card spans still get a tooltip explaining why.
+  root.querySelectorAll('.md-wikilink').forEach(el => {
+    if (el.dataset.wikiBound) return;
+    el.dataset.wikiBound = '1';
+    const id = el.dataset.cardId;
+    if (id && el.tagName === 'A') {
+      el.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (typeof window.openCard === 'function') window.openCard(id);
+      });
+    }
+    el.addEventListener('mouseenter', () => _showLinkTip(el));
+    el.addEventListener('mouseleave', () => _hideFnTip());
+  });
+  // Regular markdown links — show a small tooltip with the URL on hover so
+  // users can preview where they're going. Skip wiki-links (handled above),
+  // footnote backrefs, and same-page anchor jumps (#…).
+  root.querySelectorAll('a[href]').forEach(a => {
+    if (a.dataset.linkBound) return;
+    if (a.classList.contains('md-wikilink')) return;
+    const href = a.getAttribute('href') || '';
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+    a.dataset.linkBound = '1';
+    a.addEventListener('mouseenter', () => _showLinkTip(a));
+    a.addEventListener('mouseleave', () => _hideFnTip());
+  });
+}
+function _showLinkTip(el) {
+  // Compose a tiny HTML preview for the floating tooltip:
+  //   - <a>:  href (clickable in the tooltip too)
+  //   - .md-wikilink (matched): card title + tags
+  //   - .md-wikilink--missing: explanation
+  let html;
+  if (el.classList.contains('md-wikilink')) {
+    if (el.classList.contains('md-wikilink--missing')) {
+      const t = el.dataset.cardTitle || '';
+      html = `<div class="md-link-tip__row"><span class="md-link-tip__icon">✕</span><span><strong>No card titled</strong><br>${escapeHtml(t)}</span></div>`;
+    } else {
+      const title = el.dataset.cardTitle || '';
+      const tags  = el.dataset.cardTags || '';
+      html =
+        `<div class="md-link-tip__row"><span class="md-link-tip__icon">📄</span><strong>${escapeHtml(title)}</strong></div>` +
+        (tags ? `<div class="md-link-tip__tags">${escapeHtml(tags)}</div>` : '');
+    }
+  } else {
+    const href  = el.getAttribute('href') || '';
+    html = `<div class="md-link-tip__row"><span class="md-link-tip__icon">🔗</span><span class="md-link-tip__href">${escapeHtml(href)}</span></div>`;
+  }
+  // Reuse the footnote tooltip element; just feed it different HTML.
+  const fake = {dataset: {fnHtml: html}, closest: (sel) => el.closest(sel), getBoundingClientRect: () => el.getBoundingClientRect()};
+  _showFnTip(fake);
 }
 function renderPreview() {
   const md = $('#emContent').value;
-  $('#emPreview').innerHTML = renderMarkdown(md);
-  try { renderMathInElement($('#emPreview'), {delimiters: [
+  const el = $('#emPreview');
+  el.innerHTML = renderMarkdown(md);
+  try { renderMathInElement(el, {delimiters: [
     {left: '$$', right: '$$', display: true},
     {left: '$', right: '$', display: false},
   ], throwOnError: false}); } catch {}
+  _attachMdInteractions(el);
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────
@@ -1403,9 +1912,7 @@ function applyAIDegradation(ai) {
     el.style.opacity = 0.45;
     el.style.cursor = 'not-allowed';
   };
-  dim('#extractBtn', `AI is not configured — ${reason}`);
   dim('#emAi',       `AI is not configured — ${reason}`);
-  $('#extractInput').placeholder = `⚠ AI not configured — ${reason}. Other features still work.`;
   $('#chatEmpty').innerHTML = `<div class="glyph">⚠</div><div>AI not configured — ${escapeHtml(reason)}.<br>You can still <strong>create</strong>, <strong>edit</strong>, <strong>search</strong>, and <strong>sync</strong> skill cards manually.</div>`;
   setStatus(`AI off · ${reason}`, '');
 }
@@ -1427,9 +1934,16 @@ function applyFilter() {
 }
 function renderTagRow() {
   const tags = [...new Set(CARDS.flatMap(c => c.tags || []))].sort();
-  $('#tagRow').innerHTML = tags.map(t =>
+  const hint = `<span class="tag-row-hint" title="hover to expand"><span class="tag-row-icon">🏷</span>tags <span class="tag-row-count">${tags.length}</span> · hover to expand<span class="tag-row-caret">▾</span></span>`;
+  const chips = tags.map(t =>
     `<button class="omi-tag-chip ${t === activeTag ? 'active' : ''}" onclick="toggleTag('${escapeHtml(t)}')">${escapeHtml(t)}</button>`
-  ).join('') + (activeTag ? `<button class="omi-tag-chip" onclick="toggleTag(null)" style="margin-left:6px">✕ clear</button>` : '');
+  ).join('');
+  const clear = activeTag
+    ? `<button class="omi-tag-chip" onclick="toggleTag(null)" style="margin-left:6px">✕ clear</button>`
+    : '';
+  const row = $('#tagRow');
+  row.innerHTML = hint + `<div class="tag-row-chips">${chips}${clear}</div>`;
+  row.classList.toggle('is-active', !!activeTag);
 }
 window.toggleTag = function (t) {
   activeTag = (activeTag === t || t === null) ? null : t;
@@ -1449,7 +1963,7 @@ function bodySnippet(content) {
 function renderGrid() {
   $('#cardMeta').innerHTML = `${FILTERED.length} of ${CARDS.length} cards · Press <kbd>/</kbd> to search`;
   if (FILTERED.length === 0) {
-    $('#cardGrid').innerHTML = '<div class="omi-empty" style="grid-column:1/-1">no cards match — paste rough notes above and hit <strong>Extract</strong>, or click <strong>+ New Card</strong></div>';
+    $('#cardGrid').innerHTML = '<div class="omi-empty" style="grid-column:1/-1">no cards match — click <strong>+ New Card</strong> to create one, then use <strong>💬 Chat</strong> to fill it in</div>';
     return;
   }
   $('#cardGrid').innerHTML = FILTERED.map(c => {
@@ -1489,6 +2003,7 @@ window.openCard = function (id) {
   setupEditorScrollSync();
   setTimeout(() => $('#emContent').focus(), 100);
   if (typeof window._refreshCascadeTrigger === 'function') window._refreshCascadeTrigger();
+  if (typeof window._showCardLineage === 'function') window._showCardLineage(id);
   refreshPullButton();
 };
 
@@ -1722,6 +2237,7 @@ function renderFocusFromCard(card) {
   try { renderMathInElement($('#focusBody'), {delimiters: [
     {left:'$$', right:'$$', display:true}, {left:'$', right:'$', display:false},
   ], throwOnError:false}); } catch {}
+  _attachMdInteractions($('#focusBody'));
 }
 function refreshFocusFromDB() {
   if (!FOCUS_CARD_ID) return;
@@ -2162,75 +2678,6 @@ $('#chatStop').onclick = async () => {
   if (CHAT_ID) await fetch(`/api/chat/${CHAT_ID}/stop`, {method:'POST'});
 };
 
-// ── Extract Skill (rough notes → card via SSE) ────────────────────
-let EXTRACT_BUSY = false;
-$('#extractBtn').onclick = async () => {
-  if (EXTRACT_BUSY) return;
-  const notes = $('#extractInput').value.trim();
-  if (!notes) { setStatus('paste some notes first', 'error'); return; }
-  EXTRACT_BUSY = true;
-  const btn = $('#extractBtn'), label = $('#extractBtnLabel');
-  btn.disabled = true;
-  const t0 = Date.now();
-  const tick = setInterval(() => { label.textContent = `extracting ${Math.floor((Date.now()-t0)/1000)}s…`; }, 200);
-  openLogs(); selectTab('logs');
-  try {
-    const r = await fetch('/api/extract', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({notes}),
-    });
-    const reader = r.body.getReader(), dec = new TextDecoder();
-    let buf='', preview='', createdId=null;
-    while (true) {
-      const {done, value} = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, {stream:true});
-      const lines = buf.split('\n\n'); buf = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
-        try {
-          const ev = JSON.parse(data);
-          if (ev.text) preview += ev.text;
-          if (ev.error) setStatus(ev.error, 'error');
-          if (ev.created) createdId = ev.card_id;
-        } catch {}
-      }
-    }
-    clearInterval(tick);
-    if (createdId) {
-      $('#extractInput').value = '';
-      await loadCards();
-      setStatus(`extracted in ${Math.floor((Date.now()-t0)/1000)}s — opening`, 'ok');
-      openCard(createdId);
-    } else {
-      setStatus('no card created — see logs', 'error');
-    }
-  } catch (e) {
-    clearInterval(tick);
-    setStatus(String(e), 'error');
-  } finally {
-    EXTRACT_BUSY = false;
-    btn.disabled = false;
-    label.textContent = 'Extract';
-    refreshLogsIfOpen();
-  }
-};
-// Auto-grow extract textarea
-$('#extractInput').addEventListener('input', function () {
-  this.style.height = '38px';
-  this.style.height = Math.min(this.scrollHeight, 220) + 'px';
-});
-// Example chips
-document.querySelectorAll('.compose .ex').forEach(el => {
-  el.addEventListener('click', () => {
-    $('#extractInput').value = el.dataset.ex || '';
-    $('#extractInput').dispatchEvent(new Event('input'));
-    $('#extractInput').focus();
-  });
-});
-
 // ── Logs ──────────────────────────────────────────────────────────
 async function refreshLogs() {
   const r = await fetch('/api/logs').then(r => r.json());
@@ -2658,9 +3105,6 @@ document.addEventListener('keydown', e => {
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 's' && $('#editorModal').open) {
     e.preventDefault(); $('#emSave').click();
-  }
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && document.activeElement === $('#extractInput')) {
-    e.preventDefault(); $('#extractBtn').click();
   }
   // Escape no longer closes the editor — let the in-modal widgets
   // (find, cascade, ref-window, picker) handle Esc on their own.
@@ -3104,6 +3548,7 @@ document.addEventListener('keydown', (e) => {
       if (typeof renderMathInElement === 'function') {
         try { renderMathInElement(pv, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}], throwOnError: false }); } catch {}
       }
+      if (typeof _attachMdInteractions === 'function') _attachMdInteractions(pv);
     } catch (e) { pv.textContent = card.content || ''; }
 
     // Header drag
@@ -3302,21 +3747,25 @@ document.addEventListener('keydown', (e) => {
   }
 })();
 
-// ─── Cascade — parent / siblings / children + tag clusters + links ───
-// Compact 3-column Miller cascade triggered by the title chevron.
-// Linkage model: each card optionally has metadata.parent_id; the union
-// across all cards forms a forest. metadata.links is a free-form DAG of
-// cross-references (rendered in the "↔ related" pill row at the bottom).
+// ─── Cascade — mini lineage editor ──────────────────────────────────
+// Triggered by the title chevron. Shows a floating panel with left
+// sidebar (card candidates) and right collapsible topic board, mirroring
+// the /lineage page so cards can be organized without leaving the editor.
 (function () {
-  const dlgEd   = document.getElementById('editorModal');
-  const trigger = document.getElementById('cascadeTrigger');
-  const pop     = document.getElementById('cascadePop');
-  const colsEl  = document.getElementById('cascCols');
-  const auxEl   = document.getElementById('cascAux');
-  const crumbEl = document.getElementById('cascCrumb');
-  const filterIn= document.getElementById('cascFilter');
+  'use strict';
+  const dlgEd     = document.getElementById('editorModal');
+  const trigger   = document.getElementById('cascadeTrigger');
+  const pop       = document.getElementById('cascadePop');
+  const cascMeta  = document.getElementById('cascMeta');
+  const cascCards = document.getElementById('cascCards');
+  const cascBoard = document.getElementById('cascBoard');
+  const cascSearch= document.getElementById('cascSearch');
+  const cascTrash = document.getElementById('cascTrash');
+  const cascHeader= document.getElementById('cascHeader');
 
-  // ── Tree helpers ─────────────────────────────────────────────────
+  function escHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ── Card tree helpers (for refreshTrigger) ───────────────────
   function metaOf(c) { return (c && c.metadata) || {}; }
   function parentOf(c) { return metaOf(c).parent_id || null; }
   function linksOf(c) { return Array.isArray(metaOf(c).links) ? metaOf(c).links : []; }
@@ -3325,421 +3774,429 @@ document.addEventListener('keydown', (e) => {
     return (CARDS || []).filter(c => parentOf(c) === id)
                         .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   }
+
+  // ── Trigger button state ──────────────────────────────────────
+  function refreshTrigger() {
+    if (!CURRENT) { trigger.hidden = true; return; }
+    const hasParent   = !!parentOf(CURRENT) && !!byId(parentOf(CURRENT));
+    const hasChildren = childrenOf(CURRENT.id).length > 0;
+    const hasLinks    = linksOf(CURRENT).length > 0;
+    const linked = hasParent || hasChildren || hasLinks;
+    trigger.hidden = false;
+    trigger.classList.toggle('has-link', linked);
+    trigger.title = linked
+      ? `Linked: ${hasParent?'parent ':''}${hasChildren?'children ':''}${hasLinks?'related':''}`.trim()
+      : 'Open lineage editor';
+  }
+  window._refreshCascadeTrigger = refreshTrigger;
+
+  window._showCardLineage = async function(card_id) {
+    const section = document.getElementById('ipLineage');
+    const rows = document.getElementById('ipLineageRows');
+    if (!section || !rows) return;
+    if (!LINEAGE.topics || !LINEAGE.topics.length) {
+      try { await loadLineage(); } catch(e) { section.hidden = true; return; }
+    }
+    const cardTitle = (CARDS || []).find(c => c.id === card_id)?.title || card_id;
+
+    // Recursively build the path of names for a topic,
+    // following card_id links upward through the hierarchy.
+    function topicAncestry(topicId, visited = new Set()) {
+      if (visited.has(topicId)) return [];
+      visited.add(topicId);
+      const topic = LINEAGE.topics.find(t => t.id === topicId);
+      if (!topic) return [];
+      if (topic.card_id) {
+        for (const t of LINEAGE.topics) {
+          if (t.id === topicId) continue;
+          let sub = null;
+          for (const item of (t.items || [])) {
+            if (item.kind === 'subtopic') sub = item.label;
+            if (item.kind === 'card' && item.card_id === topic.card_id) {
+              const parentParts = topicAncestry(t.id, visited);
+              const cTitle = (CARDS||[]).find(c => c.id === topic.card_id)?.title || topic.title;
+              return [...parentParts, ...(sub ? [sub] : []), cTitle];
+            }
+          }
+        }
+      }
+      return [topic.title];
+    }
+
+    const placements = [];
+    for (const t of LINEAGE.topics) {
+      let sub = null;
+      for (const item of (t.items || [])) {
+        if (item.kind === 'subtopic') sub = item.label;
+        if (item.kind === 'card' && item.card_id === card_id) {
+          placements.push({ topic_id: t.id, subtopic: sub });
+        }
+      }
+    }
+    if (!placements.length) { section.hidden = true; return; }
+    section.hidden = false;
+    const sep = `<span class="iln-sep"> → </span>`;
+    rows.innerHTML = placements.map(p => {
+      const ancestry = topicAncestry(p.topic_id);
+      const parts = [...ancestry, ...(p.subtopic ? [p.subtopic] : []), cardTitle];
+      const html = parts.map((pt, i) => {
+        const cls = i === parts.length - 1 ? 'iln-card'
+                  : i === 0 ? 'iln-topic' : 'iln-sub';
+        return `<span class="${cls}">${escHTML(pt)}</span>`;
+      }).join(sep);
+      return `<div class="info-lineage-row">${html}</div>`;
+    }).join('');
+  };
+
+  // ── State ─────────────────────────────────────────────────────
+  let LINEAGE = { topics: [] };
+  let CASC_FILTER = '';
+  let CASC_DRAG = {};
+  let headerDragSetup = false;
+
+  // ── Lineage API ───────────────────────────────────────────────
+  async function loadLineage() {
+    const data = await fetch('/lineage/api/state').then(r => r.json()).catch(() => ({ topics: [] }));
+    LINEAGE = data;
+  }
+
+  async function lapi(method, url, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    const r = await fetch(url, opts);
+    return r.json().catch(() => ({}));
+  }
+
+  function updateMeta() {
+    const topics = LINEAGE.topics || [];
+    const placed = topics.reduce((s, t) => s + (t.items || []).filter(i => i.kind === 'card').length, 0);
+    cascMeta.textContent = `${topics.length} topic${topics.length !== 1 ? 's' : ''} · ${placed} placed`;
+  }
+
+  // ── L0 sidebar ────────────────────────────────────────────────
+  function cascCardUseCount(card_id) {
+    return (LINEAGE.topics || []).reduce((s, t) =>
+      s + (t.items || []).filter(i => i.kind === 'card' && i.card_id === card_id).length, 0);
+  }
+
+  function renderCascL0() {
+    const q = CASC_FILTER.toLowerCase();
+    const cards = (CARDS || []).filter(c =>
+      !q || (c.title || '').toLowerCase().includes(q) || (c.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+    if (!cards.length) {
+      cascCards.innerHTML = `<div class="casc-empty">no cards match</div>`;
+      return;
+    }
+    cascCards.innerHTML = cards.map(c => {
+      const uses = cascCardUseCount(c.id);
+      const tags = (c.tags || []).slice(0, 3).map(t => `<span class="ck">${escHTML(t)}</span>`).join('');
+      return `<div class="casc-cand" draggable="true" data-id="${escHTML(c.id)}">
+        <span class="ct">${escHTML(c.title || '(untitled)')}${uses ? `<span class="cu">·${uses}</span>` : ''}</span>
+        ${tags ? `<span class="cg">${tags}</span>` : ''}
+      </div>`;
+    }).join('');
+    cascCards.querySelectorAll('.casc-cand').forEach(el => {
+      const id = el.dataset.id;
+      el.addEventListener('dragstart', (e) => {
+        CASC_DRAG = { kind: 'l0-card', card_id: id };
+        e.dataTransfer.effectAllowed = 'copy';
+        el.classList.add('dragging');
+      });
+      el.addEventListener('dragend', () => { el.classList.remove('dragging'); });
+    });
+  }
+
+  // ── Drop line helpers ──────────────────────────────────────────
+  function appendCascDropLine(parent, topicId, position) {
+    const el = document.createElement('div');
+    el.className = 'casc-drop-line';
+    el.dataset.topic = topicId;
+    el.dataset.pos = position;
+    parent.appendChild(el);
+  }
+
+  function nearestCascDropLine(body, clientY) {
+    const lines = Array.from(body.querySelectorAll('.casc-drop-line'));
+    if (!lines.length) return null;
+    return lines.reduce((best, el) => {
+      const mid = el.getBoundingClientRect().top;
+      const dist = Math.abs(clientY - mid);
+      return dist < best.dist ? { el, dist } : best;
+    }, { el: lines[0], dist: Infinity }).el;
+  }
+
+  function clearCascDropLines() {
+    cascBoard.querySelectorAll('.casc-drop-line.show').forEach(el => el.classList.remove('show'));
+    cascBoard.querySelectorAll('.casc-topic-body.drop-hover').forEach(el => el.classList.remove('drop-hover'));
+  }
+
+  // ── Drop handler ───────────────────────────────────────────────
+  async function handleCascDrop(topicId, position) {
+    let r;
+    if (CASC_DRAG.kind === 'l0-card') {
+      r = await lapi('POST', '/lineage/api/items', {
+        topic_id: topicId, position, kind: 'card', card_id: CASC_DRAG.card_id
+      });
+    } else if (CASC_DRAG.kind === 'item') {
+      r = await lapi('PATCH', `/lineage/api/items/${CASC_DRAG.item_id}`, { topic_id: topicId, position });
+    }
+    if (r && (r.error || r.detail)) {
+      const col = cascBoard.querySelector(`.casc-topic[data-id="${topicId}"]`);
+      if (col) { col.classList.remove('shake'); col.offsetWidth; col.classList.add('shake'); }
+      return;
+    }
+    await loadLineage(); renderCascL0(); renderCascBoard();
+  }
+
+  // ── Topic DnD ──────────────────────────────────────────────────
+  function bindCascTopicDnD(body, topic) {
+    body.addEventListener('dragover', (e) => {
+      if (!CASC_DRAG.kind) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = CASC_DRAG.kind === 'l0-card' ? 'copy' : 'move';
+      const nearest = nearestCascDropLine(body, e.clientY);
+      body.querySelectorAll('.casc-drop-line').forEach(l => l.classList.remove('show'));
+      if (nearest) nearest.classList.add('show');
+      body.classList.add('drop-hover');
+    });
+    body.addEventListener('dragleave', (e) => {
+      if (!body.contains(e.relatedTarget)) {
+        clearCascDropLines();
+        body.classList.remove('drop-hover');
+      }
+    });
+    body.addEventListener('drop', (e) => {
+      e.preventDefault();
+      body.classList.remove('drop-hover');
+      const nearest = body.querySelector('.casc-drop-line.show');
+      const position = nearest ? parseInt(nearest.dataset.pos) : 0;
+      clearCascDropLines();
+      handleCascDrop(topic.id, position);
+    });
+  }
+
+  // ── Render divider ─────────────────────────────────────────────
+  function renderCascDivider(topic, item, body) {
+    const el = document.createElement('div');
+    el.className = 'casc-divider';
+    el.draggable = true;
+    el.innerHTML = `<input value="${escHTML(item.label || '')}" placeholder="subtopic…">`;
+    el.querySelector('input').addEventListener('change', async (ev) => {
+      await lapi('PATCH', `/lineage/api/items/${item.id}`, { label: ev.target.value });
+    });
+    el.addEventListener('dragstart', (e) => {
+      CASC_DRAG = { kind: 'item', item_id: item.id, item_kind: 'subtopic' };
+      e.dataTransfer.effectAllowed = 'move';
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); CASC_DRAG = {}; });
+    body.appendChild(el);
+  }
+
+  // ── Render chip ────────────────────────────────────────────────
+  function renderCascChip(topic, item, body, cardsById) {
+    const card = cardsById[item.card_id];
+    const el = document.createElement('div');
+    el.className = 'casc-chip' + (card ? '' : ' missing');
+    el.draggable = true;
+    el.innerHTML = `<span class="cl">${escHTML(card ? card.title : '(missing)')}</span>`;
+    if (card) {
+      el.addEventListener('click', () => {
+        close();
+        if (typeof window.openCard === 'function') window.openCard(card.id);
+      });
+    }
+    el.addEventListener('dragstart', (e) => {
+      CASC_DRAG = { kind: 'item', item_id: item.id, item_kind: 'card', card_id: item.card_id };
+      e.dataTransfer.effectAllowed = 'move';
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); CASC_DRAG = {}; });
+    body.appendChild(el);
+  }
+
+  // ── Render board ───────────────────────────────────────────────
+  function renderCascBoard() {
+    const cardsById = Object.fromEntries((CARDS || []).map(c => [c.id, c]));
+    const topics = (LINEAGE.topics || []).slice().sort((a, b) => a.position - b.position);
+    cascBoard.innerHTML = '';
+
+    topics.forEach(topic => {
+      const col = document.createElement('div');
+      col.className = 'casc-topic';
+      col.dataset.id = topic.id;
+
+      const head = document.createElement('div');
+      head.className = 'casc-topic-head';
+      head.innerHTML = `<button class="casc-collapse-btn" title="collapse/expand">▾</button>
+        <input value="${escHTML(topic.title)}" placeholder="topic…">`;
+      head.querySelector('input').addEventListener('change', async (e) => {
+        await lapi('PATCH', `/lineage/api/topics/${topic.id}`, { title: e.target.value });
+      });
+      const btn = head.querySelector('.casc-collapse-btn');
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        col.classList.toggle('collapsed');
+        btn.textContent = col.classList.contains('collapsed') ? '▸' : '▾';
+      });
+      col.appendChild(head);
+
+      const body = document.createElement('div');
+      body.className = 'casc-topic-body';
+      const items = (topic.items || []).slice().sort((a, b) => a.position - b.position);
+      appendCascDropLine(body, topic.id, 0);
+      items.forEach(item => {
+        if (item.kind === 'subtopic') renderCascDivider(topic, item, body);
+        else renderCascChip(topic, item, body, cardsById);
+        appendCascDropLine(body, topic.id, item.position + 1);
+      });
+      bindCascTopicDnD(body, topic);
+      col.appendChild(body);
+
+      const foot = document.createElement('div');
+      foot.className = 'casc-topic-foot';
+      foot.innerHTML = `<button class="casc-mini-btn" data-act="sub">+ subtopic</button>
+        <button class="casc-mini-btn" data-act="card">+ card</button>`;
+      foot.querySelector('[data-act="sub"]').addEventListener('click', async () => {
+        const label = prompt('Subtopic label:');
+        if (!label) return;
+        await lapi('POST', '/lineage/api/items', { topic_id: topic.id, position: items.length, kind: 'subtopic', label });
+        await loadLineage(); renderCascL0(); renderCascBoard();
+      });
+      foot.querySelector('[data-act="card"]').addEventListener('click', async () => {
+        const title = prompt('New card title:');
+        if (!title) return;
+        const r = await fetch('/skill-cards/api/cards', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content: '', tags: [] })
+        }).then(res => res.json()).catch(() => ({}));
+        if (r.error) { alert('Failed: ' + r.error); return; }
+        if (typeof loadCards === 'function') await loadCards();
+        await lapi('POST', '/lineage/api/items', { topic_id: topic.id, position: items.length, kind: 'card', card_id: r.id });
+        await loadLineage(); renderCascL0(); renderCascBoard();
+      });
+      col.appendChild(foot);
+      cascBoard.appendChild(col);
+    });
+
+    const addBtn = document.createElement('div');
+    addBtn.className = 'casc-add-topic';
+    addBtn.textContent = '+ Topic';
+    addBtn.addEventListener('dragover', (e) => {
+      const cardId = CASC_DRAG.kind === 'l0-card' ? CASC_DRAG.card_id
+                   : (CASC_DRAG.kind === 'item' && CASC_DRAG.item_kind === 'card') ? CASC_DRAG.card_id
+                   : null;
+      if (!cardId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      addBtn.classList.add('drop-hover');
+    });
+    addBtn.addEventListener('dragleave', () => addBtn.classList.remove('drop-hover'));
+    addBtn.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      addBtn.classList.remove('drop-hover');
+      const cardId = CASC_DRAG.kind === 'l0-card' ? CASC_DRAG.card_id
+                   : (CASC_DRAG.kind === 'item' && CASC_DRAG.item_kind === 'card') ? CASC_DRAG.card_id
+                   : null;
+      if (!cardId) return;
+      const card = (CARDS || []).find(c => c.id === cardId);
+      if (!card) return;
+      await lapi('POST', '/lineage/api/topics', { title: card.title, card_id: cardId, position: topics.length });
+      await loadLineage(); renderCascBoard();
+    });
+    addBtn.addEventListener('click', async () => {
+      const title = prompt('New topic title:');
+      if (!title) return;
+      await lapi('POST', '/lineage/api/topics', { title, position: topics.length });
+      await loadLineage(); renderCascBoard();
+    });
+    cascBoard.appendChild(addBtn);
+
+    updateMeta();
+  }
+
+  // ── Trash ──────────────────────────────────────────────────────
+  function bindCascTrash() {
+    cascTrash.addEventListener('dragover', (e) => {
+      if (!CASC_DRAG.kind || CASC_DRAG.kind === 'l0-card') return;
+      e.preventDefault();
+      cascTrash.classList.add('drop-hover');
+    });
+    cascTrash.addEventListener('dragleave', () => cascTrash.classList.remove('drop-hover'));
+    cascTrash.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      cascTrash.classList.remove('drop-hover');
+      if (CASC_DRAG.kind === 'item') {
+        await lapi('DELETE', `/lineage/api/items/${CASC_DRAG.item_id}`);
+        await loadLineage(); renderCascL0(); renderCascBoard();
+      } else if (CASC_DRAG.kind === 'topic') {
+        if (!confirm('Remove this topic and all its items?')) return;
+        await lapi('DELETE', `/lineage/api/topics/${CASC_DRAG.topic_id}?force=1`);
+        await loadLineage(); renderCascBoard();
+      }
+      CASC_DRAG = {};
+    });
+  }
+
+  // ── Draggable header ───────────────────────────────────────────
+  function setupDraggableHeader() {
+    if (headerDragSetup) return;
+    headerDragSetup = true;
+    cascHeader.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      e.preventDefault();
+      const r = pop.getBoundingClientRect();
+      const ox = e.clientX - r.left, oy = e.clientY - r.top;
+      pop.style.transform = '';
+      pop.style.left = r.left + 'px';
+      pop.style.top  = r.top  + 'px';
+      const mv = (ev) => { pop.style.left = (ev.clientX - ox) + 'px'; pop.style.top = (ev.clientY - oy) + 'px'; };
+      const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+      document.addEventListener('mousemove', mv);
+      document.addEventListener('mouseup',   up);
+    });
+  }
+
+  // ── Open / close ───────────────────────────────────────────────
+  async function open() {
+    if (!CURRENT) return;
+    if (dlgEd.open && pop.parentElement !== dlgEd) dlgEd.appendChild(pop);
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const pw = Math.min(960, Math.round(vw * 0.92));
+    const ph = Math.min(560, Math.round(vh * 0.86));
+    pop.style.width    = pw + 'px';
+    pop.style.height   = ph + 'px';
+    pop.style.left     = Math.max(8, Math.round((vw - pw) / 2)) + 'px';
+    pop.style.top      = Math.max(8, Math.round((vh - ph) / 2)) + 'px';
+    pop.style.position = 'fixed';
+    pop.style.transform= '';
+
+    CASC_FILTER = ''; cascSearch.value = '';
+    pop.classList.add('show');
+    setupDraggableHeader();
+    bindCascTrash();
+    await loadLineage();
+    renderCascL0();
+    renderCascBoard();
+    cascSearch.focus();
+  }
+
+  function close() { pop.classList.remove('show'); CASC_DRAG = {}; }
+
+  // ── Full tree floating window (original behaviour) ─────────────
   function rootCards() {
     return (CARDS || []).filter(c => !parentOf(c) || !byId(parentOf(c)))
                         .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   }
-  function ancestryOf(c) {
-    // Returns [root, …, parent, c]; cycle-safe
-    const out = [c]; const seen = new Set([c.id]);
-    let cur = c;
-    while (true) {
-      const p = byId(parentOf(cur));
-      if (!p || seen.has(p.id)) break;
-      out.unshift(p); seen.add(p.id); cur = p;
-    }
-    return out;
-  }
-  function tagClustersFor(c) {
-    // Cards sharing any tag with c (excluding c). Capped to 6 per cluster.
-    const out = {};
-    for (const t of (c.tags || [])) {
-      const peers = (CARDS || []).filter(x => x.id !== c.id && (x.tags || []).includes(t));
-      if (peers.length) out[t] = peers.slice(0, 6);
-    }
-    return out;
-  }
-
-  // ── State ────────────────────────────────────────────────────────
-  // colState[i] = id of selected card in column i (or '' for "root")
-  let colState = ['', '', ''];
-  let filterText = '';
-
-  // ── UI: chevron visibility ───────────────────────────────────────
-  function refreshTrigger() {
-    if (!CURRENT) { trigger.hidden = true; return; }
-    const hasParent = !!parentOf(CURRENT) && !!byId(parentOf(CURRENT));
-    const hasChildren = childrenOf(CURRENT.id).length > 0;
-    const hasLinks = linksOf(CURRENT).length > 0;
-    const linked = hasParent || hasChildren || hasLinks;
-    trigger.hidden = false;            // always shown when editor's open
-    trigger.classList.toggle('has-link', linked);
-    trigger.title = linked
-      ? `Linked: ${hasParent?'parent ':''}${hasChildren?'children ':''}${hasLinks?'related':''}`.trim()
-      : 'Link this card (parent / children / related)';
-  }
-  window._refreshCascadeTrigger = refreshTrigger;  // used by save / openCard
-
-  // ── Open / close ─────────────────────────────────────────────────
-  function open() {
-    if (!CURRENT) return;
-    // Reparent into dialog top layer (same trick as ref-windows)
-    if (dlgEd.open && pop.parentElement !== dlgEd) dlgEd.appendChild(pop);
-    // Anchor below the title chevron
-    const r = trigger.getBoundingClientRect();
-    pop.style.left = Math.max(8, Math.min(window.innerWidth - 660, r.left)) + 'px';
-    pop.style.top  = Math.min(window.innerHeight - 340, r.bottom + 6) + 'px';
-    pop.style.position = 'fixed';
-
-    // Initialize column state from current card's ancestry
-    const path = ancestryOf(CURRENT);
-    // Path is [L1, L2, …, current]. For 3-col: pin first 2 + show current's level
-    if (path.length === 1) colState = ['', '', ''];
-    else if (path.length === 2) colState = [path[0].id, '', ''];
-    else colState = [path[path.length - 3].id, path[path.length - 2].id, ''];
-    filterText = '';
-    filterIn.value = '';
-
-    pop.classList.add('show');
-    render();
-    setTimeout(() => filterIn.focus(), 0);
-  }
-  function close() { pop.classList.remove('show'); }
-
-  trigger.addEventListener('click', (e) => { e.stopPropagation(); pop.classList.contains('show') ? close() : open(); });
-  document.getElementById('cascClose').onclick = close;
-  document.addEventListener('click', (e) => {
-    if (!pop.classList.contains('show')) return;
-    if (e.target.closest('#cascadePop, #cascadeTrigger')) return;
-    close();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (!pop.classList.contains('show')) return;
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
-  }, true);
-  filterIn.addEventListener('input', () => { filterText = filterIn.value.trim().toLowerCase(); render(); });
-
-  // ── Render ───────────────────────────────────────────────────────
-  function escHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-  function render() {
-    if (!CURRENT) return;
-    renderCrumb();
-    renderColumns();
-    renderAux();
-  }
-
-  function renderCrumb() {
-    const path = ancestryOf(CURRENT);
-    if (path.length <= 1) {
-      crumbEl.innerHTML = `<span class="crumb cur">${escHTML(CURRENT.title || '(untitled)')}</span>`;
-      return;
-    }
-    const parts = path.map((c, i) => {
-      const isCur = (c.id === CURRENT.id);
-      return `<span class="crumb ${isCur ? 'cur' : ''}" data-jump="${escHTML(c.id)}">${escHTML(c.title || '(untitled)')}</span>` +
-             (i < path.length - 1 ? '<span class="sep">›</span>' : '');
-    }).join('');
-    crumbEl.innerHTML = parts;
-    crumbEl.querySelectorAll('.crumb[data-jump]').forEach(el => {
-      if (el.classList.contains('cur')) return;
-      el.onclick = () => { promote(el.dataset.jump); };
-    });
-  }
-
-  function colItems(colIdx) {
-    if (colIdx === 0) return rootCards();
-    const parentId = colState[colIdx - 1];
-    if (!parentId) return [];
-    return childrenOf(parentId);
-  }
-
-  function renderColumns() {
-    const colLabels = ['L1 — Topics', 'L2 — Subtopics', 'L3 — Cards'];
-    const path = ancestryOf(CURRENT).map(c => c.id);
-    let html = '';
-    for (let i = 0; i < 3; i++) {
-      let items = colItems(i);
-      if (filterText) {
-        items = items.filter(c => (c.title || '').toLowerCase().includes(filterText)
-                              || (c.tags || []).some(t => t.toLowerCase().includes(filterText)));
-      }
-      const parentForAdd = i === 0 ? '' : colState[i - 1];
-      const showAdd = i === 0 || (parentForAdd && byId(parentForAdd));
-      const addLabel = i === 0 ? '+ new top-level' : `+ new child of ${escHTML((byId(parentForAdd) || {}).title || '')}`;
-      html += `<div class="cascade-col" data-col="${i}">
-        <div class="cascade-col-label">${colLabels[i]}</div>
-        ${items.length === 0 ? `<div style="padding:10px 12px;color:var(--omi-muted);font-size:11px">${i === 0 ? 'no cards yet' : 'no children'}</div>` : ''}
-        ${items.map(c => {
-          const isCur  = c.id === CURRENT.id;
-          const isPath = path.includes(c.id);
-          const childCount = childrenOf(c.id).length;
-          const cls = isCur ? 'cur' : (isPath ? 'path' : '');
-          const marker = isCur ? '★' : (isPath ? '●' : '▸');
-          return `<div class="cascade-item ${cls}" draggable="true" data-id="${escHTML(c.id)}" data-col="${i}" title="${escHTML(c.title || '')}">
-            <span class="marker">${marker}</span>
-            <span class="label">${escHTML(c.title || '(untitled)')}</span>
-            ${childCount ? `<span class="count">${childCount}</span>` : ''}
-            <span class="chev">›</span>
-          </div>`;
-        }).join('')}
-        ${showAdd ? `<div class="cascade-add" data-add-col="${i}">${addLabel}</div>` : ''}
-      </div>`;
-    }
-    colsEl.innerHTML = html;
-
-    // Wire item clicks:
-    //   • click on the row body → OPEN that card (default action)
-    //   • click on the right-side ›   → drill into its children (cascade only)
-    colsEl.querySelectorAll('.cascade-item').forEach(el => {
-      const colIdx = parseInt(el.dataset.col), id = el.dataset.id;
-      // Cascade-only when user clicks the chevron explicitly
-      const chev = el.querySelector('.chev');
-      if (chev) {
-        chev.title = 'Show children (drill in without opening)';
-        chev.onclick = (e) => {
-          e.stopPropagation();
-          colState[colIdx] = id;
-          for (let k = colIdx + 1; k < 3; k++) colState[k] = '';
-          render();
-        };
-      }
-      el.onclick = (e) => {
-        if (e.target.closest('.chev')) return;   // chev handled above
-        promote(id);
-      };
-      // Drag → either drop into editor textarea (inserts [[card-name]])
-      // OR drop onto another cascade item to RE-PARENT (set parent_id).
-      el.ondragstart = (ev) => {
-        const card = byId(id); if (!card) return;
-        const wikiref = `[[${card.title}]]`;
-        ev.dataTransfer.setData('text/plain', wikiref);
-        ev.dataTransfer.setData('application/x-omi-card-id', id);
-        ev.dataTransfer.effectAllowed = 'copyLink';
-        el.classList.add('dragging');
-      };
-      el.ondragend = () => el.classList.remove('dragging');
-
-      // Drop target: drop another card here → that card becomes a child
-      // of THIS card.
-      el.ondragover = (ev) => {
-        const draggedId = ev.dataTransfer.types.includes('application/x-omi-card-id');
-        if (!draggedId) return;
-        ev.preventDefault();
-        ev.dataTransfer.dropEffect = 'move';
-        el.classList.add('drop-hover');
-      };
-      el.ondragleave = () => el.classList.remove('drop-hover');
-      el.ondrop = async (ev) => {
-        el.classList.remove('drop-hover');
-        const sourceId = ev.dataTransfer.getData('application/x-omi-card-id');
-        if (!sourceId || sourceId === id) return;
-        ev.preventDefault(); ev.stopPropagation();
-        await reparent(sourceId, id);
-      };
-    });
-
-    // Drop on the empty column body (below all items) → make the source a
-    // CHILD of the column's currently-selected parent (or top-level for L1).
-    colsEl.querySelectorAll('.cascade-col').forEach(colEl => {
-      const ci = parseInt(colEl.dataset.col);
-      colEl.ondragover = (ev) => {
-        if (!ev.dataTransfer.types.includes('application/x-omi-card-id')) return;
-        // Only highlight when the actual cursor is in column whitespace, not on a child item.
-        if (ev.target.closest('.cascade-item')) return;
-        ev.preventDefault();
-        ev.dataTransfer.dropEffect = 'move';
-        colEl.classList.add('drop-hover-col');
-      };
-      colEl.ondragleave = (ev) => {
-        if (ev.target === colEl) colEl.classList.remove('drop-hover-col');
-      };
-      colEl.ondrop = async (ev) => {
-        colEl.classList.remove('drop-hover-col');
-        if (ev.target.closest('.cascade-item')) return;     // item handler took it
-        const sourceId = ev.dataTransfer.getData('application/x-omi-card-id');
-        if (!sourceId) return;
-        ev.preventDefault();
-        // Column 0 = top-level (no parent); columns 1+ = child of prev col's selection
-        const newParent = ci === 0 ? '' : (colState[ci - 1] || '');
-        await reparent(sourceId, newParent);
-      };
-    });
-
-    // Wire "+ new" buttons
-    colsEl.querySelectorAll('.cascade-add').forEach(el => {
-      const ci = parseInt(el.dataset.addCol);
-      el.onclick = () => {
-        const parent = ci === 0 ? '' : colState[ci - 1];
-        createChildOf(parent);
-      };
-    });
-  }
-
-  // ── Re-parent: source becomes a child of target (or top-level if '') ──
-  async function reparent(sourceId, newParentId) {
-    if (sourceId === newParentId) return;
-    const source = byId(sourceId);
-    if (!source) return;
-    // Cycle check: walk newParent's ancestry — if sourceId appears, abort.
-    if (newParentId) {
-      let cur = byId(newParentId);
-      const seen = new Set();
-      while (cur) {
-        if (cur.id === sourceId) {
-          alert(`Can't make "${source.title}" a child of "${(byId(newParentId) || {}).title || ''}" — that would create a cycle (target is a descendant of source).`);
-          return;
-        }
-        if (seen.has(cur.id)) break;
-        seen.add(cur.id);
-        cur = byId(parentOf(cur));
-      }
-    }
-    // Skip no-op reparents
-    if ((parentOf(source) || '') === (newParentId || '')) {
-      const where = newParentId ? `"${(byId(newParentId) || {}).title || ''}"` : 'top level';
-      // Subtle status update — no alert
-      const ws = document.getElementById('status');
-      if (ws) { const prev = ws.textContent; ws.textContent = `already a child of ${where}`; setTimeout(() => { ws.textContent = prev; }, 1200); }
-      return;
-    }
-    const meta = source.metadata || {};
-    const r = await fetch(`/skill-cards/api/cards/${sourceId}`, {
-      method: 'PUT', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        title: source.title, content: source.content || '',
-        tags: source.tags || [],
-        parent_id: newParentId || '',
-        links: meta.links || [],
-      }),
-    });
-    const j = await r.json();
-    if (j.error) { alert('reparent failed: ' + j.error); return; }
-    await loadCards();
-    // If the moved card was CURRENT, refresh its metadata too
-    if (CURRENT && CURRENT.id === sourceId) {
-      const refreshed = byId(sourceId);
-      if (refreshed) CURRENT = refreshed;
-      if (typeof window._refreshCascadeTrigger === 'function') window._refreshCascadeTrigger();
-    }
-    // Reset cascade columns to follow the moved card's new ancestry so
-    // the user sees where it landed.
-    if (CURRENT) {
-      const path = ancestryOf(CURRENT);
-      if (path.length === 1) colState = ['', '', ''];
-      else if (path.length === 2) colState = [path[0].id, '', ''];
-      else colState = [path[path.length - 3].id, path[path.length - 2].id, ''];
-    }
-    render();
-  }
-
-  function renderAux() {
-    const links = linksOf(CURRENT);
-    const tagCl = tagClustersFor(CURRENT);
-    const linkCards = links.map(byId).filter(Boolean);
-    const tagEntries = Object.entries(tagCl);
-    const auxParts = [];
-
-    if (linkCards.length) {
-      auxParts.push(`<div class="aux-section">
-        <span class="aux-label">↔ related</span>
-        ${linkCards.map(c => `<span class="pill" data-jump="${escHTML(c.id)}" title="${escHTML(c.title)}">${escHTML(c.title)}</span>`).join('')}
-        <span class="pill" id="addLinkPill" title="Add a related card link">+</span>
-      </div>`);
-    } else {
-      auxParts.push(`<div class="aux-section"><span class="aux-label">↔ related</span><span class="pill" id="addLinkPill" title="Add a related card link">+ link</span></div>`);
-    }
-
-    if (tagEntries.length) {
-      auxParts.push(`<div class="aux-section">
-        <span class="aux-label">🏷 by tag</span>
-        ${tagEntries.slice(0, 3).map(([t, peers]) => peers.slice(0, 4).map(p =>
-          `<span class="pill tag" data-jump="${escHTML(p.id)}" title="#${escHTML(t)} · ${escHTML(p.title)}">#${escHTML(t)} → ${escHTML(p.title)}</span>`
-        ).join('')).join('')}
-      </div>`);
-    }
-
-    auxParts.push(`<button class="tree-btn" id="cascTreeBtn" title="Open the full tree as a draggable reference window">🌲 full tree</button>`);
-
-    auxEl.innerHTML = auxParts.join('');
-
-    auxEl.querySelectorAll('.pill[data-jump]').forEach(el => {
-      el.onclick = () => promote(el.dataset.jump);
-    });
-    const addLink = document.getElementById('addLinkPill');
-    if (addLink) addLink.onclick = openLinkPicker;
-    document.getElementById('cascTreeBtn').onclick = openFullTree;
-  }
-
-  // ── Actions ──────────────────────────────────────────────────────
-  async function promote(id) {
-    if (!id || id === CURRENT.id) return;
-    if (typeof unsavedChanges !== 'undefined' && unsavedChanges) {
-      if (!confirm('Discard unsaved changes and switch card?')) return;
-      unsavedChanges = false;
-    }
-    close();
-    if (typeof window.openCard === 'function') window.openCard(id);
-  }
-
-  async function createChildOf(parentId) {
-    const title = prompt(parentId ? 'New child card title:' : 'New top-level card title:');
-    if (!title || !title.trim()) return;
-    const r = await fetch('/skill-cards/api/cards', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ title: title.trim(), content: '', tags: [], parent_id: parentId || '' }),
-    });
-    const j = await r.json();
-    if (j.error) { alert('create failed: ' + j.error); return; }
-    await loadCards();
-    refreshTrigger();
-    render();
-  }
-
-  async function openLinkPicker() {
-    // Reuse the existing reference picker UX — but on selection, attach
-    // the picked card as a link instead of opening a window.
-    const ovr = document.getElementById('refPickerOverlay');
-    const input = document.getElementById('refPickerInput');
-    const list = document.getElementById('refPickerList');
-    if (!ovr) return;
-    // Re-attach to dialog top layer
-    if (dlgEd.open && ovr.parentElement !== dlgEd) dlgEd.appendChild(ovr);
-    input.value = ''; ovr.classList.add('show');
-    setTimeout(() => input.focus(), 0);
-
-    const cur = CURRENT.id;
-    const existing = new Set(linksOf(CURRENT));
-    function fillList(q) {
-      const term = (q || '').toLowerCase();
-      const filtered = (CARDS || []).filter(c =>
-        c.id !== cur && !existing.has(c.id) &&
-        (!term || (c.title || '').toLowerCase().includes(term) || (c.tags || []).some(t => t.toLowerCase().includes(term)))
-      );
-      list.innerHTML = filtered.length
-        ? filtered.map(c => `<div class="ref-picker-item" data-id="${escHTML(c.id)}"><div class="t">${escHTML(c.title)}</div><div class="m">${(c.tags || []).slice(0,4).map(t => '#' + escHTML(t)).join(' ')}</div></div>`).join('')
-        : '<div class="ref-picker-empty">No matching cards</div>';
-      list.querySelectorAll('.ref-picker-item').forEach(el => {
-        el.onclick = async () => {
-          const id = el.dataset.id;
-          const meta = CURRENT.metadata = (CURRENT.metadata || {});
-          meta.links = [...new Set([...(meta.links || []), id])];
-          // Persist immediately (PUT) so the link survives without an explicit save
-          await fetch(`/skill-cards/api/cards/${cur}`, {
-            method: 'PUT', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ title: CURRENT.title, content: CURRENT.content || '', tags: CURRENT.tags || [], parent_id: meta.parent_id || '', links: meta.links }),
-          });
-          ovr.classList.remove('show');
-          await loadCards();
-          refreshTrigger(); render();
-        };
-      });
-    }
-    input.oninput = () => fillList(input.value);
-    fillList('');
-  }
-
-  // ── Full tree view as a floating reference window ────────────────
   function openFullTree() {
-    if (typeof window.spawnTreeReference === 'function') { window.spawnTreeReference(); return; }
-    // Fallback: render an indented tree in a one-off window using ref-window CSS
     const layer = document.getElementById('refLayer');
     if (dlgEd.open && layer.parentElement !== dlgEd) dlgEd.appendChild(layer);
     const w = document.createElement('div');
     w.className = 'ref-window';
     const baseW = Math.min(560, Math.round(window.innerWidth * 0.45));
     const baseH = Math.min(720, Math.round(window.innerHeight * 0.7));
-    w.style.cssText = `right:28px; top:80px; width:${baseW}px; height:${baseH}px; z-index: 1700;`;
+    w.style.cssText = `right:28px; top:80px; width:${baseW}px; height:${baseH}px; z-index:1700;`;
     w.innerHTML = `
       <div class="ref-window-header">
         <span class="ref-title">🌲 Card tree</span>
@@ -3755,27 +4212,28 @@ document.addEventListener('keydown', (e) => {
         const isCur = CURRENT && card.id === CURRENT.id;
         const indent = '&nbsp;'.repeat(depth * 4);
         const childCount = childrenOf(card.id).length;
-        out.push(`<div class="t-row" data-id="${escHTML(card.id)}" style="padding:3px 8px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:6px;${isCur ? 'background:rgba(212,228,193,0.45);border-left:2px solid var(--omi-accent-deep);font-weight:600' : ''}">
-          <span style="color:var(--omi-muted);font-family:var(--omi-font-mono)">${indent}${depth ? '└─' : '▸'}</span>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHTML(card.title || '(untitled)')}</span>
-          ${childCount ? `<span style="color:var(--omi-muted);font-size:10.5px;padding:0 6px;border-radius:999px;background:rgba(146,125,92,0.08)">${childCount}</span>` : ''}
+        out.push(`<div class="t-row" data-id="${escHTML(card.id)}" style="padding:3px 8px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:6px;${isCur?'background:rgba(212,228,193,0.45);border-left:2px solid var(--omi-accent-deep);font-weight:600':''}">
+          <span style="color:var(--omi-muted);font-family:var(--omi-font-mono)">${indent}${depth?'└─':'▸'}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHTML(card.title||'(untitled)')}</span>
+          ${childCount?`<span style="color:var(--omi-muted);font-size:10.5px;padding:0 6px;border-radius:999px;background:rgba(146,125,92,0.08)">${childCount}</span>`:''}
         </div>`);
         for (const ch of childrenOf(card.id)) walk(ch, depth + 1);
       }
       for (const r of rootCards()) walk(r, 0);
-      // Orphan cards — parent_id pointing to non-existent card
-      const orphans = (CARDS || []).filter(c => parentOf(c) && !byId(parentOf(c)));
+      const orphans = (CARDS||[]).filter(c => parentOf(c) && !byId(parentOf(c)));
       if (orphans.length) {
         out.push(`<div style="margin-top:14px;font-size:10.5px;color:var(--omi-muted);text-transform:uppercase;letter-spacing:0.06em;padding:4px 8px">Broken parent (orphans)</div>`);
         for (const o of orphans) walk(o, 0);
       }
       const root = w.querySelector('.tree-render');
       root.innerHTML = out.join('');
-      root.querySelectorAll('.t-row').forEach(el => el.onclick = () => promote(el.dataset.id));
+      root.querySelectorAll('.t-row').forEach(el => el.onclick = () => {
+        close();
+        if (typeof window.openCard === 'function') window.openCard(el.dataset.id);
+      });
     }
     renderTree();
     w.querySelector('.treex').onclick = () => w.remove();
-    // Drag handle
     const hd = w.querySelector('.ref-window-header');
     hd.style.cursor = 'move';
     hd.addEventListener('mousedown', (e) => {
@@ -3783,14 +4241,35 @@ document.addEventListener('keydown', (e) => {
       const r = w.getBoundingClientRect();
       const ox = e.clientX - r.left, oy = e.clientY - r.top;
       w.style.right = ''; w.style.left = r.left + 'px'; w.style.top = r.top + 'px';
-      const mv = (ev) => { w.style.left = (ev.clientX - ox) + 'px'; w.style.top = (ev.clientY - oy) + 'px'; };
-      const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+      const mv = (ev) => { w.style.left = (ev.clientX-ox)+'px'; w.style.top = (ev.clientY-oy)+'px'; };
+      const up = () => { document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
       document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
     });
-    close();  // close the cascade pop, leave the tree window
   }
 
-  // ── Drop into editor textarea inserts the [[card-name]] reference ──
+  // ── Events ─────────────────────────────────────────────────────
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pop.classList.contains('show') ? close() : open();
+  });
+  document.getElementById('cascClose').addEventListener('click', close);
+  document.getElementById('cascTreeBtn').addEventListener('click', openFullTree);
+  document.getElementById('emTreeBtn').addEventListener('click', openFullTree);
+  document.addEventListener('click', (e) => {
+    if (!pop.classList.contains('show')) return;
+    if (e.target.closest('#cascadePop, #cascadeTrigger, #refLayer, .ref-window')) return;
+    close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!pop.classList.contains('show')) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+  }, true);
+  cascSearch.addEventListener('input', () => {
+    CASC_FILTER = cascSearch.value.trim().toLowerCase();
+    renderCascL0();
+  });
+
+  // ── Drop card from cascade into editor textarea ─────────────
   const ta = document.getElementById('emContent');
   if (ta) {
     ta.addEventListener('dragover', (e) => {
@@ -3806,17 +4285,16 @@ document.addEventListener('keydown', (e) => {
       const text = e.dataTransfer.getData('text/plain');
       if (!id || !text) return;
       e.preventDefault();
-      // Insert at cursor
       const start = ta.selectionStart, end = ta.selectionEnd;
       ta.setRangeText(text, start, end, 'end');
       ta.dispatchEvent(new Event('input', { bubbles: true }));
-      // Also persist as a `links` cross-reference (DAG)
       const meta = CURRENT.metadata = (CURRENT.metadata || {});
       meta.links = [...new Set([...(meta.links || []), id])];
       markDirty();
       refreshTrigger();
     });
   }
+
 })();
 
 // ─── Card info popover (id, paths, timestamps) ──────────────────

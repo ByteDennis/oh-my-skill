@@ -12,6 +12,7 @@ from flask import Flask, jsonify, render_template, request, send_file, send_from
 from oh_my_skill.routes.skillcards import skillcards_bp
 from oh_my_skill.routes.chat import chat_bp
 from oh_my_skill.routes.sync import sync_bp
+from oh_my_skill.routes.lineage import lineage_bp
 from oh_my_skill.shared.config import (
     SETTINGS_DB, get_setting, get_all, put_setting, seed_global_settings_from_env,
 )
@@ -43,6 +44,7 @@ def create_app() -> Flask:
     app.register_blueprint(skillcards_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(sync_bp)
+    app.register_blueprint(lineage_bp)
 
     # ── Static @oh-my/ui (packaged, with optional override via env) ────
     ui_dir = os.environ.get('OH_MY_UI_DIR') or _PKG_STATIC

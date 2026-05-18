@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lineage · oh·my·skill</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260514h">
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; font-family: var(--omi-font-body); color: var(--omi-fg); background: var(--omi-bg, #faf6ee); }
+
+  .ln-shell { display: flex; flex-direction: column; height: 100vh; }
+  .ln-topbar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid var(--omi-border);
+    background: rgba(255, 251, 244, 0.7);
+    backdrop-filter: blur(8px);
+  }
+  .ln-topbar h1 { font-size: 14px; font-weight: 600; margin: 0; letter-spacing: 0.02em; }
+  .ln-topbar .meta { color: var(--omi-muted); font-size: 12px; }
+  .ln-topbar .grow { flex: 1; }
+
+  .ln-body { display: flex; flex: 1; min-height: 0; }
+
+  /* ── L0 Candidates column ───────────────────────────── */
+  .ln-l0 {
+    width: 260px; min-width: 220px; flex: 0 0 260px;
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--omi-border);
+    background: rgba(255, 251, 244, 0.55);
+  }
+  .ln-l0-head { padding: 10px 10px 6px; display: flex; flex-direction: column; gap: 6px; }
+  .ln-search {
+    width: 100%; box-sizing: border-box;
+    border: 1px solid var(--omi-border); border-radius: var(--omi-radius-sm);
+    padding: 6px 8px; font-size: 12px; background: rgba(255,255,255,0.85);
+  }
+  .ln-search:focus { outline: none; border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
+  .ln-l0-controls { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--omi-muted); }
+  .ln-l0-controls .spacer { flex: 1; }
+  .ln-l0-controls button.linkish {
+    background: transparent; border: none; color: var(--omi-muted); font-size: 11px; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px;
+  }
+  .ln-l0-controls button.linkish:hover { color: var(--omi-fg); background: rgba(232,224,208,0.55); }
+  .ln-tagrow { display: none; gap: 4px; flex-wrap: wrap; padding: 0 10px 4px; }
+  .ln-tagrow.show { display: flex; }
+  .ln-tagrow .pill {
+    background: rgba(212, 228, 193, 0.45); border: 1px solid var(--omi-border);
+    color: var(--omi-fg); padding: 1px 6px; border-radius: var(--omi-radius-pill);
+    font-size: 10px; cursor: pointer;
+  }
+  .ln-tagrow .pill:hover { background: rgba(212, 228, 193, 0.75); }
+  .ln-tagrow .pill.active { background: var(--omi-accent-deep); color: white; border-color: var(--omi-accent-deeper); }
+
+  .ln-cards { flex: 1; overflow-y: auto; padding: 6px 10px 10px; }
+  .ln-card {
+    background: var(--omi-card-bg);
+    border: 1px solid var(--omi-border); border-radius: var(--omi-radius-sm);
+    padding: 6px 8px; margin-bottom: 6px;
+    cursor: grab; user-select: none;
+    box-shadow: var(--omi-shadow-sm);
+    font-size: 12px; line-height: 1.3;
+  }
+  .ln-card:active { cursor: grabbing; }
+  .ln-card.dragging { opacity: 0.4; }
+  .ln-card .t { font-weight: 600; color: var(--omi-fg); display: block; }
+  .ln-card .tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
+  .ln-card .tag {
+    font-size: 9px; padding: 1px 5px; border-radius: var(--omi-radius-pill);
+    background: rgba(214, 199, 168, 0.40); color: var(--omi-fg-soft);
+  }
+  .ln-card .uses { color: var(--omi-accent-deep); font-size: 9px; margin-left: 4px; }
+  .ln-empty { color: var(--omi-muted); font-size: 11px; padding: 8px; text-align: center; }
+
+  .ln-trash {
+    margin: 8px 10px 10px;
+    border: 2px dashed var(--omi-border); border-radius: var(--omi-radius-sm);
+    padding: 10px; text-align: center; color: var(--omi-muted); font-size: 11px;
+    transition: all 0.15s;
+  }
+  .ln-trash.drop-hover { border-color: var(--omi-error); color: var(--omi-error-deep); background: rgba(201, 122, 100, 0.08); }
+
+  /* ── Topic board (masonry) ──────────────────────────── */
+  .ln-board {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    columns: 270px; column-gap: 12px;
+    padding: 12px; display: block;
+  }
+  .ln-topic {
+    display: inline-block; width: 100%; box-sizing: border-box;
+    margin-bottom: 12px; break-inside: avoid;
+    background: rgba(255, 251, 244, 0.55);
+    border: 1px solid var(--omi-border); border-radius: var(--omi-radius);
+    max-height: 130px; overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .ln-topic.expanded { max-height: 600px; }
+  .ln-topic.expanded .ln-topic-body { overflow-y: auto; }
+  .ln-topic-body { overflow-y: hidden; flex: unset; }
+  .ln-topic-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px; border-bottom: 1px solid var(--omi-border);
+    background: rgba(232, 224, 208, 0.4);
+    border-top-left-radius: var(--omi-radius); border-top-right-radius: var(--omi-radius);
+    cursor: grab; user-select: none;
+  }
+  .ln-topic-head:active { cursor: grabbing; }
+  .ln-topic-head.dragging { opacity: 0.4; }
+  .ln-topic-title {
+    flex: 1; font-weight: 600; font-size: 13px; color: var(--omi-fg);
+    border: 1px solid transparent; border-radius: 4px; padding: 2px 4px;
+    background: transparent;
+  }
+  .ln-topic-title:focus { outline: none; border-color: var(--omi-accent-deep); background: white; }
+  .ln-topic-count { font-size: 10px; color: var(--omi-muted); }
+
+  .ln-topic-body {
+    flex: 1; overflow-y: auto;
+    padding: 8px; display: flex; flex-direction: column; gap: 4px;
+    min-height: 60px;
+  }
+  .ln-topic-body.drop-hover { background: rgba(212, 228, 193, 0.25); }
+
+  .ln-divider {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--omi-accent-deep); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; font-weight: 600;
+    padding: 4px 2px; margin-top: 6px; cursor: grab;
+  }
+  .ln-divider:first-child { margin-top: 0; }
+  .ln-divider:active { cursor: grabbing; }
+  .ln-divider.dragging { opacity: 0.4; }
+  .ln-divider::before, .ln-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--omi-border-strong); opacity: 0.5;
+  }
+  .ln-divider input {
+    border: none; background: transparent; font: inherit; color: inherit;
+    text-transform: inherit; letter-spacing: inherit; font-weight: inherit;
+    text-align: center; width: auto; min-width: 60px;
+    padding: 1px 4px; border-radius: 4px;
+  }
+  .ln-divider input:focus { outline: none; background: rgba(255,255,255,0.7); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
+
+  .ln-chip {
+    background: var(--omi-card-bg);
+    border: 1px solid var(--omi-border); border-radius: var(--omi-radius-sm);
+    padding: 6px 8px; cursor: grab; user-select: none;
+    font-size: 12px; line-height: 1.3;
+    box-shadow: var(--omi-shadow-sm);
+  }
+  .ln-chip:hover { border-color: var(--omi-border-strong); }
+  .ln-chip:active { cursor: grabbing; }
+  .ln-chip.dragging { opacity: 0.4; }
+  .ln-chip .t { font-weight: 600; color: var(--omi-fg); display: block; }
+  .ln-chip .tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
+  .ln-chip .tag {
+    font-size: 9px; padding: 1px 5px; border-radius: var(--omi-radius-pill);
+    background: rgba(214, 199, 168, 0.40); color: var(--omi-fg-soft);
+  }
+  .ln-chip.missing { opacity: 0.45; font-style: italic; }
+
+  .ln-drop-line {
+    height: 2px; background: var(--omi-accent-deep); border-radius: 1px;
+    margin: 2px 0; opacity: 0;
+  }
+  .ln-drop-line.show { opacity: 1; }
+
+  .ln-topic-foot {
+    padding: 6px 8px 8px; border-top: 1px solid var(--omi-border);
+    display: flex; gap: 6px;
+  }
+  .ln-mini-btn {
+    flex: 1; background: transparent; border: 1px dashed var(--omi-border);
+    color: var(--omi-muted); font-size: 11px; padding: 4px 6px;
+    border-radius: var(--omi-radius-sm); cursor: pointer;
+  }
+  .ln-mini-btn:hover { color: var(--omi-fg); border-color: var(--omi-border-strong); background: rgba(232,224,208,0.4); }
+  .ln-new-input {
+    width: 100%; box-sizing: border-box; padding: 4px 6px;
+    border: 1px solid var(--omi-accent-deep); border-radius: var(--omi-radius-sm);
+    font-size: 12px;
+  }
+  .ln-new-input:focus { outline: none; box-shadow: 0 0 0 2px var(--omi-accent-ring); }
+
+  .ln-add-topic {
+    display: inline-block; width: 100%; box-sizing: border-box;
+    background: transparent; border: 2px dashed var(--omi-border);
+    color: var(--omi-muted); padding: 12px; border-radius: var(--omi-radius);
+    cursor: pointer; font-size: 13px; min-height: 44px; margin-bottom: 12px;
+  }
+  .ln-add-topic:hover { color: var(--omi-fg); border-color: var(--omi-border-strong); background: rgba(232,224,208,0.25); }
+  .ln-add-topic.drop-hover { border-color: var(--omi-accent-deep); color: var(--omi-accent-deep); background: rgba(212,228,193,.2); }
+
+  .ln-toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--omi-fg); color: white; padding: 8px 14px; border-radius: var(--omi-radius-pill);
+    font-size: 12px; box-shadow: var(--omi-shadow);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    z-index: 9999;
+  }
+  .ln-toast.show { opacity: 1; }
+
+  .ln-topic.drag-rejected { animation: shake 0.25s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+</style>
+</head>
+<body>
+<div class="ln-shell">
+
+  <header class="ln-topbar">
+    <a class="omi-btn ghost sm icon-btn" href="/" title="Back to Skill Cards">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back
+    </a>
+    <h1>Lineage</h1>
+    <span class="meta" id="lnMeta">0 topics · 0 cards placed</span>
+    <span class="grow"></span>
+    <button class="omi-btn ghost sm" onclick="window.open('/lineage/linear','_blank')">Linear</button>
+  </header>
+
+  <div class="ln-body">
+    <!-- L0 Candidates -->
+    <aside class="ln-l0">
+      <div class="ln-l0-head">
+        <input class="ln-search" id="lnSearch" placeholder="filter cards…" autocomplete="off" spellcheck="false">
+        <div class="ln-l0-controls">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="lnUnused">
+            <span>Unused only</span>
+          </label>
+          <span class="spacer"></span>
+          <button class="linkish" id="lnToggleTags">tags ▾</button>
+        </div>
+      </div>
+      <div class="ln-tagrow" id="lnTagRow"></div>
+      <div class="ln-cards" id="lnCards"></div>
+      <div class="ln-trash" id="lnTrash">
+        🗑 Drag here to remove
+      </div>
+    </aside>
+
+    <!-- Topic board -->
+    <main class="ln-board" id="lnBoard"></main>
+  </div>
+</div>
+
+<div class="ln-toast" id="lnToast"></div>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────
+let STATE = { topics: [] };
+let CARDS = [];                  // L0 candidates from API
+let CARDS_BY_ID = {};
+let FILTER = { q: '', tag: '', unused: false };
+const ALL_TAGS = new Set();
+
+// ── Helpers ────────────────────────────────────────────────────────────
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+const el = (tag, attrs={}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'dataset') Object.assign(e.dataset, v);
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (v != null && v !== false) e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) {
+    if (k == null || k === false) continue;
+    e.appendChild(typeof k === 'string' ? document.createTextNode(k) : k);
+  }
+  return e;
+};
+
+function toast(msg, ms=1800) {
+  const t = $('#lnToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+async function api(method, url, body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  let data = null;
+  try { data = await r.json(); } catch (e) {}
+  if (!r.ok) {
+    const msg = (data && (data.message || data.error)) || `${r.status} ${r.statusText}`;
+    const err = new Error(msg);
+    err.status = r.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+// ── DnD payload: we encode { kind, ...ids } as JSON in dataTransfer ───
+//   kind = 'l0-card'        → drop from candidates: { card_id }
+//   kind = 'item'           → drop an existing item: { item_id, item_kind }
+//   kind = 'topic'          → drop a topic column header: { topic_id }
+let DRAG = null;
+
+function setDrag(ev, payload) {
+  DRAG = payload;
+  // Use a stable string to satisfy Firefox.
+  try { ev.dataTransfer.setData('text/plain', JSON.stringify(payload)); } catch (e) {}
+  ev.dataTransfer.effectAllowed = 'move';
+}
+function clearDrag() { DRAG = null; }
+
+// ── Render ─────────────────────────────────────────────────────────────
+function updateMeta() {
+  const nTopics = STATE.topics.length;
+  let nPlaced = 0;
+  for (const t of STATE.topics) for (const it of (t.items||[])) if (it.kind === 'card') nPlaced++;
+  $('#lnMeta').textContent = `${nTopics} topic${nTopics===1?'':'s'} · ${nPlaced} card${nPlaced===1?'':'s'} placed`;
+}
+
+function cardUseCount(card_id) {
+  let n = 0;
+  for (const t of STATE.topics) for (const it of (t.items||[])) {
+    if (it.kind === 'card' && it.card_id === card_id) n++;
+  }
+  return n;
+}
+
+function renderL0() {
+  const wrap = $('#lnCards');
+  wrap.innerHTML = '';
+  const q = FILTER.q.toLowerCase();
+  const tag = FILTER.tag.toLowerCase();
+  const filtered = CARDS.filter(c => {
+    if (q && !c.title.toLowerCase().includes(q)
+         && !(c.content||'').toLowerCase().includes(q)
+         && !(c.tags||[]).some(t => t.toLowerCase().includes(q))) return false;
+    if (tag && !(c.tags||[]).map(t=>t.toLowerCase()).includes(tag)) return false;
+    if (FILTER.unused && cardUseCount(c.id) > 0) return false;
+    return true;
+  });
+  if (!filtered.length) {
+    wrap.appendChild(el('div', {class:'ln-empty'}, 'no cards match'));
+    return;
+  }
+  for (const c of filtered) {
+    const uses = cardUseCount(c.id);
+    const node = el('div', {
+      class: 'ln-card',
+      draggable: 'true',
+      dataset: { cardId: c.id },
+    },
+      el('span', {class:'t'}, c.title, uses ? el('span', {class:'uses'}, ` ·${uses}`) : null),
+      (c.tags && c.tags.length) ? el('div', {class:'tags'},
+        ...c.tags.slice(0, 4).map(t => el('span', {class:'tag'}, t))
+      ) : null
+    );
+    node.addEventListener('dragstart', (ev) => {
+      node.classList.add('dragging');
+      setDrag(ev, { kind: 'l0-card', card_id: c.id });
+    });
+    node.addEventListener('dragend', () => { node.classList.remove('dragging'); clearDrag(); });
+    wrap.appendChild(node);
+  }
+}
+
+function renderTagBar() {
+  const bar = $('#lnTagRow');
+  bar.innerHTML = '';
+  ALL_TAGS.clear();
+  for (const c of CARDS) for (const t of (c.tags||[])) ALL_TAGS.add(t);
+  const tags = Array.from(ALL_TAGS).sort();
+  if (FILTER.tag) {
+    bar.appendChild(el('span', {
+      class: 'pill active',
+      onclick: () => { FILTER.tag = ''; renderTagBar(); renderL0(); },
+    }, FILTER.tag, ' ×'));
+  }
+  for (const t of tags) {
+    if (t === FILTER.tag) continue;
+    bar.appendChild(el('span', {
+      class: 'pill',
+      onclick: () => { FILTER.tag = t; renderTagBar(); renderL0(); },
+    }, t));
+  }
+}
+
+function renderBoard() {
+  const board = $('#lnBoard');
+  board.innerHTML = '';
+  for (const t of STATE.topics) board.appendChild(renderTopicColumn(t));
+  const addBtn = el('button', {
+    class: 'ln-add-topic',
+    onclick: () => addTopic(),
+  }, '+ Topic');
+  addBtn.addEventListener('dragover', (ev) => {
+    const d = DRAG;
+    if (!d || d.kind === 'topic' || (d.kind === 'item' && d.item_kind !== 'card')) return;
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'copy';
+    addBtn.classList.add('drop-hover');
+  });
+  addBtn.addEventListener('dragleave', () => addBtn.classList.remove('drop-hover'));
+  addBtn.addEventListener('drop', async (ev) => {
+    ev.preventDefault();
+    addBtn.classList.remove('drop-hover');
+    const d = DRAG;
+    if (!d) return;
+    const cardId = d.kind === 'l0-card' ? d.card_id
+                 : (d.kind === 'item' && d.item_kind === 'card') ? d.card_id
+                 : null;
+    if (!cardId) return;
+    const card = CARDS_BY_ID[cardId];
+    if (!card) return;
+    await api('POST', '/lineage/api/topics', { title: card.title, card_id: cardId, position: STATE.topics.length });
+    await loadState(); renderBoard();
+  });
+  board.appendChild(addBtn);
+}
+
+function renderTopicColumn(topic) {
+  const itemCount = (topic.items||[]).filter(i => i.kind === 'card').length;
+
+  const head = el('div', {
+    class: 'ln-topic-head',
+    draggable: 'true',
+  },
+    el('input', {
+      class: 'ln-topic-title',
+      type: 'text',
+      value: topic.title,
+      onchange: (ev) => renameTopic(topic.id, ev.target.value),
+      onkeydown: (ev) => { if (ev.key === 'Enter') ev.target.blur(); },
+    }),
+    el('span', {class: 'ln-topic-count'}, String(itemCount))
+  );
+  head.addEventListener('dragstart', (ev) => {
+    head.classList.add('dragging');
+    setDrag(ev, { kind: 'topic', topic_id: topic.id });
+  });
+  head.addEventListener('dragend', () => head.classList.remove('dragging'));
+
+  const body = el('div', {class: 'ln-topic-body', dataset: {topicId: topic.id}});
+  bindTopicBodyDnD(body, topic);
+
+  // Render items; insert drop lines between them.
+  const items = topic.items || [];
+  appendDropLine(body, topic.id, 0);
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (it.kind === 'subtopic') body.appendChild(renderDivider(topic, it));
+    else body.appendChild(renderChip(topic, it));
+    appendDropLine(body, topic.id, i + 1);
+  }
+
+  const foot = el('div', {class: 'ln-topic-foot'},
+    el('button', {
+      class: 'ln-mini-btn',
+      onclick: () => addSubtopic(topic.id),
+    }, '+ subtopic'),
+    el('button', {
+      class: 'ln-mini-btn',
+      onclick: () => openNewCardInput(body, topic.id),
+    }, '+ new card')
+  );
+
+  const col = el('section', {class: 'ln-topic', dataset: {topicId: topic.id}}, head, body, foot);
+  head.addEventListener('dblclick', (ev) => {
+    if (ev.target.closest('input')) return;
+    col.classList.toggle('expanded');
+  });
+  return col;
+}
+
+function appendDropLine(parent, topicId, position) {
+  const line = el('div', {
+    class: 'ln-drop-line',
+    dataset: {topicId, position},
+  });
+  parent.appendChild(line);
+}
+
+function renderDivider(topic, item) {
+  const input = el('input', {
+    type: 'text',
+    value: item.label || '',
+    onchange: (ev) => renameItem(item.id, ev.target.value),
+    onkeydown: (ev) => { if (ev.key === 'Enter') ev.target.blur(); },
+  });
+  const node = el('div', {
+    class: 'ln-divider',
+    draggable: 'true',
+    dataset: {itemId: item.id},
+  }, input);
+  node.addEventListener('dragstart', (ev) => {
+    node.classList.add('dragging');
+    setDrag(ev, { kind: 'item', item_id: item.id, item_kind: 'subtopic' });
+  });
+  node.addEventListener('dragend', () => node.classList.remove('dragging'));
+  return node;
+}
+
+function renderChip(topic, item) {
+  const card = CARDS_BY_ID[item.card_id];
+  if (!card) {
+    return el('div', {
+      class: 'ln-chip missing',
+      draggable: 'true',
+      dataset: {itemId: item.id},
+    }, el('span', {class:'t'}, `(missing card: ${item.card_id})`));
+  }
+  const node = el('div', {
+    class: 'ln-chip',
+    draggable: 'true',
+    dataset: {itemId: item.id, cardId: card.id},
+    title: card.title,
+  },
+    el('span', {class:'t'}, card.title),
+    (card.tags && card.tags.length) ? el('div', {class:'tags'},
+      ...card.tags.slice(0, 3).map(t => el('span', {class:'tag'}, t))
+    ) : null
+  );
+  node.addEventListener('dragstart', (ev) => {
+    node.classList.add('dragging');
+    setDrag(ev, { kind: 'item', item_id: item.id, item_kind: 'card', card_id: card.id });
+  });
+  node.addEventListener('dragend', () => node.classList.remove('dragging'));
+  return node;
+}
+
+// ── Drop targets ──────────────────────────────────────────────────────
+function bindTopicBodyDnD(body, topic) {
+  body.addEventListener('dragover', (ev) => {
+    if (!DRAG) return;
+    // L0 source rejected over its own area is handled at trash; here we accept all.
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+    body.classList.add('drop-hover');
+    // Highlight the nearest drop line.
+    const line = nearestDropLine(body, ev.clientY);
+    $$('.ln-drop-line', body).forEach(l => l.classList.toggle('show', l === line));
+  });
+  body.addEventListener('dragleave', (ev) => {
+    if (!body.contains(ev.relatedTarget)) {
+      body.classList.remove('drop-hover');
+      $$('.ln-drop-line', body).forEach(l => l.classList.remove('show'));
+    }
+  });
+  body.addEventListener('drop', async (ev) => {
+    ev.preventDefault();
+    body.classList.remove('drop-hover');
+    $$('.ln-drop-line', body).forEach(l => l.classList.remove('show'));
+    if (!DRAG) return;
+    const line = nearestDropLine(body, ev.clientY);
+    const position = line ? Number(line.dataset.position) : (topic.items||[]).length;
+    await handleDrop(topic.id, position);
+  });
+}
+
+function nearestDropLine(body, clientY) {
+  const lines = $$('.ln-drop-line', body);
+  if (!lines.length) return null;
+  let best = lines[0], bestD = Infinity;
+  for (const l of lines) {
+    const r = l.getBoundingClientRect();
+    const d = Math.abs((r.top + r.bottom)/2 - clientY);
+    if (d < bestD) { best = l; bestD = d; }
+  }
+  return best;
+}
+
+async function handleDrop(topic_id, position) {
+  const d = DRAG;
+  if (!d) return;
+  try {
+    if (d.kind === 'l0-card') {
+      await api('POST', '/lineage/api/items', { topic_id, position, kind: 'card', card_id: d.card_id });
+    } else if (d.kind === 'item') {
+      await api('PATCH', `/lineage/api/items/${d.item_id}`, { topic_id, position });
+    } else {
+      return;  // 'topic' dragged onto a body — ignore
+    }
+    await refresh();
+  } catch (err) {
+    if (err.status === 409) {
+      flashTopic(topic_id);
+      toast(err.message || 'duplicate');
+    } else {
+      toast(err.message || 'drop failed');
+    }
+  } finally {
+    clearDrag();
+  }
+}
+
+function flashTopic(topic_id) {
+  const col = document.querySelector(`.ln-topic[data-topic-id="${topic_id}"]`);
+  if (!col) return;
+  col.classList.remove('drag-rejected');
+  void col.offsetWidth;
+  col.classList.add('drag-rejected');
+}
+
+// ── Trash ─────────────────────────────────────────────────────────────
+function bindTrash() {
+  const t = $('#lnTrash');
+  t.addEventListener('dragover', (ev) => {
+    if (!DRAG) return;
+    if (DRAG.kind === 'l0-card') {
+      ev.dataTransfer.dropEffect = 'none';
+      return;
+    }
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+    t.classList.add('drop-hover');
+  });
+  t.addEventListener('dragleave', () => t.classList.remove('drop-hover'));
+  t.addEventListener('drop', async (ev) => {
+    ev.preventDefault();
+    t.classList.remove('drop-hover');
+    if (!DRAG) return;
+    try {
+      if (DRAG.kind === 'item') {
+        await api('DELETE', `/lineage/api/items/${DRAG.item_id}`);
+      } else if (DRAG.kind === 'topic') {
+        const topic = STATE.topics.find(x => x.id === DRAG.topic_id);
+        const n = (topic?.items || []).length;
+        if (n > 0 && !confirm(`Delete topic "${topic.title}"? It contains ${n} item${n===1?'':'s'} (cards stay in the gallery).`)) {
+          clearDrag();
+          return;
+        }
+        await api('DELETE', `/lineage/api/topics/${DRAG.topic_id}?force=1`);
+      } else {
+        return;
+      }
+      await refresh();
+    } catch (err) {
+      toast(err.message || 'delete failed');
+    } finally {
+      clearDrag();
+    }
+  });
+}
+
+// ── Mutations ─────────────────────────────────────────────────────────
+async function addTopic() {
+  const title = prompt('New topic title:');
+  if (!title || !title.trim()) return;
+  try { await api('POST', '/lineage/api/topics', { title: title.trim() }); await refresh(); }
+  catch (err) { toast(err.message || 'failed'); }
+}
+
+async function renameTopic(id, title) {
+  if (!title || !title.trim()) { await refresh(); return; }
+  try { await api('PATCH', `/lineage/api/topics/${id}`, { title: title.trim() }); }
+  catch (err) { toast(err.message || 'failed'); await refresh(); }
+}
+
+async function addSubtopic(topic_id) {
+  const label = prompt('Subtopic label:');
+  if (!label || !label.trim()) return;
+  const topic = STATE.topics.find(x => x.id === topic_id);
+  const position = topic ? (topic.items||[]).length : 0;
+  try {
+    await api('POST', '/lineage/api/items', { topic_id, position, kind: 'subtopic', label: label.trim() });
+    await refresh();
+  } catch (err) { toast(err.message || 'failed'); }
+}
+
+async function renameItem(id, label) {
+  if (!label || !label.trim()) { await refresh(); return; }
+  try { await api('PATCH', `/lineage/api/items/${id}`, { label: label.trim() }); }
+  catch (err) { toast(err.message || 'failed'); await refresh(); }
+}
+
+function openNewCardInput(body, topic_id) {
+  // Replace the foot's "+ new card" button area with an inline input.
+  const topicEl = body.closest('.ln-topic');
+  const foot = topicEl.querySelector('.ln-topic-foot');
+  foot.innerHTML = '';
+  const input = el('input', {
+    class: 'ln-new-input',
+    type: 'text',
+    placeholder: 'card title… (Enter to create, Esc to cancel)',
+  });
+  foot.appendChild(input);
+  input.focus();
+  const close = () => refresh();  // will redraw the foot
+  input.addEventListener('keydown', async (ev) => {
+    if (ev.key === 'Escape') { close(); return; }
+    if (ev.key !== 'Enter') return;
+    const title = input.value.trim();
+    if (!title) { close(); return; }
+    try {
+      const card = await api('POST', '/skill-cards/api/cards', { title });
+      const topic = STATE.topics.find(x => x.id === topic_id);
+      const position = topic ? (topic.items||[]).length : 0;
+      await api('POST', '/lineage/api/items', { topic_id, position, kind: 'card', card_id: card.id });
+      await refresh();
+    } catch (err) { toast(err.message || 'failed'); close(); }
+  });
+  input.addEventListener('blur', close);
+}
+
+// ── Refresh ───────────────────────────────────────────────────────────
+async function refresh() {
+  const [state, cards] = await Promise.all([
+    api('GET', '/lineage/api/state'),
+    api('GET', '/lineage/api/candidates'),
+  ]);
+  STATE = state;
+  CARDS = cards;
+  CARDS_BY_ID = Object.fromEntries(cards.map(c => [c.id, c]));
+  renderTagBar();
+  renderL0();
+  renderBoard();
+  updateMeta();
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────
+function bindControls() {
+  $('#lnSearch').addEventListener('input', (ev) => { FILTER.q = ev.target.value; renderL0(); });
+  $('#lnUnused').addEventListener('change', (ev) => {
+    FILTER.unused = ev.target.checked;
+    renderL0();
+  });
+  $('#lnToggleTags').addEventListener('click', () => {
+    $('#lnTagRow').classList.toggle('show');
+  });
+}
+
+bindControls();
+bindTrash();
+refresh();
+</script>
+</body>
+</html>

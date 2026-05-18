@@ -835,3 +835,412 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 }
 .omi-panel-body::-webkit-scrollbar-thumb:hover,
 .omi-logs::-webkit-scrollbar-thumb:hover { background: rgba(146, 125, 92, 0.5); }
+
+/* ─── Stylish list markers ─────────────────────────────────────────
+   Replaces the browser defaults inside any markdown preview. Bullets
+   become a small accent-coloured square; ordered markers are bolded
+   and tinted with the deep accent. Nested lists step the bullet shape
+   (square → disc → ring) to make depth scannable. */
+.pv ul, .pv ol { padding-left: 26px; margin: 8px 0; }
+.pv ul { list-style: none; }
+.pv ul > li { position: relative; }
+.pv ul > li::before {
+  content: '';
+  position: absolute;
+  left: -16px; top: 0.62em;
+  width: 6px; height: 6px;
+  background: var(--omi-accent-deep);
+  border-radius: 1.5px;
+  transform: rotate(45deg);
+}
+.pv ul ul > li::before {
+  background: transparent;
+  border: 1.5px solid var(--omi-accent-deep);
+  border-radius: 50%;
+  transform: none;
+  width: 6px; height: 6px;
+  top: 0.66em;
+}
+.pv ul ul ul > li::before {
+  background: var(--omi-accent);
+  border: none;
+  border-radius: 50%;
+  transform: none;
+}
+.pv ol { list-style: none; counter-reset: omi-ol; }
+.pv ol > li {
+  position: relative;
+  counter-increment: omi-ol;
+}
+.pv ol > li::before {
+  content: counter(omi-ol) ".";
+  position: absolute;
+  left: -26px; top: 0;
+  min-width: 22px;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--omi-accent-deep);
+  font-size: 0.92em;
+}
+.pv ol ol { counter-reset: omi-ol-2; }
+.pv ol ol > li { counter-increment: omi-ol-2; }
+.pv ol ol > li::before { content: counter(omi-ol-2, lower-alpha) "."; }
+.pv ol ol ol { counter-reset: omi-ol-3; }
+.pv ol ol ol > li { counter-increment: omi-ol-3; }
+.pv ol ol ol > li::before { content: counter(omi-ol-3, lower-roman) "."; }
+/* GFM task-list items: hide our custom bullet so the native checkbox sits flush. */
+.pv ul > li:has(> input[type="checkbox"])::before { display: none; }
+.pv ul > li > input[type="checkbox"] { margin-right: 6px; transform: translateY(1px); }
+
+/* ─── Collapsible admonitions (<details> variant) ──────────────────
+   Markdown: > [!NOTE+] (open) / > [!NOTE-] (collapsed). Reuses the
+   same per-type accent + tint variables defined on .pv blockquote.adm. */
+.pv details.adm.adm-collapsible {
+  --adm-accent: #5b8aa6;
+  --adm-tint:   rgba(91, 138, 166, 0.10);
+  margin: 14px 0;
+  padding: 0;
+  border: 1px solid var(--omi-border);
+  border-left: 3px solid var(--adm-accent);
+  border-radius: 6px;
+  background: rgba(255, 251, 244, 0.85);
+  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.06);
+  overflow: hidden;
+  color: var(--omi-fg);
+}
+.pv details.adm.adm-collapsible.adm-tip       { --adm-accent: #6f8159; --adm-tint: rgba(143, 188, 143, 0.16); }
+.pv details.adm.adm-collapsible.adm-important { --adm-accent: #8a5fa8; --adm-tint: rgba(170, 134, 196, 0.14); }
+.pv details.adm.adm-collapsible.adm-warning   { --adm-accent: #c8973a; --adm-tint: rgba(212, 160, 74, 0.16); }
+.pv details.adm.adm-collapsible.adm-caution   { --adm-accent: #b15a58; --adm-tint: rgba(177, 90, 88, 0.14); }
+.pv details.adm.adm-collapsible > summary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px;
+  background: var(--adm-tint);
+  border-bottom: 1px solid color-mix(in srgb, var(--adm-accent) 18%, transparent);
+  color: var(--adm-accent);
+  font-weight: 700; font-size: 12.5px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.pv details.adm.adm-collapsible > summary::-webkit-details-marker { display: none; }
+.pv details.adm.adm-collapsible:not([open]) > summary { border-bottom-color: transparent; }
+.pv details.adm.adm-collapsible > summary .adm-icon { display: inline-flex; flex-shrink: 0; }
+.pv details.adm.adm-collapsible > summary .adm-icon svg { width: 16px; height: 16px; }
+.pv details.adm.adm-collapsible > summary .adm-caret {
+  margin-left: auto;
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+.pv details.adm.adm-collapsible[open] > summary .adm-caret { transform: rotate(90deg); }
+.pv details.adm.adm-collapsible > .adm-body { padding: 10px 14px; color: var(--omi-fg); }
+.pv details.adm.adm-collapsible > .adm-body > p { margin: 4px 0; line-height: 1.55; }
+.pv details.adm.adm-collapsible > .adm-body > p:first-child { margin-top: 0; }
+.pv details.adm.adm-collapsible > .adm-body > p:last-child  { margin-bottom: 0; }
+.pv details.adm.adm-collapsible > .adm-body > pre { margin: 8px 0; }
+.pv details.adm.adm-collapsible > .adm-body code:not(pre code) {
+  background: var(--adm-tint);
+  color: var(--omi-fg);
+}
+
+/* ─── Generic collapse block (Material-style ??? / ???+) ───────────
+   Markdown:  ??? "Title"     (collapsed)
+              ???+ "Title"    (open by default)
+                  indented body */
+.pv details.md-collapse {
+  margin: 12px 0;
+  border: 1px solid var(--omi-border);
+  border-radius: 6px;
+  background: rgba(255, 251, 244, 0.92);
+  box-shadow: 0 1px 2px rgba(86, 72, 53, 0.05);
+  overflow: hidden;
+}
+.pv details.md-collapse > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 14px 8px 32px;
+  background: linear-gradient(180deg, rgba(232, 224, 208, 0.55), rgba(232, 224, 208, 0.35));
+  border-bottom: 1px solid var(--omi-border);
+  font-weight: 600; font-size: 12.5px;
+  color: var(--omi-fg);
+  position: relative;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+.pv details.md-collapse > summary::-webkit-details-marker { display: none; }
+.pv details.md-collapse > summary:hover { background: rgba(232, 224, 208, 0.7); }
+.pv details.md-collapse > summary::before {
+  content: '▸';
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--omi-accent-deep);
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+.pv details.md-collapse[open] > summary::before { transform: translateY(-50%) rotate(90deg); }
+.pv details.md-collapse:not([open]) > summary { border-bottom-color: transparent; }
+.pv details.md-collapse > .md-collapse-body { padding: 10px 14px; }
+.pv details.md-collapse > .md-collapse-body > *:first-child { margin-top: 0; }
+.pv details.md-collapse > .md-collapse-body > *:last-child { margin-bottom: 0; }
+
+/* ─── Content tabs (MkDocs Material syntax) ────────────────────────
+   Markdown:  === "Python"
+                  print("hi")
+              === "JavaScript"
+                  console.log("hi")
+   Consecutive === blocks are grouped into one tab strip. */
+.pv .md-tabs {
+  margin: 14px 0;
+  border: 1px solid var(--omi-border);
+  border-radius: 6px;
+  background: rgba(255, 251, 244, 0.92);
+  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.06);
+  overflow: hidden;
+}
+.pv .md-tab-bar {
+  display: flex;
+  gap: 0;
+  background: rgba(232, 224, 208, 0.55);
+  border-bottom: 1px solid var(--omi-border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.pv .md-tab-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--omi-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.pv .md-tab-btn:hover { color: var(--omi-fg); background: rgba(255, 251, 244, 0.45); }
+.pv .md-tab-btn.active {
+  color: var(--omi-accent-deep);
+  border-bottom-color: var(--omi-accent-deep);
+  background: rgba(255, 251, 244, 0.85);
+}
+.pv .md-tab-panels { padding: 12px 16px; }
+.pv .md-tab-panel { display: none; }
+.pv .md-tab-panel.active { display: block; }
+.pv .md-tab-panel > *:first-child { margin-top: 0; }
+.pv .md-tab-panel > *:last-child { margin-bottom: 0; }
+
+/* ─── Footnotes ────────────────────────────────────────────────────
+   Inline ref: <sup class="md-fn-ref">[n]</sup>
+   Floating tooltip: a single .md-fn-tooltip element appended to <body>
+   is positioned on hover by JS. Footer section listed at the end. */
+.pv .md-fn-ref {
+  display: inline-block;
+  font-size: 0.7em;
+  line-height: 1;
+  vertical-align: super;
+  margin: 0 2px;
+  padding: 1px 5px;
+  background: rgba(146, 125, 92, 0.14);
+  border: 1px solid color-mix(in srgb, var(--omi-accent-deep) 25%, transparent);
+  border-radius: 3px;
+  color: var(--omi-accent-deep);
+  font-weight: 700;
+  cursor: help;
+  user-select: none;
+  text-decoration: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.pv .md-fn-ref:hover,
+.pv .md-fn-ref:focus {
+  background: rgba(146, 125, 92, 0.28);
+  border-color: var(--omi-accent-deep);
+  outline: none;
+}
+/* MkDocs-Material inspired tooltip:
+   - dark card with rendered HTML body
+   - small triangular arrow pointing back at the host chip (above or below)
+   - hover-pinnable: pointer-events become active so users can click links */
+.md-fn-tooltip {
+  --md-fn-arrow-x: 50%;
+  position: fixed;
+  z-index: 9999;
+}
+/* When reparented into an open <dialog> (top-layer), switch to absolute
+   positioning so coordinates are interpreted relative to the dialog rather
+   than the viewport. JS sets dialog-relative top/left in this mode. */
+.md-fn-tooltip.in-dialog {
+  position: absolute;
+}
+.md-fn-tooltip {
+  max-width: 380px;
+  min-width: 160px;
+  padding: 0;
+  background: #2c2722;
+  color: #e8dfcc;
+  border: 1px solid #3b342c;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.30), 0 2px 6px rgba(0,0,0,0.18);
+  font-size: 12.5px;
+  line-height: 1.55;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(2px);
+  transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s;
+  pointer-events: none;
+}
+.md-fn-tooltip.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.md-fn-tooltip__inner {
+  padding: 9px 13px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.md-fn-tooltip__inner p { margin: 0; }
+.md-fn-tooltip__inner p + p { margin-top: 6px; }
+.md-fn-tooltip__inner code {
+  background: rgba(255,255,255,0.10);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--omi-font-mono);
+  font-size: 11.5px;
+}
+.md-fn-tooltip__inner strong { color: #f6efde; }
+.md-fn-tooltip__inner a { color: #c8d8c1; text-decoration: underline; }
+.md-fn-tooltip__inner a:hover { color: #e7f0d8; }
+/* Arrow caret — flips when tooltip is positioned below its host */
+.md-fn-tooltip__arrow {
+  position: absolute;
+  left: var(--md-fn-arrow-x);
+  width: 10px; height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #2c2722;
+  border-right: 1px solid #3b342c;
+  border-bottom: 1px solid #3b342c;
+  bottom: -6px;
+}
+/* Wiki-link chip — [[Card Title]] rendered as a styled inline badge */
+.pv .md-wikilink {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 7px 1px 6px;
+  margin: 0 1px;
+  background: rgba(146, 125, 92, 0.10);
+  border: 1px solid color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
+  border-radius: 10px;
+  color: var(--omi-accent-deep);
+  font-weight: 500;
+  font-size: 0.94em;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.pv .md-wikilink:hover,
+.pv .md-wikilink:focus {
+  background: rgba(146, 125, 92, 0.22);
+  border-color: var(--omi-accent-deep);
+  color: var(--omi-fg);
+  outline: none;
+}
+.pv .md-wikilink svg { flex-shrink: 0; opacity: 0.7; }
+.pv .md-wikilink:hover svg { opacity: 1; }
+.pv .md-wikilink-text {
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.12s ease;
+}
+.pv .md-wikilink:hover .md-wikilink-text { border-bottom-color: currentColor; }
+.pv .md-wikilink--missing {
+  background: rgba(177, 90, 88, 0.08);
+  border-color: rgba(177, 90, 88, 0.30);
+  border-style: dashed;
+  color: var(--omi-error-deep, #b15a58);
+  cursor: help;
+}
+.pv .md-wikilink--missing:hover {
+  background: rgba(177, 90, 88, 0.16);
+  border-color: rgba(177, 90, 88, 0.55);
+  color: #8a4644;
+}
+
+/* Inner blocks for the unified hover tooltip when used for links/wikilinks.
+   Reuses .md-fn-tooltip's chrome; only the inner row styling differs. */
+.md-fn-tooltip .md-link-tip__row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px;
+}
+.md-fn-tooltip .md-link-tip__row + .md-link-tip__row { margin-top: 4px; }
+.md-fn-tooltip .md-link-tip__icon {
+  flex-shrink: 0; font-size: 14px;
+  width: 18px; text-align: center;
+  opacity: 0.85;
+}
+.md-fn-tooltip .md-link-tip__href {
+  font-family: var(--omi-font-mono);
+  font-size: 11.5px;
+  word-break: break-all;
+  color: #d4d0c2;
+}
+.md-fn-tooltip .md-link-tip__tags {
+  margin-top: 4px;
+  padding-left: 26px;
+  font-size: 11px;
+  color: #b8b09c;
+  font-style: italic;
+}
+.md-fn-tooltip .md-link-tip__hint {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #3b342c;
+  font-size: 10.5px;
+  color: #9a907c;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.md-fn-tooltip.below .md-fn-tooltip__arrow {
+  bottom: auto;
+  top: -6px;
+  border-right: none;
+  border-bottom: none;
+  border-left: 1px solid #3b342c;
+  border-top: 1px solid #3b342c;
+}
+.pv .md-footnotes {
+  margin-top: 28px;
+  padding-top: 12px;
+  border-top: 1px solid var(--omi-border);
+  font-size: 12.5px;
+}
+.pv .md-footnotes h4 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--omi-muted);
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.pv .md-footnotes ol { list-style: none; padding-left: 0; counter-reset: none; margin: 0; }
+.pv .md-footnotes ol > li { padding-left: 0; }
+.pv .md-footnotes ol > li::before { content: none; }
+.pv .md-footnotes .md-fn-item {
+  display: flex; gap: 8px;
+  padding: 4px 0;
+  scroll-margin-top: 16px;
+}
+.pv .md-footnotes .md-fn-item:target { background: rgba(212, 160, 74, 0.16); border-radius: 4px; }
+.pv .md-footnotes .md-fn-num {
+  flex-shrink: 0;
+  min-width: 22px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--omi-accent-deep);
+}
+.pv .md-footnotes .md-fn-text > p { margin: 0; }
+.pv .md-footnotes .md-fn-text > p + p { margin-top: 4px; }

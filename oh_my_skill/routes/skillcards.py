@@ -32,6 +32,7 @@ def _db():
     conn = sqlite3.connect(SKILLCARDS_DB)
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA foreign_keys=ON')  # lineage_items.card_id cascades on card delete
     return conn
 
 
