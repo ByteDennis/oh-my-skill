@@ -5,6 +5,7 @@ import re
 import sqlite3
 import subprocess
 import threading
+import uuid
 from datetime import datetime
 
 from oh_my_skill.shared.config import SETTINGS_DB
@@ -15,6 +16,7 @@ SKILLCARDS_DB = os.environ.get('SKILLCARDS_DB', '/data/skillcards.db')
 SKILLS_DIR = os.environ.get('SKILLS_DIR', '/skills')
 SKILLS_REMOTE_DIR = '/data/skills_remote'
 SKILLS_REMOTE_PRIVATE_DIR = '/data/skills_private'
+IMAGES_DIR = os.path.join(os.path.dirname(SKILLCARDS_DB), 'images')
 
 def _get_app_setting(key, default=''):
     """Read a setting from the shared app settings DB."""
@@ -448,3 +450,34 @@ def _gen_id():
     import time
     import random
     return f"{int(time.time()):x}{random.randint(0, 0xfffff):05x}"
+
+
+# ── Image upload ──────────────────────────────────────────────────────────────
+
+_ALLOWED_IMG_EXTS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'}
+
+@skillcards_bp.route('/skill-cards/api/upload-image', methods=['POST'])
+def upload_image():
+    """Accept a pasted image, save it under /data/images/{card_id}/, return its URL."""
+    f = request.files.get('image')
+    if not f:
+        return jsonify({'error': 'no image file'}), 400
+
+    card_id = (request.form.get('card_id') or '_unlinked').strip()
+    card_id = re.sub(r'[^\w\-]', '_', card_id)[:64] or '_unlinked'
+
+    # Determine extension — use Content-Type when filename has none
+    ext = os.path.splitext(f.filename or '')[1].lower()
+    if ext not in _ALLOWED_IMG_EXTS:
+        mime = (f.content_type or '').split(';')[0].strip()
+        ext = {'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif',
+               'image/webp': '.webp', 'image/svg+xml': '.svg', 'image/bmp': '.bmp'}.get(mime, '.png')
+
+    ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    fname = f'{ts}_{uuid.uuid4().hex[:8]}{ext}'
+
+    folder = os.path.join(IMAGES_DIR, card_id)
+    os.makedirs(folder, exist_ok=True)
+    f.save(os.path.join(folder, fname))
+
+    return jsonify({'url': f'/omi/images/{card_id}/{fname}'}), 201

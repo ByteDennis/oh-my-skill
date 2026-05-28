@@ -24,15 +24,25 @@ def test_settings_get(client):
     j = client.get('/api/settings').get_json()
     assert 'color_theme' in j
     assert 'font_theme' in j
+    assert 'chat_provider' in j
     assert 'claude_token_set' in j
 
 
 def test_settings_put_round_trip(client):
     client.put('/api/settings',
-               json={'color_theme': 'oxford-burgundy', 'font_theme': 'tech'})
+               json={'color_theme': 'oxford-burgundy', 'font_theme': 'tech',
+                     'chat_provider': 'codex'})
     j = client.get('/api/settings').get_json()
     assert j['color_theme'] == 'oxford-burgundy'
     assert j['font_theme'] == 'tech'
+    assert j['chat_provider'] == 'codex'
+
+
+def test_ai_status_has_chat_and_extract_sections(client):
+    j = client.get('/api/ai/status').get_json()
+    assert 'chat' in j
+    assert 'extract' in j
+    assert 'chat_provider' in j
 
 
 def test_omi_ui_static_served(client):

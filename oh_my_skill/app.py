@@ -13,6 +13,10 @@ from oh_my_skill.routes.skillcards import skillcards_bp
 from oh_my_skill.routes.chat import chat_bp
 from oh_my_skill.routes.sync import sync_bp
 from oh_my_skill.routes.lineage import lineage_bp
+from oh_my_skill.shared.ai_providers import (
+    DEFAULT_CHAT_MODELS, active_chat_status, claude_status, codex_status,
+    get_chat_model, get_chat_provider, get_model_options,
+)
 from oh_my_skill.shared.config import (
     SETTINGS_DB, get_setting, get_all, put_setting, seed_global_settings_from_env,
 )
@@ -78,20 +82,16 @@ def create_app() -> Flask:
 
     @app.route('/api/ai/status')
     def ai_status():
-        """Whether Claude is reachable. UI uses this to gracefully degrade
-        Extract / Chat features when Claude isn't installed/configured."""
-        import glob as _glob, shutil as _shutil
-        has_token = bool(get_setting('global', 'claude_code_oauth_token'))
-        bin_path = os.environ.get('CLAUDE_BIN') or _shutil.which('claude')
-        if not bin_path:
-            cands = sorted(_glob.glob('/opt/claude/versions/*'), key=os.path.getmtime)
-            if cands:
-                bin_path = cands[-1]
+        """Per-feature AI availability used by the UI."""
+        chat = active_chat_status()
+        extract = claude_status()
         return jsonify({
-            'configured': bool(has_token and bin_path),
-            'has_token': has_token,
-            'has_binary': bool(bin_path),
-            'binary_path': bin_path or '',
+            'configured': bool(chat.get('configured') or extract.get('configured')),
+            'chat_provider': get_chat_provider(),
+            'chat': chat,
+            'extract': extract,
+            'claude': extract,
+            'codex': codex_status(),
         })
 
     @app.route('/api/themes')
@@ -122,15 +122,34 @@ def create_app() -> Flask:
             'color_theme': cur.get('color_theme', 'classic-blue'),
             'font_theme': cur.get('font_theme', 'modern'),
             'chat_retention_days': int(cur.get('chat_retention_days') or 7),
+            'chat_provider': cur.get('chat_provider', 'claude'),
+            'chat_model': get_chat_model(),
+            'claude_chat_model': get_chat_model('claude'),
+            'codex_chat_model': get_chat_model('codex'),
+            'chat_model_options': {
+                'claude': get_model_options('claude'),
+                'codex': get_model_options('codex'),
+            },
             'claude_token_set': bool(get_setting('global', 'claude_code_oauth_token')),
+            'img_paste_enabled': cur.get('img_paste_enabled', 'true') != 'false',
         })
 
     @app.route('/api/settings', methods=['PUT'])
     def settings_put():
         data = request.get_json() or {}
-        for k in ('color_theme', 'font_theme'):
+        valid_models = {
+            'claude_chat_model': {m['id'] for m in get_model_options('claude')},
+            'codex_chat_model': {m['id'] for m in get_model_options('codex')},
+        }
+        for k in ('color_theme', 'font_theme', 'chat_provider',
+                  'claude_chat_model', 'codex_chat_model'):
             if k in data:
-                put_setting('skill', k, data[k] or '')
+                v = (data[k] or '').strip() if isinstance(data[k], str) else data[k]
+                if k == 'chat_provider' and v not in ('claude', 'codex'):
+                    continue
+                if k in valid_models and v not in valid_models[k]:
+                    v = DEFAULT_CHAT_MODELS['claude' if k.startswith('claude_') else 'codex']
+                put_setting('skill', k, v or '')
         if 'chat_retention_days' in data:
             try:
                 n = int(data['chat_retention_days'])
@@ -142,6 +161,8 @@ def create_app() -> Flask:
             v = data['claude_code_oauth_token'].strip()
             if v:
                 put_setting('global', 'claude_code_oauth_token', v)
+        if 'img_paste_enabled' in data:
+            put_setting('skill', 'img_paste_enabled', 'true' if data['img_paste_enabled'] else 'false')
         return jsonify({'ok': True})
 
     # ── Serve local image files for inline preview ─────────────────────
@@ -178,6 +199,16 @@ def create_app() -> Flask:
         if ext not in _IMG_EXTS:
             return 'not an image', 415
         return send_file(real, mimetype=_MIME.get(ext, 'application/octet-stream'))
+
+    # ── Serve uploaded card images ─────────────────────────────────────
+    _IMAGES_DIR = os.path.join(_DATA_DIR, 'images')
+
+    @app.route('/omi/images/<card_id>/<fname>')
+    def serve_uploaded_image(card_id, fname):
+        if '..' in card_id or '..' in fname:
+            return 'forbidden', 403
+        folder = os.path.join(_IMAGES_DIR, card_id)
+        return send_from_directory(folder, fname)
 
     # ── Helper for `oms-save` — the CLI in the chat workspace calls this
     @app.route('/api/cards/<card_id>/sync-from-disk', methods=['POST'])
@@ -284,9 +315,37 @@ def create_app() -> Flask:
             'log_file': logger.LOG_FILE,
         })
 
+    @app.route('/api/logs/<int:log_id>', methods=['GET'])
+    def get_log_detail(log_id):
+        logs = logger.list_logs(limit=1)
+        conn = logger._conn()
+        row = conn.execute('SELECT * FROM api_logs WHERE id=?', (log_id,)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'not found'}), 404
+        import json as _j
+        d = dict(row)
+        d['meta'] = _j.loads(d.pop('meta_json', '{}') or '{}')
+        return jsonify(d)
+
     @app.route('/api/logs', methods=['DELETE'])
     def clear_logs():
         logger.clear(older_than_days=0)
+        return jsonify({'ok': True})
+
+    # ── Chat preamble (user-editable first-turn context) ──────────────
+    from oh_my_skill.routes.chat import _PREAMBLE_PATH, _get_preamble
+
+    @app.route('/api/chat-preamble', methods=['GET'])
+    def get_preamble():
+        return jsonify({'content': _get_preamble(), 'path': _PREAMBLE_PATH})
+
+    @app.route('/api/chat-preamble', methods=['PUT'])
+    def put_preamble():
+        data = request.get_json() or {}
+        content = data.get('content', '')
+        with open(_PREAMBLE_PATH, 'w') as f:
+            f.write(content)
         return jsonify({'ok': True})
 
     @app.route('/favicon.ico')

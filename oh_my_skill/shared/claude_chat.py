@@ -23,6 +23,7 @@ import uuid
 
 from . import chat_store
 from .config import get_setting
+from .ai_providers import get_chat_model
 
 CLAUDE_BIN = os.environ.get('CLAUDE_BIN') or (
     sorted(glob.glob('/opt/claude/versions/*'), key=os.path.getmtime)[-1]
@@ -36,7 +37,7 @@ _active_procs: dict = {}  # chat_id -> Popen
 def new_session(cwd: str, card_id: str = '') -> str:
     """Create a new chat session anchored to a workspace folder."""
     chat_id = str(uuid.uuid4())
-    chat_store.create(chat_id, cwd, card_id=card_id)
+    chat_store.create(chat_id, cwd, card_id=card_id, provider='claude')
     return chat_id
 
 
@@ -52,16 +53,17 @@ def get_session(chat_id: str) -> dict | None:
 def find_or_create_for_card(cwd: str, card_id: str) -> tuple[str, bool]:
     """Resume the latest non-closed chat for card_id, or create a new one."""
     if card_id:
-        existing = chat_store.find_active_for_card(card_id)
+        existing = chat_store.find_active_for_card(card_id, provider='claude')
         if existing:
             return existing['id'], False
     return new_session(cwd, card_id=card_id), True
 
 
 def list_sessions(limit: int = 30, card_id: str | None = None) -> list[dict]:
-    rows = chat_store.list_recent(limit=limit, card_id=card_id)
+    rows = chat_store.list_recent(limit=limit, card_id=card_id, provider='claude')
     return [{
         'chat_id': s['id'], 'cwd': s['cwd'],
+        'provider': 'claude',
         'card_id': s.get('card_id') or '',
         'claude_session_id': s.get('claude_session_id') or '',
         'message_count': len(s.get('history') or []),
@@ -73,6 +75,16 @@ def list_sessions(limit: int = 30, card_id: str | None = None) -> list[dict]:
 
 def close_session(chat_id: str):
     chat_store.close(chat_id)
+
+
+def reopen_session(chat_id: str):
+    """Reactivate a closed session (undo close)."""
+    chat_store.reopen(chat_id)
+
+
+def clear_session_context(chat_id: str):
+    """Wipe history + claude_session_id so the next send starts fresh."""
+    chat_store.clear_context(chat_id)
 
 
 def delete_session(chat_id: str):
@@ -99,21 +111,19 @@ def stop(chat_id: str) -> bool:
         return False
 
 
-def _build_cmd(session: dict) -> list[str]:
+def _build_cmd(session: dict, mode: str = 'edit') -> list[str]:
+    # explain mode: read-only tools, no file modifications
+    tools = 'Read,Glob,Grep,WebFetch,WebSearch' if mode == 'explain' else 'Edit,Write,Read,Bash,Glob,Grep,WebFetch,WebSearch'
     cmd = [
         CLAUDE_BIN, '-p',
         '--output-format', 'stream-json',
         '--verbose',
         '--permission-mode', 'acceptEdits',
-        '--allowedTools', 'Edit,Write,Read,Bash,Glob,Grep',
-        '--model', 'sonnet',
+        '--allowedTools', tools,
+        '--model', get_chat_model('claude'),
     ]
-    # Append the SKILL_SYSTEM_PROMPT brain so chat-edits inherit the
-    # extraction style. Render-on-disk path is set up by app.py at boot.
-    brain = os.path.join(os.environ.get('OMI_DATA_DIR', '/data'),
-                         '.skill-system-prompt.md')
-    if os.path.isfile(brain):
-        cmd += ['--append-system-prompt-file', brain]
+    # Style instructions are now in the first-turn preamble (context.md),
+    # so we skip the brain file to save ~800 tokens per turn.
     if session['claude_session_id']:
         cmd += ['--resume', session['claude_session_id']]
     return cmd
@@ -122,6 +132,7 @@ def _build_cmd(session: dict) -> list[str]:
 def _build_env(card_id: str = '') -> dict:
     env = os.environ.copy()
     env['HOME'] = env.get('HOME', '/root')
+    env.pop('OPENAI_API_KEY', None)
     token = get_setting('global', 'claude_code_oauth_token')
     if token:
         env['CLAUDE_CODE_OAUTH_TOKEN'] = token
@@ -133,8 +144,11 @@ def _build_env(card_id: str = '') -> dict:
     return env
 
 
-def send(chat_id: str, user_message: str):
+def send(chat_id: str, user_message: str, mode: str = 'edit'):
     """Stream typed events for one user turn.
+
+    Args:
+        mode: 'edit' (default) allows file modifications; 'explain' is read-only.
 
     Yields strings already wrapped as SSE data lines:
         "data: {...}\\n\\n"
@@ -165,13 +179,25 @@ def send(chat_id: str, user_message: str):
                     'ts': time.time()})
     chat_store.update_history(chat_id, history)
 
+    # Prefix the message to Claude with a mode hint so it knows its role
+    # regardless of what the CLAUDE.md says about editing.
+    if mode == 'explain':
+        claude_message = (
+            '[Explain mode: do NOT edit any files. Only read, explain, and answer questions.]\n\n'
+            + user_message
+        )
+    else:
+        claude_message = user_message
+
     yield _ev({'type': 'session_start', 'chat_id': chat_id,
                'claude_session_id': sess.get('claude_session_id') or None})
     yield _ev({'type': 'user_message', 'text': user_message})
 
-    cmd = _build_cmd({'claude_session_id': sess.get('claude_session_id') or None})
+    cmd = _build_cmd({'claude_session_id': sess.get('claude_session_id') or None}, mode=mode)
     env = _build_env(card_id=sess.get('card_id') or '')
     t0 = time.time()
+    input_tokens = 0
+    output_tokens = 0
 
     try:
         proc = subprocess.Popen(
@@ -188,7 +214,7 @@ def send(chat_id: str, user_message: str):
 
     _active_procs[chat_id] = proc
     try:
-        proc.stdin.write(user_message)
+        proc.stdin.write(claude_message)
         proc.stdin.close()
 
         # Track per-block state to assemble assistant message + serve UI
@@ -269,6 +295,8 @@ def send(chat_id: str, user_message: str):
                 itype = inner.get('type', '')
 
                 if itype == 'message_start':
+                    usage = inner.get('message', {}).get('usage', {})
+                    input_tokens += usage.get('input_tokens', 0)
                     yield _ev({'type': 'message_start'})
 
                 elif itype == 'content_block_start':
@@ -324,7 +352,8 @@ def send(chat_id: str, user_message: str):
                     yield _ev({'type': 'block_stop', 'index': idx})
 
                 elif itype == 'message_delta':
-                    pass  # carries stop_reason, not needed for UI
+                    usage = inner.get('usage', {})
+                    output_tokens += usage.get('output_tokens', 0)
 
                 elif itype == 'message_stop':
                     yield _ev({'type': 'message_stop'})
@@ -344,24 +373,39 @@ def send(chat_id: str, user_message: str):
                         yield _ev(out)
 
             elif etype == 'result':
-                # Final summary
+                # Final summary — extract token usage from result.usage
                 sid = event.get('session_id')
                 if sid and not claude_sid:
                     claude_sid = sid
-                # Append assistant turn to history (in order)
+                usage = event.get('usage') or {}
+                result_in = usage.get('input_tokens', 0) + usage.get('cache_read_input_tokens', 0) + usage.get('cache_creation_input_tokens', 0)
+                result_out = usage.get('output_tokens', 0)
+                cache_read = usage.get('cache_read_input_tokens', 0)
+                cache_create = usage.get('cache_creation_input_tokens', 0)
+                if result_in:
+                    input_tokens = result_in
+                if result_out:
+                    output_tokens = result_out
                 ordered = [assistant_blocks[i] for i in sorted(assistant_blocks.keys())]
                 if ordered:
                     history.append({'role': 'assistant', 'blocks': ordered,
                                     'ts': time.time()})
-                # Persist updated history + claude session id so the next
-                # /api/chat/<id>/send can --resume from where we left off.
-                chat_store.update_history(chat_id, history, claude_session_id=claude_sid)
+                chat_store.update_history(
+                    chat_id,
+                    history,
+                    claude_session_id=claude_sid,
+                    provider_session_id=claude_sid,
+                )
                 yield _ev({
                     'type': 'turn_done',
                     'claude_session_id': claude_sid,
                     'duration_ms': int((time.time() - t0) * 1000),
                     'cost_usd': event.get('total_cost_usd'),
                     'num_turns': event.get('num_turns'),
+                    'input_tokens': input_tokens or None,
+                    'output_tokens': output_tokens or None,
+                    'cache_read_tokens': cache_read or None,
+                    'cache_creation_tokens': cache_create or None,
                 })
 
         proc.wait(timeout=5)

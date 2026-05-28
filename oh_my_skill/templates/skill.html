@@ -143,8 +143,40 @@
     margin: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .focus-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 11px; color: var(--omi-muted); }
+  .focus-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 11px; color: var(--omi-muted); }
   .focus-meta .omi-tag-chip { font-size: 10px; }
+  .focus-meta #focusId {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10.5px; color: var(--omi-fg-soft);
+    padding: 2px 7px; border-radius: 4px;
+    background: rgba(232, 224, 208, 0.55);
+    box-shadow: inset 0 0 0 1px rgba(86, 72, 53, 0.07);
+    letter-spacing: 0.2px;
+  }
+  .focus-meta #focusId:empty { display: none; }
+  .focus-meta-sep { color: var(--omi-border); }
+  /* In-place edit textarea — hidden when the focus pane is in view mode. */
+  .focus-edit-ta {
+    display: none;
+    width: 100%; height: 100%;
+    box-sizing: border-box;
+    padding: 14px 16px;
+    margin: 0;
+    border: 1px solid var(--omi-border);
+    border-radius: 8px;
+    background: var(--omi-bg, #fffbf3);
+    color: var(--omi-fg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.55;
+    resize: none; outline: none;
+    box-shadow: inset 0 1px 2px rgba(86, 72, 53, 0.04);
+  }
+  .focus-edit-ta:focus { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 3px var(--omi-accent-ring), inset 0 1px 2px rgba(86, 72, 53, 0.04); }
+  /* Edit-mode: swap body to textarea, hide preview, hide save in view. */
+  .focus-area.edit-mode .focus-body { display: none; }
+  .focus-area.edit-mode .focus-edit-ta { display: block; }
+  .focus-area:not(.edit-mode) #focusSave { display: none; }
+  .focus-area.edit-mode #focusReload { display: none; }
   .focus-body {
     flex: 1; min-height: 0;
     padding: 14px 4px 24px;
@@ -388,9 +420,11 @@
     text-align: center; color: var(--omi-muted); font-size: 10px; transition: all 0.15s;
   }
   .casc-trash.drop-hover { border-color: var(--omi-error); color: var(--omi-error-deep); background: rgba(201,122,100,.08); }
-  .casc-board {
-    flex: 1; min-width: 0; display: block;
+  .casc-board-scroll {
+    flex: 1; min-width: 0;
     overflow-y: auto; overflow-x: hidden;
+  }
+  .casc-board {
     columns: 192px; column-gap: 8px; padding: 10px;
   }
   .casc-topic {
@@ -591,11 +625,37 @@
     border-bottom: 1px solid var(--omi-border);
     cursor: move; user-select: none; flex-shrink: 0;
   }
+  /* Allow the user to highlight/copy the title and the ID/updated/tags
+     in the meta line. The drag handler skips mousedowns on this block. */
+  .ref-window-header .ref-title-block {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;
+    user-select: text; cursor: text;
+  }
+  .ref-window-header .ref-title-block * { user-select: text; }
   .ref-window-header .ref-title {
-    flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--omi-fg);
+    font-size: 12px; font-weight: 600; color: var(--omi-fg);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .ref-window-header .ref-tags { color: var(--omi-muted); font-size: 11px; font-weight: 400; margin-left: 6px; }
+  .ref-window-header .ref-meta {
+    display: flex; align-items: center; gap: 8px; min-width: 0;
+    font-size: 10.5px; color: var(--omi-muted); font-weight: 400;
+    overflow: hidden; white-space: nowrap;
+  }
+  .ref-window-header .ref-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px; color: var(--omi-fg-soft);
+    padding: 1px 6px; border-radius: 3px;
+    background: rgba(232, 224, 208, 0.45);
+    flex-shrink: 0;
+  }
+  .ref-window-header .ref-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px; color: var(--omi-muted);
+    overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
+  .ref-window-header .ref-updated { flex-shrink: 0; }
+  .ref-window-header .ref-tags { color: var(--omi-muted); font-size: 10.5px; font-weight: 400; flex-shrink: 0; }
+  .ref-window-header .ref-meta-sep { color: var(--omi-border); flex-shrink: 0; }
   .ref-window-header button {
     width: 22px; height: 22px; padding: 0; border: 1px solid transparent;
     background: transparent; color: var(--omi-muted); border-radius: 5px; cursor: pointer;
@@ -684,6 +744,7 @@
   }
   .ref-window.minimized .ref-window-body, .ref-window.minimized .ref-resize { display: none; }
   .ref-window.minimized .ref-window-header { padding: 4px 10px; cursor: pointer; border-bottom: none; background: transparent; }
+  .ref-window.minimized .ref-meta { display: none; }
   .ref-dock {
     position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
     z-index: 1499; display: flex; gap: 6px; pointer-events: none;
@@ -723,6 +784,26 @@
   .ref-picker-item .t { font-weight: 600; color: var(--omi-fg); font-size: 13px; }
   .ref-picker-item .m { font-size: 11px; color: var(--omi-muted); }
   .ref-picker-empty { padding: 24px; text-align: center; color: var(--omi-muted); font-size: 13px; }
+
+  /* ── Image lightbox (dialog-based so it tops the editor modal) ───── */
+  dialog.omi-lightbox {
+    background: transparent; border: none; padding: 0; margin: auto;
+    max-width: 92vw; max-height: 92vh;
+    display: flex; align-items: center; justify-content: center;
+    outline: none; animation: lbIn 0.15s ease;
+  }
+  dialog.omi-lightbox::backdrop {
+    background: rgba(0,0,0,0.82); backdrop-filter: blur(4px);
+  }
+  @keyframes lbIn { from { opacity:0; transform:scale(.96) } to { opacity:1; transform:scale(1) } }
+  dialog.omi-lightbox img {
+    max-width: 92vw; max-height: 92vh;
+    object-fit: contain; border-radius: 6px;
+    box-shadow: 0 12px 60px rgba(0,0,0,0.7);
+    display: block;
+  }
+  /* Make images in preview/chat show zoom cursor */
+  .pv img, .bubble.rendered img { cursor: zoom-in; }
 </style>
 </head>
 <body>
@@ -802,10 +883,22 @@
           </div>
         </div>
         <span class="omi-grow"></span>
-        <button class="omi-btn ghost sm" id="focusOpen" title="Open in editor">✏ Edit</button>
+        <button class="omi-btn ghost sm icon-btn" id="focusOutline" title="Show section outline (H1–H4)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Outline
+        </button>
+        <button class="omi-btn ghost sm icon-btn" id="focusToggleMode" title="Switch to edit mode">
+          <svg id="focusToggleIcon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span id="focusToggleLabel">Edit</span>
+        </button>
+        <button class="omi-btn primary sm icon-btn" id="focusSave" title="Save changes (Ctrl+S)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save
+        </button>
         <button class="omi-btn ghost sm" id="focusReload" title="Reload from DB">↻</button>
       </div>
       <div class="focus-body pv" id="focusBody"></div>
+      <textarea class="focus-edit-ta" id="focusEditTa" placeholder="# Title&#10;&#10;markdown content…" spellcheck="false"></textarea>
     </div>
   </section>
 
@@ -833,12 +926,44 @@
           <div>Open a card and click <strong>💬 Chat</strong> to chat-edit it.</div>
         </div>
         <div class="omi-chat-context" id="chatContext" style="display:none">
-          <div class="meta">
-            <div class="title" id="chatCtxTitle">scope: card</div>
-            <div class="sub" id="chatCtxSub"></div>
+          <div class="chat-ctx-left">
+            <span class="chat-ctx-title" id="chatCtxTitle">scope: card</span>
+            <span class="chat-ctx-sep">·</span>
+            <span class="chat-ctx-sub" id="chatCtxSub"></span>
           </div>
-          <button class="omi-btn ghost sm" id="chatNew" title="Fresh chat">＋ new</button>
-          <button class="omi-btn ghost sm" id="chatStop" title="Stop reply">⏹</button>
+          <div class="chat-ctx-center">
+            <select id="chatProviderSelect" class="chat-mini-select" title="Default provider for new chats">
+              <option value="claude">Claude</option>
+              <option value="codex">Codex</option>
+            </select>
+            <select id="chatModelSelect" class="chat-mini-select" title="Default model for the selected provider"></select>
+          </div>
+          <div class="chat-ctx-actions">
+            <button class="omi-btn ghost sm" id="chatRestore" title="Restore previous conversation" style="display:none">↩ restore</button>
+            <button class="omi-btn ghost sm chat-ctx-act-btn" id="chatHistory" title="Browse conversations">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><polyline points="8 5 8 8 10.5 9.5"/></svg>
+              History
+            </button>
+            <button class="omi-btn ghost sm chat-ctx-act-btn" id="chatNew" title="Fresh chat">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
+              New
+            </button>
+            <button class="omi-btn ghost sm chat-ctx-act-btn chat-ctx-stop" id="chatStop" title="Stop reply">
+              <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1.5" fill="currentColor"/></svg>
+              Stop
+            </button>
+          </div>
+        </div>
+        <!-- Session picker panel (slides in from right) -->
+        <div class="chat-session-panel" id="chatSessionPanel" style="display:none">
+          <div class="csp-header">
+            <span>Conversations</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button class="omi-btn ghost xs" id="chatClearCtx" title="Clear context of current conversation">Clear context</button>
+              <button class="omi-btn ghost xs" id="chatSessionClose" title="Close panel">✕</button>
+            </div>
+          </div>
+          <div class="csp-list" id="chatSessionList"></div>
         </div>
         <div class="omi-chat-stream" id="chatStream" style="display:none"></div>
         <div class="omi-chat-composer" id="chatComposer" style="display:none">
@@ -846,7 +971,12 @@
             <textarea id="chatInput" rows="1" placeholder="Tighten the table · add a Gotchas section · …"></textarea>
             <button class="omi-btn primary send" id="chatSend">Send ↵</button>
           </div>
-          <div class="hint">Enter to send · Shift+Enter for newline · changes go through <code>oms-save</code></div>
+          <div class="hint">
+            <span id="chatHintText">Enter to send · Shift+Enter for newline · changes go through <code>oms-save</code></span>
+            <button class="chat-mode-btn" id="chatModeToggle" title="Toggle: may-edit vs read-only (explain only)">
+              <svg id="chatModeIcon" width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M11 2l3 3-9 9H2v-3L11 2z"/></svg><span id="chatModeLabel">may edit</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -881,19 +1011,19 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
       Reference
     </button>
-    <button class="omi-btn ghost sm icon-btn" id="emTreeBtn" title="Open card tree">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
-      Tree
+    <button class="omi-btn ghost sm icon-btn" id="emOutlineBtn" title="Show section outline (H1–H4)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Outline
     </button>
     <button class="omi-btn ghost sm icon-btn" id="emSize" title="Cycle modal size: default → wide → fullscreen (F11)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
       <span id="emSizeLabel">Default</span>
     </button>
-    <button class="omi-btn secondary sm icon-btn" id="emAi" title="Open an AI chat scoped to this card (Claude can read &amp; edit it)">
+    <button class="omi-btn secondary sm icon-btn" id="emAi" title="Open an AI chat scoped to this card">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       Chat
     </button>
-    <button class="omi-btn ghost sm icon-btn" id="emSyncFromAi" title="Pull the latest version Claude saved (greyed out when no chat exists for this card)">
+    <button class="omi-btn ghost sm icon-btn" id="emSyncFromAi" title="Pull the latest version the chat agent saved (greyed out when no chat exists for this card)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Pull
     </button>
@@ -1021,7 +1151,7 @@
       <div class="casc-cards" id="cascCards"></div>
       <div class="casc-trash" id="cascTrash">drag here to remove</div>
     </aside>
-    <div class="casc-board" id="cascBoard"></div>
+    <div class="casc-board-scroll"><div class="casc-board" id="cascBoard"></div></div>
   </div>
 </div>
 
@@ -1037,6 +1167,13 @@
     <div class="ref-picker-list" id="refPickerList"></div>
   </div>
 </div>
+
+<!-- ─── Log inspect dialog ────────────────────────────────────── -->
+<dialog id="logInspectDlg" class="omi-dialog" style="max-width:720px;max-height:80vh;overflow-y:auto">
+  <h3 style="margin:0 0 12px">Log #<span id="logInspectId"></span></h3>
+  <pre id="logInspectBody" style="font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;background:rgba(0,0,0,0.03);padding:12px;border-radius:6px;max-height:60vh;overflow-y:auto"></pre>
+  <div style="margin-top:12px;text-align:right"><button class="omi-btn ghost" onclick="$('#logInspectDlg').close()">Close</button></div>
+</dialog>
 
 <!-- ─── Sync Center dialog ────────────────────────────────────── -->
 <dialog id="syncDlg" class="omi-dialog sync-modal">
@@ -1131,7 +1268,40 @@
     <input id="setRetention" class="omi-input" type="number" min="0" max="365" placeholder="7">
     <div class="omi-text-xs omi-text-muted" style="margin-top:4px">Per-card chats survive container restarts and resume on click. Sweeper runs hourly.</div>
   </div>
-  <div class="omi-field"><label class="omi-label">Claude OAuth token (overrides .env) <span class="omi-text-xs omi-text-muted">— optional, AI extract & chat will say "not configured" without it</span></label><input id="setClaudeToken" class="omi-input" type="password" placeholder="sk-ant-oat..."></div>
+  <div class="omi-field">
+    <label class="omi-label">Default chat provider</label>
+    <select id="setDefaultChatProvider" class="omi-select">
+      <option value="claude">Claude</option>
+      <option value="codex">Codex</option>
+    </select>
+    <div class="omi-text-xs omi-text-muted" style="margin-top:4px">New card chats start with this provider by default.</div>
+  </div>
+  <div class="omi-row" style="gap: 8px">
+    <div class="omi-field" style="flex:1">
+      <label class="omi-label">Default Claude model</label>
+      <select id="setClaudeModel" class="omi-select"></select>
+    </div>
+    <div class="omi-field" style="flex:1">
+      <label class="omi-label">Default Codex model</label>
+      <select id="setCodexModel" class="omi-select"></select>
+    </div>
+  </div>
+  <div class="omi-field"><label class="omi-label">Claude OAuth token (overrides .env) <span class="omi-text-xs omi-text-muted">— used for Claude chat and extract</span></label><input id="setClaudeToken" class="omi-input" type="password" placeholder="sk-ant-oat..."></div>
+  <div class="omi-field">
+    <label class="omi-label">Codex auth</label>
+    <div class="omi-text-xs omi-text-muted">Codex chat uses the local Codex CLI login state. Run <code>codex login</code> in the same environment/container that runs oh-my-skill.</div>
+  </div>
+  <div class="omi-field">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+      <input type="checkbox" id="setImgPaste">
+      <span><strong>Image paste upload</strong> — auto-upload images pasted in the markdown editor</span>
+    </label>
+  </div>
+
+  <div class="omi-field">
+    <label class="omi-label">Chat preamble <span class="omi-text-xs omi-text-muted">— sent on the first message of each new chat (CLI helpers, style brain, etc.)</span></label>
+    <textarea id="setPreamble" class="omi-input" rows="6" style="font-family: var(--omi-font-mono, monospace); font-size: 11px"></textarea>
+  </div>
 
   <hr class="omi-hr" style="margin: 16px 0">
   <div class="omi-text-xs omi-text-muted" style="margin-bottom: 8px"><strong>GitHub sync</strong> — cards with <code>private</code> tag go to the private repo; everything else to the public repo.</div>
@@ -1390,6 +1560,31 @@ function _extractCustomBlocks(md) {
       out.push(`\x00BLOCK${blocks.length - 1}\x00`);
       continue;
     }
+    // Timeline block — Pandoc/MkDocs-style fenced div opener:
+    //   :::timeline
+    //       - 2024-01-15: Started project
+    //       - 2024-03-22: First commit
+    // Each indented bullet becomes one timeline entry. Body is rendered as
+    // inline markdown (bold / code / links work).
+    if (/^:::timeline\s*$/.test(line)) {
+      i++;
+      const content = eatIndented();
+      const entries = [];
+      for (const raw of content.split('\n')) {
+        const m = raw.match(/^\s*-\s+(.+)$/);
+        if (!m) continue;
+        const item = m[1];
+        const colon = item.indexOf(':');
+        if (colon === -1) {
+          entries.push({date: '', body: item.trim()});
+        } else {
+          entries.push({date: item.slice(0, colon).trim(), body: item.slice(colon + 1).trim()});
+        }
+      }
+      blocks.push({type: 'timeline', entries});
+      out.push(`\x00BLOCK${blocks.length - 1}\x00`);
+      continue;
+    }
     out.push(line);
     i++;
   }
@@ -1460,12 +1655,65 @@ function _renderTabsBlock(tabs) {
 function _renderCollapseBlock(title, open, content) {
   return `<details class="md-collapse"${open ? ' open' : ''}><summary>${escapeHtml(title)}</summary><div class="md-collapse-body">${_renderInner(content)}</div></details>`;
 }
+function _renderTimelineBlock(entries) {
+  // Vertical timeline: a left spine with dots; each entry has a date chip
+  // and an inline-markdown body. Reuses the shared _MD_CTX so code-block
+  // placeholders work inside entries.
+  const items = entries.map(e => {
+    const body = marked.parseInline(e.body || '');
+    return (
+      `<li class="md-timeline__item">` +
+        `<span class="md-timeline__dot" aria-hidden="true"></span>` +
+        (e.date ? `<span class="md-timeline__date">${escapeHtml(e.date)}</span>` : '') +
+        `<div class="md-timeline__body">${body}</div>` +
+      `</li>`
+    );
+  }).join('');
+  return `<ol class="md-timeline">${items}</ol>`;
+}
 // Shared code-block registry for the current top-level render. Reset by
 // renderMarkdown so that recursive _renderInner calls (tab/collapse bodies)
 // can splice placeholders emitted by the outer scope. Without this, code
 // inside a tab body would extract correctly but the inner splice wouldn't
 // find the entry and the placeholder would leak.
 let _MD_CTX = null;
+// Wrap each top-level H1 and H2 section produced by marked into a
+// <details> collapsible. The heading element is moved INTO the <summary>
+// so it doesn't render twice. Called only from renderMarkdown() — nested
+// renders (tab/collapse bodies, footnotes) skip this transformation.
+function _wrapHeadingSections(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  _groupHeadings(tpl.content, 1);
+  _groupHeadings(tpl.content, 2);
+  return tpl.innerHTML;
+}
+function _groupHeadings(parent, level) {
+  const tag = 'H' + level;
+  const kids = Array.from(parent.children).filter(c => c.tagName !== 'SUMMARY');
+  let i = 0;
+  while (i < kids.length) {
+    const node = kids[i];
+    if (node.tagName !== tag) { i++; continue; }
+    const details = document.createElement('details');
+    details.className = 'md-h-section md-h-section--' + level;
+    details.open = true;
+    const summary = document.createElement('summary');
+    parent.insertBefore(details, node);
+    summary.appendChild(node);
+    details.appendChild(summary);
+    let j = i + 1;
+    while (j < kids.length) {
+      const next = kids[j];
+      const m = /^H([1-6])$/.exec(next.tagName);
+      if (m && +m[1] <= level) break;
+      details.appendChild(next);
+      j++;
+    }
+    if (level === 1) _groupHeadings(details, 2);
+    i = j;
+  }
+}
 function _extractCode(text) {
   // Pull fenced/inline code out of the source *before* any other pre-processor
   // touches it, so KaTeX patterns / footnote refs / `===` tabs / `???`
@@ -1593,14 +1841,22 @@ function _renderInner(body) {
     warning:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>',
     caution:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.6" fill="currentColor"/></svg>',
   };
-  // `[!NOTE]`        → static <blockquote> admonition
-  // `[!NOTE+]`       → <details open> (collapsible, expanded by default)
-  // `[!NOTE-]`       → <details> (collapsible, collapsed by default)
+  // `[!NOTE]`                 → static <blockquote> admonition
+  // `[!NOTE+]` / `[!NOTE-]`   → collapsible <details> (open / closed)
+  // Optional `"Custom title"` immediately after the bracket overrides the
+  // default label (Note/Tip/Important/Warning/Caution). Examples:
+  //   > [!NOTE] "Read first"
+  //   > [!WARNING+] "Don't run on prod"
+  // marked HTML-escapes the quotes as &quot; before we see the output, so
+  // we match against the encoded form. The captured title is already
+  // HTML-entity-safe (passed through marked), so we emit it directly.
   html = html.replace(
-    /<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)([+-]?)\](?:\s*<br\s*\/?>)?\s*([\s\S]*?)<\/blockquote>/gi,
-    (m, type, modifier, rest) => {
+    /<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)([+-]?)\](?:\s+&quot;(.+?)&quot;)?(?:\s*<br\s*\/?>)?\s*([\s\S]*?)<\/blockquote>/gi,
+    (m, type, modifier, customTitle, rest) => {
       const t = type.toLowerCase();
-      const label = type[0] + type.slice(1).toLowerCase();
+      const labelHtml = (customTitle && customTitle.trim())
+        ? customTitle.trim()                                    // already entity-safe from marked
+        : escapeHtml(type[0] + type.slice(1).toLowerCase());     // plain default, escape it
       const icon = ADM_ICONS[t] || '';
       // `rest` already ends with the trailing `</p>` of the last paragraph,
       // so we prepend a fresh `<p>` to wrap the captured first-paragraph body.
@@ -1610,7 +1866,7 @@ function _renderInner(body) {
           `<details class="adm adm-${t} adm-collapsible"${isOpen ? ' open' : ''}>` +
             `<summary class="adm-title">` +
               `<span class="adm-icon">${icon}</span>` +
-              `<span class="adm-label">${label}</span>` +
+              `<span class="adm-label">${labelHtml}</span>` +
               `<span class="adm-caret" aria-hidden="true">▸</span>` +
             `</summary>` +
             `<div class="adm-body"><p>${rest}</div>` +
@@ -1621,7 +1877,7 @@ function _renderInner(body) {
         `<blockquote class="adm adm-${t}">` +
           `<div class="adm-title">` +
             `<span class="adm-icon">${icon}</span>` +
-            `<span class="adm-label">${label}</span>` +
+            `<span class="adm-label">${labelHtml}</span>` +
           `</div>` +
           `<div class="adm-body"><p>${rest}</div>` +
         `</blockquote>`
@@ -1652,7 +1908,8 @@ function _renderInner(body) {
   );
   // Route absolute-path <img src> through /file?path=... so the Flask
   // server can serve them (with whitelist + image-MIME-only).
-  html = html.replace(/<img([^>]*?)\ssrc="(\/[^"]+)"/g,
+  // Skip paths that are already proper web routes (/omi/, /file?, /api/, etc.)
+  html = html.replace(/<img([^>]*?)\ssrc="(\/(?!omi\/|file\?|api\/|skill-cards\/)[^"]+)"/g,
                       (m, pre, src) => `<img${pre} src="/file?path=${encodeURIComponent(src)}"`);
   // Wiki-link splice: resolve [[Card Title]] (or [[Title|display]]) against
   // the live CARDS array. Matching is case-insensitive on the trimmed title.
@@ -1687,6 +1944,7 @@ function _renderInner(body) {
     if (!b) return '';
     if (b.type === 'tabs') return _renderTabsBlock(b.tabs);
     if (b.type === 'collapse') return _renderCollapseBlock(b.title, b.open, b.content);
+    if (b.type === 'timeline') return _renderTimelineBlock(b.entries);
     return '';
   };
   html = html.replace(/<p>\s*\x00BLOCK(\d+)\x00\s*<\/p>/g, (_m, i) => spliceBlock(i));
@@ -1722,11 +1980,8 @@ function _renderInner(body) {
 function renderMarkdown(md) {
   const {fm, body} = extractFrontmatter(md);
   const fmHtml = renderFrontmatterTable(fm);
-  // Reset the shared code-block registry for this top-level render.
-  // Recursive _renderInner calls (tab/collapse bodies) share these arrays
-  // so placeholders emitted by the outer scope splice correctly inside.
-  _MD_CTX = {fenced: [], inline: []};
-  const out = fmHtml + _renderInner(body || '');
+  _MD_CTX = {fenced: [], inline: [], fm: fm || {}};
+  const out = fmHtml + _wrapHeadingSections(_renderInner(body || ''));
   _MD_CTX = null;
   return out;
 }
@@ -1852,25 +2107,19 @@ function _attachMdInteractions(root) {
   });
 }
 function _showLinkTip(el) {
-  // Compose a tiny HTML preview for the floating tooltip:
-  //   - <a>:  href (clickable in the tooltip too)
-  //   - .md-wikilink (matched): card title + tags
-  //   - .md-wikilink--missing: explanation
+  // Minimal HTML preview for the floating tooltip:
+  //   - matched wikilink → bold card title only
+  //   - missing wikilink → "No card titled …"
+  //   - external link    → URL (monospaced)
   let html;
   if (el.classList.contains('md-wikilink')) {
-    if (el.classList.contains('md-wikilink--missing')) {
-      const t = el.dataset.cardTitle || '';
-      html = `<div class="md-link-tip__row"><span class="md-link-tip__icon">✕</span><span><strong>No card titled</strong><br>${escapeHtml(t)}</span></div>`;
-    } else {
-      const title = el.dataset.cardTitle || '';
-      const tags  = el.dataset.cardTags || '';
-      html =
-        `<div class="md-link-tip__row"><span class="md-link-tip__icon">📄</span><strong>${escapeHtml(title)}</strong></div>` +
-        (tags ? `<div class="md-link-tip__tags">${escapeHtml(tags)}</div>` : '');
-    }
+    const t = el.dataset.cardTitle || '';
+    html = el.classList.contains('md-wikilink--missing')
+      ? `<div class="md-link-tip__miss">No card titled <strong>${escapeHtml(t)}</strong></div>`
+      : `<strong>${escapeHtml(t)}</strong>`;
   } else {
-    const href  = el.getAttribute('href') || '';
-    html = `<div class="md-link-tip__row"><span class="md-link-tip__icon">🔗</span><span class="md-link-tip__href">${escapeHtml(href)}</span></div>`;
+    const href = el.getAttribute('href') || '';
+    html = `<span class="md-link-tip__href">${escapeHtml(href)}</span>`;
   }
   // Reuse the footnote tooltip element; just feed it different HTML.
   const fake = {dataset: {fnHtml: html}, closest: (sel) => el.closest(sel), getBoundingClientRect: () => el.getBoundingClientRect()};
@@ -1885,26 +2134,33 @@ function renderPreview() {
     {left: '$', right: '$', display: false},
   ], throwOnError: false}); } catch {}
   _attachMdInteractions(el);
+  attachLightbox(el);
+  // Keep the outline panel (if open) in sync with the rerendered DOM.
+  if (typeof window._refreshOutlinePanel === 'function') window._refreshOutlinePanel();
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────
 let AI_OK = true;
+let CHAT_PROVIDER = 'claude';
+let CHAT_MODEL = 'sonnet';
+let CHAT_MODEL_OPTIONS = {claude: [], codex: []};
 async function bootstrap() {
-  const [t, ai] = await Promise.all([
+  const [t, ai, s] = await Promise.all([
     fetch('/api/themes').then(r => r.json()),
     fetch('/api/ai/status').then(r => r.json()).catch(() => ({configured: false})),
+    fetch('/api/settings').then(r => r.json()).catch(() => ({})),
   ]);
   THEMES = t;
+  CHAT_PROVIDER = s.chat_provider || ai.chat_provider || 'claude';
+  CHAT_MODEL = s.chat_model || (ai.chat && ai.chat.model) || CHAT_MODEL;
+  CHAT_MODEL_OPTIONS = s.chat_model_options || CHAT_MODEL_OPTIONS;
   AI_OK = !!ai.configured;
   applyAIDegradation(ai);
   await loadCards();
 }
 function applyAIDegradation(ai) {
-  if (ai.configured) return;
-  // Disable AI affordances; everything else still works.
-  const reason = !ai.has_binary ? 'claude binary not found' :
-                 !ai.has_token  ? 'no Claude token configured (Settings → Claude OAuth token)' :
-                                  'AI not configured';
+  const chat = ai.chat || {};
+  const extract = ai.extract || {};
   const dim = (sel, title) => {
     const el = $(sel); if (!el) return;
     el.disabled = true;
@@ -1912,8 +2168,17 @@ function applyAIDegradation(ai) {
     el.style.opacity = 0.45;
     el.style.cursor = 'not-allowed';
   };
-  dim('#emAi',       `AI is not configured — ${reason}`);
-  $('#chatEmpty').innerHTML = `<div class="glyph">⚠</div><div>AI not configured — ${escapeHtml(reason)}.<br>You can still <strong>create</strong>, <strong>edit</strong>, <strong>search</strong>, and <strong>sync</strong> skill cards manually.</div>`;
+  if (!chat.configured) {
+    const reason = chat.reason || `${CHAT_PROVIDER} not configured`;
+    dim('#emAi', `Chat is not configured — ${reason}`);
+    $('#chatEmpty').innerHTML = `<div class="glyph">⚠</div><div>Chat is not configured — ${escapeHtml(reason)}.<br>You can still <strong>create</strong>, <strong>edit</strong>, <strong>search</strong>, and <strong>sync</strong> skill cards manually.</div>`;
+  }
+  if (!extract.configured) {
+    const btn = $('#extractBtn');
+    if (btn) dim('#extractBtn', `Extract is not configured — ${extract.reason || 'Claude not configured'}`);
+  }
+  if (chat.configured || extract.configured) return;
+  const reason = chat.reason || extract.reason || 'AI not configured';
   setStatus(`AI off · ${reason}`, '');
 }
 async function loadCards() {
@@ -2025,41 +2290,55 @@ async function refreshPullButton() {
     btn.style.opacity = has ? '' : '0.4';
     btn.style.cursor  = has ? '' : 'not-allowed';
     btn.title = has
-      ? 'Pull the latest version Claude saved'
+      ? 'Pull the latest version the chat agent saved'
       : 'No AI chat exists for this card yet — click Chat first';
   } catch {
     // Network blip — leave the button alone
   }
 }
 
-// ─── Sync edit ↔ preview scroll (single visible scrollbar = preview's) ───
+// ─── Sync edit ↔ preview scroll (simple scrollTop-ratio) ────────────────
+// Both panes always show the same proportional position. Smooth because the
+// destination moves continuously with the source. The toggle handler uses
+// _lastScrollSource to decide which side drives the re-sync after a
+// <details> open/close changes the preview's scrollHeight.
 let _scrollSyncWired = false;
 let _syncingScroll = false;
+let _lastScrollSource = 'edit';
+
 function setupEditorScrollSync() {
   if (_scrollSyncWired) return;
   const editEl = $('#emContent');
   const prevPane = document.querySelector('#editorModal .em-pane-preview');
   if (!editEl || !prevPane) return;
-  const _ratio = (el) => {
-    const span = Math.max(1, el.scrollHeight - el.clientHeight);
-    return el.scrollTop / span;
-  };
-  const _apply = (el, r) => {
-    const span = Math.max(0, el.scrollHeight - el.clientHeight);
-    el.scrollTop = r * span;
-  };
+  // Simple linear scrollTop-ratio sync. Both panes always show the same
+  // proportional position. Smooth because the destination moves continuously
+  // with the source — no anchor "snap points" where the curve changes slope.
+  const _ratio = (el) => el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight);
+  const _apply = (el, r) => { el.scrollTop = r * Math.max(0, el.scrollHeight - el.clientHeight); };
   editEl.addEventListener('scroll', () => {
     if (_syncingScroll) return;
     _syncingScroll = true;
+    _lastScrollSource = 'edit';
     _apply(prevPane, _ratio(editEl));
     requestAnimationFrame(() => { _syncingScroll = false; });
   });
   prevPane.addEventListener('scroll', () => {
     if (_syncingScroll) return;
     _syncingScroll = true;
+    _lastScrollSource = 'preview';
     _apply(editEl, _ratio(prevPane));
     requestAnimationFrame(() => { _syncingScroll = false; });
   });
+  // Re-sync after a <details> toggle changes the preview's scrollHeight.
+  prevPane.addEventListener('toggle', () => {
+    requestAnimationFrame(() => {
+      _syncingScroll = true;
+      if (_lastScrollSource === 'edit') _apply(prevPane, _ratio(editEl));
+      else _apply(editEl, _ratio(prevPane));
+      requestAnimationFrame(() => { _syncingScroll = false; });
+    });
+  }, true);
   _scrollSyncWired = true;
 }
 function renderEmTags() {
@@ -2225,14 +2504,24 @@ function hideCardFocus() {
   FOCUS_CARD_ID = null;
   $('#gridArea').style.display = '';
   $('#focusArea').style.display = 'none';
+  $('#focusArea').classList.remove('edit-mode');
+  FOCUS_EDIT_MODE = false;
+  _focusToggleLabel(false);
 }
 function renderFocusFromCard(card) {
   $('#focusTitle').textContent = card.title || 'Untitled';
-  $('#focusId').textContent = card.id.slice(0, 14);
-  $('#focusTags').innerHTML = (card.tags || []).map(t =>
+  const idShort = (card.id || '').slice(0, 13);
+  $('#focusId').textContent = idShort;
+  $('#focusId').title = card.id || '';
+  const tagsHtml = (card.tags || []).map(t =>
     `<span class="omi-tag-chip tiny">${escapeHtml(t)}</span>`).join(' ');
-  $('#focusUpdated').textContent = card.updated_at
-    ? `· updated ${card.updated_at.slice(0, 19).replace('T', ' ')}` : '';
+  const updatedTxt = card.updated_at
+    ? `updated ${card.updated_at.slice(0, 19).replace('T', ' ')}` : '';
+  const sep = '<span class="focus-meta-sep">·</span>';
+  const tagsBlock = tagsHtml ? sep + tagsHtml : '';
+  const updatedBlock = updatedTxt ? `${sep}<span>${updatedTxt}</span>` : '';
+  $('#focusTags').innerHTML = tagsBlock;
+  $('#focusUpdated').innerHTML = updatedBlock;
   $('#focusBody').innerHTML = renderMarkdown(card.content || '');
   try { renderMathInElement($('#focusBody'), {delimiters: [
     {left:'$$', right:'$$', display:true}, {left:'$', right:'$', display:false},
@@ -2244,13 +2533,86 @@ function refreshFocusFromDB() {
   const card = CARDS.find(c => c.id === FOCUS_CARD_ID);
   if (card) renderFocusFromCard(card);
 }
-$('#focusBack').onclick = hideCardFocus;
-$('#focusOpen').onclick = () => { if (FOCUS_CARD_ID) openCard(FOCUS_CARD_ID); };
+
+// ── Focus-pane edit mode ───────────────────────────────────────────
+// Toggle between view (rendered preview + AI chat on the right) and
+// edit (textarea, chat panel hidden, focus pane fills the space). When
+// switching back to view we save dirty edits and re-render the preview.
+let FOCUS_EDIT_MODE = false;
+function _focusToggleLabel(toEdit) {
+  const lbl = $('#focusToggleLabel');
+  const btn = $('#focusToggleMode');
+  if (lbl) lbl.textContent = toEdit ? 'View' : 'Edit';
+  if (btn) btn.title = toEdit ? 'Switch to view mode' : 'Switch to edit mode';
+}
+async function enterFocusEdit() {
+  if (FOCUS_EDIT_MODE || !FOCUS_CARD_ID) return;
+  const card = CARDS.find(c => c.id === FOCUS_CARD_ID);
+  if (!card) return;
+  $('#focusEditTa').value = card.content || '';
+  $('#focusArea').classList.add('edit-mode');
+  FOCUS_EDIT_MODE = true;
+  _focusToggleLabel(true);
+  setTimeout(() => $('#focusEditTa').focus(), 0);
+}
+async function _focusSaveContent() {
+  const ta = $('#focusEditTa');
+  const card = CARDS.find(c => c.id === FOCUS_CARD_ID);
+  if (!card || ta.value === (card.content || '')) return false;
+  const meta = card.metadata || {};
+  setStatus('saving…');
+  try {
+    const r = await fetch(`/skill-cards/api/cards/${FOCUS_CARD_ID}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        title: card.title || 'Untitled',
+        content: ta.value,
+        tags: card.tags || [],
+        parent_id: meta.parent_id || '',
+        links: meta.links || [],
+      }),
+    });
+    const j = await r.json();
+    if (j.error) { setStatus(j.error, 'error'); return false; }
+    card.content = ta.value;
+    card.updated_at = j.updated_at || card.updated_at;
+    setStatus('saved', 'ok');
+    return true;
+  } catch { setStatus('save failed', 'err'); return false; }
+}
+async function leaveFocusEdit({save = true} = {}) {
+  if (!FOCUS_EDIT_MODE || !FOCUS_CARD_ID) return;
+  if (save) await _focusSaveContent();
+  $('#focusArea').classList.remove('edit-mode');
+  FOCUS_EDIT_MODE = false;
+  _focusToggleLabel(false);
+  refreshFocusFromDB();
+}
+$('#focusBack').onclick = async () => {
+  if (FOCUS_EDIT_MODE) await leaveFocusEdit({save: true});
+  hideCardFocus();
+};
+$('#focusToggleMode').onclick = () => {
+  if (FOCUS_EDIT_MODE) leaveFocusEdit({save: true});
+  else enterFocusEdit();
+};
+$('#focusSave').onclick = () => { if (FOCUS_EDIT_MODE) leaveFocusEdit({save: true}); };
+$('#focusOutline').onclick = () => {
+  if (typeof window._toggleOutlinePanel === 'function') window._toggleOutlinePanel();
+};
 $('#focusReload').onclick = async () => {
   await loadCards();
   refreshFocusFromDB();
   setStatus('reloaded', 'ok');
 };
+// Ctrl+S in the focus textarea saves and stays in edit mode
+$('#focusEditTa').addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    if (FOCUS_EDIT_MODE) _focusSaveContent();
+  }
+});
 
 $('#emSyncFromAi').onclick = async () => {
   if (!CURRENT) return;
@@ -2269,7 +2631,7 @@ $('#emSyncFromAi').onclick = async () => {
   if (updated.updated_at && updated.updated_at !== beforeUpdated) {
     setStatus('synced from AI · ' + updated.updated_at.slice(0, 19).replace('T', ' '), 'ok');
   } else {
-    setStatus('no AI changes — DB matches editor (was Claude’s save successful?)', '');
+    setStatus('no AI changes — DB matches editor (was the agent save successful?)', '');
   }
 };
 
@@ -2438,13 +2800,42 @@ $('#toggleLogs').onclick = () => {
 // ── Manus-style chat (scoped to a card) ────────────────────────────
 let CHAT_ID = null;
 let CHAT_BUSY = false;
+let CHAT_MODE = 'edit';   // 'edit' | 'explain'
 let _abortChat = null;
+function chatProviderLabel() { return CHAT_PROVIDER === 'codex' ? 'codex' : 'claude'; }
+function renderChatModelOptions() {
+  const sel = $('#chatModelSelect');
+  const opts = CHAT_MODEL_OPTIONS[CHAT_PROVIDER] || [];
+  sel.innerHTML = opts.map(m =>
+    `<option value="${m.id}" ${m.id===CHAT_MODEL?'selected':''}>${m.label}</option>`).join('');
+  if (!opts.some(m => m.id === CHAT_MODEL) && opts[0]) {
+    CHAT_MODEL = opts[0].id;
+    sel.value = CHAT_MODEL;
+  }
+}
+function updateChatContextControls() {
+  const providerSel = $('#chatProviderSelect');
+  if (providerSel) providerSel.value = CHAT_PROVIDER;
+  renderChatModelOptions();
+}
+async function persistChatDefaults() {
+  await fetch('/api/settings', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      chat_provider: CHAT_PROVIDER,
+      claude_chat_model: CHAT_PROVIDER === 'claude' ? CHAT_MODEL : ($('#setClaudeModel')?.value || 'sonnet'),
+      codex_chat_model: CHAT_PROVIDER === 'codex' ? CHAT_MODEL : ($('#setCodexModel')?.value || 'gpt-5.4'),
+    }),
+  });
+}
 
 function chatShow() {
   $('#chatEmpty').style.display = 'none';
   $('#chatStream').style.display = '';
   $('#chatComposer').style.display = '';
   $('#chatContext').style.display = '';
+  updateChatContextControls();
 }
 function chatHideUntilContext() {
   $('#chatEmpty').style.display = '';
@@ -2452,6 +2843,43 @@ function chatHideUntilContext() {
   $('#chatComposer').style.display = 'none';
   $('#chatContext').style.display = 'none';
 }
+$('#chatProviderSelect').onchange = async (e) => {
+  const prev = CHAT_PROVIDER;
+  CHAT_PROVIDER = e.target.value;
+  const opts = CHAT_MODEL_OPTIONS[CHAT_PROVIDER] || [];
+  if (!opts.some(m => m.id === CHAT_MODEL) && opts[0]) CHAT_MODEL = opts[0].id;
+  updateChatContextControls();
+  await persistChatDefaults();
+  // Provider changed → start a fresh session with the new provider
+  if (prev !== CHAT_PROVIDER && CHAT_ID) {
+    const cardId = CURRENT?.id || '';
+    if (cardId) {
+      const body = {card_id: cardId, force_new: true};
+      const r = await fetch('/api/chat/new', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (!j.error) {
+        CHAT_ID = j.chat_id;
+        CHAT_PROVIDER = j.provider || CHAT_PROVIDER;
+        CHAT_MODEL = j.model || CHAT_MODEL;
+        $('#chatStream').innerHTML = '';
+        $('#chatCtxTitle').innerHTML = `<span class="omi-mono">${j.card_id.slice(0, 8)}</span>`;
+        $('#chatCtxSub').textContent = (j.card_meta?.title || 'Untitled').slice(0, 60);
+        updateChatContextControls();
+      }
+    }
+    setStatus(`switched to ${chatProviderLabel()} · new chat started`, 'ok');
+  } else {
+    setStatus(`default chat provider: ${chatProviderLabel()}`, 'ok');
+  }
+};
+$('#chatModelSelect').onchange = async (e) => {
+  CHAT_MODEL = e.target.value;
+  await persistChatDefaults();
+  setStatus(`model: ${CHAT_MODEL}`, 'ok');
+};
 async function chatStartScoped(card_id) {
   setStatus('starting chat…');
   // Sync the focus view with the chat scope
@@ -2465,11 +2893,12 @@ async function chatStartScoped(card_id) {
   const j = await r.json();
   if (j.error) { setStatus(j.error, 'error'); return; }
   CHAT_ID = j.chat_id;
+  CHAT_PROVIDER = j.provider || CHAT_PROVIDER;
+  CHAT_MODEL = j.model || CHAT_MODEL;
   $('#chatStream').innerHTML = '';
   if (j.card_id) {
-    const tag = j.resumed ? '↺ resumed' : '＋ new';
-    $('#chatCtxTitle').innerHTML = `editing <span class="omi-mono">${j.card_id.slice(0, 8)}</span> <span class="omi-pill ${j.resumed ? 'ok' : 'muted'}" style="margin-left:6px">${tag}</span>`;
-    $('#chatCtxSub').textContent = `${(j.card_meta?.title || '').slice(0, 80)} · ${(j.card_meta?.tags||[]).join(', ')}`;
+    $('#chatCtxTitle').innerHTML = `<span class="omi-mono">${j.card_id.slice(0, 8)}</span>`;
+    $('#chatCtxSub').textContent = (j.card_meta?.title || 'Untitled').slice(0, 60);
   } else {
     $('#chatCtxTitle').textContent = `workspace: ${j.project}`;
     $('#chatCtxSub').textContent = j.cwd;
@@ -2504,6 +2933,63 @@ function renderHistoricMessage(m) {
     }
     idx++;
   }
+  // Render markdown immediately for historic messages (not streaming)
+  for (const bubble of msgEl.querySelectorAll('.bubble:not(.rendered)')) {
+    renderChatBubble(bubble);
+  }
+}
+function renderChatBubble(el) {
+  const raw = el.textContent;
+  if (!raw.trim()) return;
+  el.dataset.raw = raw;   // keep original markdown for copy / raw-toggle
+  try {
+    el.innerHTML = renderMarkdown(raw);
+    _attachMdInteractions(el);
+    attachLightbox(el);
+  } catch (e) {
+    el.textContent = raw;
+  }
+  el.classList.add('rendered');
+
+  // Inject hover toolbar (copy + MD toggle) — only once
+  if (!el.querySelector('.bubble-toolbar')) {
+    const tb = document.createElement('div');
+    tb.className = 'bubble-toolbar';
+    tb.innerHTML =
+      `<button class="bt-btn bt-copy" title="Copy markdown">` +
+        `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">` +
+          `<rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1"/>` +
+        `</svg>` +
+      `</button>` +
+      `<button class="bt-btn bt-md" title="Toggle raw markdown">MD</button>`;
+
+    tb.querySelector('.bt-copy').onclick = async (e) => {
+      e.stopPropagation();
+      await navigator.clipboard.writeText(el.dataset.raw || '');
+      const btn = tb.querySelector('.bt-copy');
+      btn.classList.add('copied'); setTimeout(() => btn.classList.remove('copied'), 1200);
+    };
+    tb.querySelector('.bt-md').onclick = (e) => {
+      e.stopPropagation();
+      const btn = tb.querySelector('.bt-md');
+      if (el.classList.contains('show-raw')) {
+        // Switch back to rendered
+        el.innerHTML = renderMarkdown(el.dataset.raw || '');
+        el.appendChild(tb);       // toolbar gets wiped by innerHTML, re-attach
+        _attachMdInteractions(el);
+        el.classList.remove('show-raw');
+        btn.classList.remove('active');
+      } else {
+        // Switch to raw
+        const rawText = el.dataset.raw || '';
+        el.textContent = rawText;
+        el.appendChild(tb);       // keep toolbar
+        el.classList.add('show-raw');
+        btn.classList.add('active');
+      }
+    };
+    el.appendChild(tb);
+  }
 }
 function chatAddUser(text) {
   const d = document.createElement('div');
@@ -2516,7 +3002,7 @@ function chatAddUser(text) {
 function chatStartAssistant() {
   const d = document.createElement('div');
   d.className = 'omi-msg assistant active';
-  d.innerHTML = `<div class="role">claude</div>`;
+  d.innerHTML = `<div class="role">${chatProviderLabel()}</div>`;
   $('#chatStream').appendChild(d);
   scrollChat();
   return d;
@@ -2552,7 +3038,7 @@ async function chatSend() {
   try {
     const r = await fetch(`/api/chat/${CHAT_ID}/send`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({message: text}), signal: ctrl.signal,
+      body: JSON.stringify({message: text, mode: CHAT_MODE, provider: CHAT_PROVIDER, model: CHAT_MODEL}), signal: ctrl.signal,
     });
     const reader = r.body.getReader(), dec = new TextDecoder();
     let buf = '';
@@ -2627,14 +3113,47 @@ function handleChatEvent(ev, msgEl) {
     }
   } else if (t === 'tool_result') {
     const useEl = [...msgEl.querySelectorAll('.omi-block.tool-use')].find(d => d.dataset.toolId === ev.tool_use_id);
-    const d = document.createElement('details');
+    let d = [...msgEl.querySelectorAll('.omi-block.tool-result')]
+      .find(el => ev.tool_use_id && el.dataset.resultFor === ev.tool_use_id);
+    if (!d) {
+      d = document.createElement('details');
+      d.className = 'omi-block tool-result';
+      d.innerHTML = `<summary><span class="glyph"></span><span class="label"><span class="name"></span><span class="arg"></span></span><span class="chev">▸</span></summary><div class="body"></div>`;
+      d.dataset.resultFor = ev.tool_use_id || '';
+      if (useEl) useEl.insertAdjacentElement('afterend', d); else msgEl.appendChild(d);
+    }
     d.className = 'omi-block tool-result' + (ev.is_error ? ' is-error' : '');
-    d.innerHTML = `<summary><span class="glyph">${ev.is_error?'⚠':'✓'}</span><span class="label"><span class="name">${ev.is_error?'error':'result'}</span><span class="arg">${escapeHtml((ev.content||'').slice(0,80))}</span></span><span class="chev">▸</span></summary><div class="body"></div>`;
+    d.querySelector('.glyph').textContent = ev.pending ? '…' : (ev.is_error ? '⚠' : '✓');
+    d.querySelector('.name').textContent = ev.pending ? 'running' : (ev.is_error ? 'error' : 'result');
+    d.querySelector('.arg').textContent = (ev.content || '').slice(0, 80);
     d.querySelector('.body').textContent = ev.content || '';
-    if (useEl) useEl.insertAdjacentElement('afterend', d); else msgEl.appendChild(d);
     scrollChat();
   } else if (t === 'turn_done') {
     msgEl.classList.remove('active');
+    // Render markdown in all un-rendered text bubbles
+    for (const bubble of msgEl.querySelectorAll('.bubble:not(.rendered)')) {
+      renderChatBubble(bubble);
+    }
+    scrollChat();
+    // Build a compact stats line: "4.3K in · 1.2K out · 2.1s"
+    const fmtTok = n => n >= 1e6 ? (n/1e6).toFixed(1).replace(/\.0$/,'')+'M'
+                      : n >= 1e3 ? (n/1e3).toFixed(1).replace(/\.0$/,'')+'K'
+                      : String(n);
+    const parts = [];
+    if (ev.input_tokens) {
+      let inLabel = `${fmtTok(ev.input_tokens)} in`;
+      if (ev.cache_read_tokens) inLabel += ` (${fmtTok(ev.cache_read_tokens)} cached)`;
+      parts.push(inLabel);
+    }
+    if (ev.output_tokens) parts.push(`${fmtTok(ev.output_tokens)} out`);
+    if (ev.cost_usd) parts.push(`$${ev.cost_usd.toFixed(4)}`);
+    if (ev.duration_ms)   parts.push(`${(ev.duration_ms/1000).toFixed(1)}s`);
+    if (parts.length) {
+      const meta = document.createElement('div');
+      meta.className = 'turn-meta';
+      meta.textContent = parts.join(' · ');
+      msgEl.appendChild(meta);
+    }
   } else if (t === 'error') {
     const d = document.createElement('details');
     d.className = 'omi-block tool-result is-error'; d.open = true;
@@ -2653,29 +3172,167 @@ $('#chatInput').addEventListener('input', function () {
   this.style.height = '38px';
   this.style.height = Math.min(this.scrollHeight, 200) + 'px';
 });
+// ── Chat action buttons ────────────────────────────────────────────
+let _lastClosedChatId = null;
+let _lastClosedCardId = null;
+
+function _currentCardId() {
+  const t = $('#chatCtxTitle').innerHTML;
+  const m = t.match(/[a-f0-9]{8,}/i);
+  if (!m) return null;
+  const c = CARDS.find(c => c.id.startsWith(m[0]));
+  return c ? c.id : null;
+}
+
 $('#chatNew').onclick = async () => {
   if (!CHAT_ID) { chatHideUntilContext(); return; }
-  const ctxTitle = $('#chatCtxTitle').textContent || '';
-  const m = ctxTitle.match(/[a-f0-9]{8,}/i);
-  if (!confirm('Close this conversation and start a fresh one?')) return;
+  const cardId = _currentCardId();
+  // Remember the old session for restore (no confirm needed — it's reversible)
+  _lastClosedChatId = CHAT_ID;
+  _lastClosedCardId = cardId;
   await fetch(`/api/chat/${CHAT_ID}/close`, {method:'POST'});
-  if (m) {
-    const cur = CARDS.find(c => c.id.startsWith(m[0]));
-    if (cur) {
-      const r = await fetch('/api/chat/new', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({card_id: cur.id, force_new: true}),
-      });
-      const j = await r.json();
-      if (j.error) { setStatus(j.error, 'error'); return; }
-      CHAT_ID = j.chat_id; $('#chatStream').innerHTML = '';
-      setStatus('fresh chat', 'ok');
-    }
+  if (cardId) {
+    const r = await fetch('/api/chat/new', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({card_id: cardId, force_new: true}),
+    });
+    const j = await r.json();
+    if (j.error) { setStatus(j.error, 'error'); return; }
+    CHAT_ID = j.chat_id;
+    CHAT_PROVIDER = j.provider || CHAT_PROVIDER;
+    CHAT_MODEL = j.model || CHAT_MODEL;
+    $('#chatStream').innerHTML = '';
+    $('#chatRestore').style.display = '';
+    setStatus('fresh chat · ↩ restore available', 'ok');
   } else { CHAT_ID = null; chatHideUntilContext(); }
+};
+$('#chatRestore').onclick = async () => {
+  if (!_lastClosedChatId) return;
+  const r = await fetch(`/api/chat/${_lastClosedChatId}/reopen`, {method:'POST'});
+  const j = await r.json();
+  if (j.error) { setStatus(j.error, 'error'); return; }
+  // Close the new (empty) session we just started
+  if (CHAT_ID && CHAT_ID !== _lastClosedChatId)
+    await fetch(`/api/chat/${CHAT_ID}/close`, {method:'POST'});
+  CHAT_ID = _lastClosedChatId;
+  CHAT_PROVIDER = j.provider || CHAT_PROVIDER;
+  CHAT_MODEL = j.model || CHAT_MODEL;
+  _lastClosedChatId = null; _lastClosedCardId = null;
+  $('#chatRestore').style.display = 'none';
+  $('#chatStream').innerHTML = '';
+  for (const m of (j.history || [])) renderHistoricMessage(m);
+  setStatus(`restored (${(j.history||[]).length} msgs)`, 'ok');
+  scrollChat(); $('#chatInput').focus();
 };
 $('#chatStop').onclick = async () => {
   if (_abortChat) _abortChat.abort();
   if (CHAT_ID) await fetch(`/api/chat/${CHAT_ID}/stop`, {method:'POST'});
+};
+const PENCIL_SVG = `<path d="M11 2l3 3-9 9H2v-3L11 2z"/>`;
+const LOCK_SVG   = `<rect x="3" y="8" width="10" height="7" rx="1.5"/><path d="M5 8V5.5a3 3 0 016 0V8"/>`;
+$('#chatModeToggle').onclick = () => {
+  CHAT_MODE = CHAT_MODE === 'edit' ? 'explain' : 'edit';
+  const isExplain = CHAT_MODE === 'explain';
+  $('#chatModeLabel').textContent = isExplain ? 'read-only' : 'may edit';
+  $('#chatModeIcon').innerHTML = isExplain ? LOCK_SVG : PENCIL_SVG;
+  $('#chatModeToggle').classList.toggle('explain', isExplain);
+  $('#chatComposer').classList.toggle('readonly', isExplain);
+  $('#chatInput').placeholder = isExplain
+    ? 'What does this mean? · Summarize · How does X work? · …'
+    : 'Tighten the table · add a Gotchas section · …';
+  $('#chatHintText').innerHTML = isExplain
+    ? `🔒 <strong>Read-only</strong> — ${chatProviderLabel()} cannot edit files`
+    : 'Enter to send · Shift+Enter for newline · changes go through <code>oms-save</code>';
+};
+
+// ── Session history panel ──────────────────────────────────────────
+function _timeAgo(ts) {
+  const d = Date.now()/1000 - ts;
+  if (d < 90)     return 'just now';
+  if (d < 3600)   return `${Math.floor(d/60)}m ago`;
+  if (d < 86400)  return `${Math.floor(d/3600)}h ago`;
+  if (d < 86400*7)return `${Math.floor(d/86400)}d ago`;
+  return new Date(ts*1000).toLocaleDateString();
+}
+async function openSessionPanel() {
+  const panel = $('#chatSessionPanel');
+  panel.style.display = '';
+  const cardId = _currentCardId();
+  if (!cardId) return;
+  const r = await fetch(`/api/chat?card_id=${encodeURIComponent(cardId)}&limit=20`);
+  const sessions = await r.json();
+  const list = $('#chatSessionList');
+  if (!sessions.length) { list.innerHTML = '<div class="csp-empty">No sessions found.</div>'; return; }
+  list.innerHTML = sessions.map(s => {
+    const isCur = s.chat_id === CHAT_ID;
+    const preview = escapeHtml((s.preview || '').slice(0, 70)) || '(empty)';
+    const age = _timeAgo(s.updated_at || 0);
+    const msgN = s.message_count || 0;
+    const closedBadge = s.closed ? '<span class="csp-badge closed">closed</span>' : '';
+    const curBadge   = isCur    ? '<span class="csp-badge active">active</span>' : '';
+    return `<div class="csp-row${isCur?' is-current':''}" data-id="${escapeHtml(s.chat_id)}">
+      <div class="csp-info">
+        <span class="csp-age">${age}</span>${curBadge}${closedBadge}
+        <span class="csp-msgs">${msgN} msg${msgN===1?'':'s'}</span>
+      </div>
+      <div class="csp-preview">${preview}</div>
+      <div class="csp-btns">
+        <button class="csp-del" data-id="${escapeHtml(s.chat_id)}" title="Delete">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+  // Switch on row click (not delete btn)
+  list.querySelectorAll('.csp-row').forEach(row => {
+    row.addEventListener('click', async e => {
+      if (e.target.closest('.csp-del')) return;
+      await switchToSession(row.dataset.id);
+    });
+  });
+  list.querySelectorAll('.csp-del').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      if (id === CHAT_ID) { setStatus('cannot delete active session', 'error'); return; }
+      await fetch(`/api/chat/${id}`, {method:'DELETE'});
+      await openSessionPanel();  // refresh
+    });
+  });
+}
+async function switchToSession(sessionId) {
+  if (sessionId === CHAT_ID) { closeSessionPanel(); return; }
+  const r = await fetch(`/api/chat/${sessionId}`);
+  const j = await r.json();
+  if (j.error) { setStatus(j.error, 'error'); return; }
+  CHAT_PROVIDER = j.provider || CHAT_PROVIDER;
+  CHAT_MODEL = j.model || CHAT_MODEL;
+  if (j.closed) await fetch(`/api/chat/${sessionId}/reopen`, {method:'POST'});
+  // Close current active session when switching away
+  if (CHAT_ID) await fetch(`/api/chat/${CHAT_ID}/close`, {method:'POST'});
+  CHAT_ID = sessionId;
+  $('#chatStream').innerHTML = '';
+  for (const m of (j.history || [])) renderHistoricMessage(m);
+  const n = (j.history||[]).length;
+  setStatus(`switched · ${n} prior msg${n===1?'':'s'}`, 'ok');
+  closeSessionPanel();
+  scrollChat(); $('#chatInput').focus();
+}
+function closeSessionPanel() {
+  $('#chatSessionPanel').style.display = 'none';
+}
+$('#chatHistory').onclick = () => {
+  const panel = $('#chatSessionPanel');
+  if (panel.style.display !== 'none') { closeSessionPanel(); }
+  else { openSessionPanel(); }
+};
+$('#chatSessionClose').onclick = closeSessionPanel;
+$('#chatClearCtx').onclick = async () => {
+  if (!CHAT_ID) return;
+  if (!confirm(`Clear context? This wipes the message history and ${chatProviderLabel()}'s memory of the conversation. The session stays open.`)) return;
+  await fetch(`/api/chat/${CHAT_ID}/clear`, {method:'POST'});
+  $('#chatStream').innerHTML = '';
+  setStatus('context cleared — fresh start', 'ok');
+  closeSessionPanel();
+  $('#chatInput').focus();
 };
 
 // ── Logs ──────────────────────────────────────────────────────────
@@ -2685,10 +3342,18 @@ async function refreshLogs() {
   $('#logs').innerHTML = r.logs.length ? r.logs.map(l => {
     const cls = l.status === 'error' ? 'err' : l.status === 'running' ? 'warn' : 'ok';
     const ts = (l.ts || '').replace('T', ' ').slice(0, 19);
+    const meta = l.meta || {};
+    const provider = meta.provider || l.model || '';
+    const model = l.model || '';
+    const providerTag = provider ? `<span class="log-provider">${escapeHtml(provider)}${model && model !== provider ? ' · ' + escapeHtml(model) : ''}</span>` : '';
+    const tokens = meta.input_tokens || meta.output_tokens
+      ? `<span class="log-tokens">${meta.input_tokens ? meta.input_tokens + ' in' : ''}${meta.input_tokens && meta.output_tokens ? ' · ' : ''}${meta.output_tokens ? meta.output_tokens + ' out' : ''}</span>` : '';
     return `<div class="omi-log-row" onclick="this.classList.toggle('show-tb')">
       <div class="top"><span class="omi-pill ${cls}">${l.status}</span>
         <span class="action">#${l.id} ${l.action}</span>
+        ${providerTag}${tokens}
         <span class="omi-grow"></span>
+        <button class="log-inspect-btn" onclick="event.stopPropagation();inspectLog(${l.id})" title="Inspect full prompt & command">⚙</button>
         <span class="ts">${ts}${l.duration_ms ? ' · ' + l.duration_ms + 'ms' : ''}</span></div>
       ${l.detail ? `<div class="detail">${escapeHtml(l.detail)}</div>` : ''}
       ${l.error ? `<div class="err">${escapeHtml(l.error)}</div>` : ''}
@@ -2703,18 +3368,78 @@ $('#logsClear').onclick = async () => {
   refreshLogs();
 };
 
+async function inspectLog(id) {
+  try {
+    const d = await fetch(`/api/logs/${id}`).then(r => r.json());
+    if (d.error) { setStatus(d.error, 'error'); return; }
+    const m = d.meta || {};
+    const lines = [];
+    lines.push(`Action:    ${d.action}`);
+    lines.push(`Status:    ${d.status}`);
+    lines.push(`Provider:  ${m.provider || '—'}`);
+    lines.push(`Model:     ${d.model || '—'}`);
+    lines.push(`Mode:      ${m.mode || '—'}`);
+    lines.push(`Card ID:   ${m.card_id || '—'}`);
+    lines.push(`Chat ID:   ${m.chat_id || '—'}`);
+    lines.push(`CWD:       ${m.cwd || '—'}`);
+    lines.push(`Duration:  ${d.duration_ms || 0}ms`);
+    if (m.input_tokens) lines.push(`Tokens in: ${m.input_tokens}`);
+    if (m.output_tokens) lines.push(`Tokens out:${m.output_tokens}`);
+    lines.push('');
+    if (m.cmd) {
+      lines.push('── Command ──────────────────────────────');
+      lines.push(m.cmd);
+      lines.push('');
+    }
+    if (m.workspace_files) {
+      lines.push('── Workspace files ──────────────────────');
+      for (const [f, sz] of Object.entries(m.workspace_files)) {
+        lines.push(`  ${f.padEnd(30)} ${sz} bytes`);
+      }
+      lines.push('');
+    }
+    if (m.prompt) {
+      lines.push('── Full prompt ──────────────────────────');
+      lines.push(m.prompt);
+      lines.push('');
+    }
+    if (m.response_summary) {
+      lines.push('── Response (first 200 chars) ───────────');
+      lines.push(m.response_summary);
+    }
+    if (d.error) {
+      lines.push('── Error ────────────────────────────────');
+      lines.push(d.error);
+    }
+    $('#logInspectId').textContent = id;
+    $('#logInspectBody').textContent = lines.join('\n');
+    $('#logInspectDlg').showModal();
+  } catch (e) {
+    setStatus('failed to load log: ' + e.message, 'error');
+  }
+}
+
 // ── Settings ───────────────────────────────────────────────────────
 $('#openSettings').onclick = async () => {
-  const [s, syncS] = await Promise.all([
+  const [s, syncS, preamble] = await Promise.all([
     fetch('/api/settings').then(r => r.json()),
     fetch('/skill-cards/api/sync-settings').then(r => r.json()).catch(() => ({})),
+    fetch('/api/chat-preamble').then(r => r.json()).catch(() => ({content: ''})),
   ]);
   $('#setColor').innerHTML = THEMES.colors.map(c =>
     `<option value="${c.id}" ${c.id===s.color_theme?'selected':''}>${c.name}</option>`).join('');
   $('#setFont').innerHTML = THEMES.fonts.map(f =>
     `<option value="${f.id}" ${f.id===s.font_theme?'selected':''}>${f.name}</option>`).join('');
+  $('#setClaudeModel').innerHTML = (s.chat_model_options?.claude || []).map(m =>
+    `<option value="${m.id}" ${m.id===s.claude_chat_model?'selected':''}>${m.label}</option>`).join('');
+  $('#setCodexModel').innerHTML = (s.chat_model_options?.codex || []).map(m =>
+    `<option value="${m.id}" ${m.id===s.codex_chat_model?'selected':''}>${m.label}</option>`).join('');
+  CHAT_MODEL_OPTIONS = s.chat_model_options || CHAT_MODEL_OPTIONS;
   $('#setRetention').value = s.chat_retention_days || 7;
+  $('#setDefaultChatProvider').value = s.chat_provider || 'claude';
   $('#setClaudeToken').value = '';
+  $('#setImgPaste').checked = s.img_paste_enabled !== false;
+  $('#setPreamble').value = preamble.content || '';
   $('#setPubRepo').value  = syncS.remoteRepo   || '';
   $('#setPrivRepo').value = syncS.privateRepo  || '';
   $('#setBranch').value   = syncS.remoteBranch || 'main';
@@ -2725,10 +3450,17 @@ $('#openSettings').onclick = async () => {
 };
 $('#cancelSet').onclick = () => $('#settingsDlg').close();
 $('#saveSet').onclick = async () => {
-  const body = {color_theme: $('#setColor').value, font_theme: $('#setFont').value};
+  const body = {
+    color_theme: $('#setColor').value,
+    font_theme: $('#setFont').value,
+    chat_provider: $('#setDefaultChatProvider').value,
+    claude_chat_model: $('#setClaudeModel').value,
+    codex_chat_model: $('#setCodexModel').value,
+  };
   const ret = parseInt($('#setRetention').value, 10);
   if (!isNaN(ret) && ret >= 0) body.chat_retention_days = ret;
   if ($('#setClaudeToken').value.trim()) body.claude_code_oauth_token = $('#setClaudeToken').value.trim();
+  body.img_paste_enabled = $('#setImgPaste').checked;
   await fetch('/api/settings', {
     method: 'PUT', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body),
@@ -2745,6 +3477,17 @@ $('#saveSet').onclick = async () => {
       ignorePatterns: $('#setIgnore').value.trim(),
     }),
   });
+  await fetch('/api/chat-preamble', {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content: $('#setPreamble').value}),
+  });
+  CHAT_PROVIDER = body.chat_provider || CHAT_PROVIDER;
+  CHAT_MODEL = CHAT_PROVIDER === 'codex' ? body.codex_chat_model : body.claude_chat_model;
+  CHAT_MODEL_OPTIONS = {
+    claude: Array.from($('#setClaudeModel').options).map(o => ({id: o.value, label: o.textContent})),
+    codex: Array.from($('#setCodexModel').options).map(o => ({id: o.value, label: o.textContent})),
+  };
+  updateChatContextControls();
   $('#settingsDlg').close();
   setStatus('settings saved', 'ok');
 };
@@ -3504,10 +4247,21 @@ document.addEventListener('keydown', (e) => {
     const right = 28 + offset, bottom = 60 + offset;
     w.style.cssText = `right: ${right}px; bottom: ${bottom}px; width: ${baseW}px; height: ${baseH}px; z-index: ${++topZ};`;
     const tags = (card.tags || []).slice(0, 3).map(t => '#' + escHTML(t)).join(' ');
+    const idShort = (card.id || '').slice(0, 13);
+    const updated = card.updated_at
+      ? card.updated_at.slice(0, 19).replace('T', ' ')
+      : '';
+    const metaParts = [];
+    if (idShort) metaParts.push(`<span class="ref-id" title="${escHTML(card.id || '')}">${escHTML(idShort)}</span>`);
+    if (updated) metaParts.push(`<span class="ref-updated">updated ${escHTML(updated)}</span>`);
+    if (tags) metaParts.push(`<span class="ref-tags">${tags}</span>`);
+    const metaHTML = metaParts.join('<span class="ref-meta-sep">·</span>');
     w.innerHTML = `
       <div class="ref-window-header">
-        <span class="ref-title" title="${escHTML(card.title || '')}">${escHTML(card.title || '(untitled)')}</span>
-        <span class="ref-tags">${tags}</span>
+        <div class="ref-title-block">
+          <span class="ref-title" title="${escHTML(card.title || '')}">${escHTML(card.title || '(untitled)')}</span>
+          <span class="ref-meta">${metaHTML}</span>
+        </div>
         <button class="ref-find-btn" title="Find in this card (Ctrl+F)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
@@ -3555,6 +4309,9 @@ document.addEventListener('keydown', (e) => {
     const header = w.querySelector('.ref-window-header');
     header.addEventListener('mousedown', (e) => {
       if (e.target.closest('button')) return;
+      // Title / ID / updated / tags are selectable — don't start a drag
+      // from a mousedown on that text.
+      if (e.target.closest('.ref-title-block')) return;
       if (w.classList.contains('minimized')) return;
       focusWin(winState);
       const r = w.getBoundingClientRect();
@@ -4247,6 +5004,102 @@ document.addEventListener('keydown', (e) => {
     });
   }
 
+  // Outline panel — floating, draggable list of all headings (H1–H4) in
+  // the current editor preview. Clicking a row scrolls the matching
+  // heading into view in #emPreview and flashes it briefly. Re-uses the
+  // .ref-window chrome so it picks up the same draggable/themed styling
+  // used by Tree and Reference windows. Singleton: a second click closes
+  // the open panel.
+  let _outlineWin = null;
+  // Pick the live preview root: the modal's preview if open, otherwise the
+  // focus pane's body (when AI chat is on we render the card there).
+  function _previewRoot() {
+    if (dlgEd && dlgEd.open) {
+      const m = document.querySelector('#emPreview');
+      if (m) return m;
+    }
+    const fa = document.getElementById('focusArea');
+    if (fa && fa.style.display !== 'none' && !fa.classList.contains('edit-mode')) {
+      const f = document.querySelector('#focusBody');
+      if (f) return f;
+    }
+    return document.querySelector('#emPreview');
+  }
+  function openOutlinePanel() {
+    if (_outlineWin) { _outlineWin.remove(); _outlineWin = null; return; }
+    const layer = document.getElementById('refLayer');
+    if (dlgEd.open && layer.parentElement !== dlgEd) dlgEd.appendChild(layer);
+    const w = document.createElement('div');
+    _outlineWin = w;
+    w.className = 'ref-window outline-win';
+    const baseW = Math.min(360, Math.round(window.innerWidth * 0.30));
+    const baseH = Math.min(620, Math.round(window.innerHeight * 0.7));
+    w.style.cssText = `right:28px; top:80px; width:${baseW}px; height:${baseH}px; z-index:1700;`;
+    w.innerHTML = `
+      <div class="ref-window-header">
+        <span class="ref-title">📑 Outline</span>
+        <button class="ox" title="Close">×</button>
+      </div>
+      <div class="ref-window-body" tabindex="0">
+        <div class="outline-list" style="padding:6px 4px"></div>
+      </div>`;
+    layer.appendChild(w);
+    function refresh() {
+      const pv = _previewRoot();
+      if (!pv) return;
+      const headings = pv.querySelectorAll('h1, h2, h3, h4');
+      const root = w.querySelector('.outline-list');
+      if (!headings.length) {
+        root.innerHTML = '<div class="outline-empty">No headings in this card</div>';
+        return;
+      }
+      const rows = [];
+      headings.forEach((h, idx) => {
+        const lvl = +h.tagName[1];
+        // Ensure each heading has an id so we can re-locate after rerender
+        if (!h.id) h.id = `outline-h-${idx}`;
+        const txt = (h.textContent || '').trim() || '(untitled)';
+        rows.push(
+          `<a class="outline-row" data-target="${escHTML(h.id)}" data-level="${lvl}" style="padding-left:${(lvl-1)*14 + 10}px">` +
+            `<span class="outline-mark">${'#'.repeat(lvl)}</span>` +
+            `<span class="outline-text">${escHTML(txt)}</span>` +
+          `</a>`
+        );
+      });
+      root.innerHTML = rows.join('');
+      root.querySelectorAll('.outline-row').forEach(el => el.onclick = (ev) => {
+        ev.preventDefault();
+        const target = document.getElementById(el.dataset.target);
+        if (!target) return;
+        target.scrollIntoView({behavior: 'smooth', block: 'start'});
+        target.classList.add('outline-flash');
+        setTimeout(() => target.classList.remove('outline-flash'), 1400);
+      });
+    }
+    refresh();
+    // Re-scan headings whenever the preview rerenders (typed edits)
+    w._outlineRefresh = refresh;
+    w.querySelector('.ox').onclick = () => { w.remove(); _outlineWin = null; };
+    const hd = w.querySelector('.ref-window-header');
+    hd.style.cursor = 'move';
+    hd.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      const r = w.getBoundingClientRect();
+      const ox = e.clientX - r.left, oy = e.clientY - r.top;
+      w.style.right = ''; w.style.left = r.left + 'px'; w.style.top = r.top + 'px';
+      const mv = (ev) => { w.style.left = (ev.clientX-ox)+'px'; w.style.top = (ev.clientY-oy)+'px'; };
+      const up = () => { document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+      document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+    });
+  }
+  // Exposed so renderPreview can refresh the panel when the user types.
+  window._refreshOutlinePanel = () => {
+    if (_outlineWin && _outlineWin._outlineRefresh) _outlineWin._outlineRefresh();
+  };
+  // Exposed so the focus-pane Outline button (outside this IIFE) can toggle
+  // the same panel — it auto-targets #focusBody via _previewRoot().
+  window._toggleOutlinePanel = openOutlinePanel;
+
   // ── Events ─────────────────────────────────────────────────────
   trigger.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -4254,7 +5107,7 @@ document.addEventListener('keydown', (e) => {
   });
   document.getElementById('cascClose').addEventListener('click', close);
   document.getElementById('cascTreeBtn').addEventListener('click', openFullTree);
-  document.getElementById('emTreeBtn').addEventListener('click', openFullTree);
+  document.getElementById('emOutlineBtn').addEventListener('click', openOutlinePanel);
   document.addEventListener('click', (e) => {
     if (!pop.classList.contains('show')) return;
     if (e.target.closest('#cascadePop, #cascadeTrigger, #refLayer, .ref-window')) return;
@@ -4414,6 +5267,87 @@ document.addEventListener('click', async (e) => {
 }, true);   // capture, so no inner stopPropagation eats it
 
 bootstrap();
+
+// ── Lightbox ────────────────────────────────────────────────────────
+// Uses <dialog showModal()> so it sits in the top layer above the
+// card editor dialog (z-index tricks don't work across top-layer entries).
+function openLightbox(src, alt) {
+  const dlg = document.createElement('dialog');
+  dlg.className = 'omi-lightbox';
+  const img = document.createElement('img');
+  img.src = src; img.alt = alt || '';
+  dlg.appendChild(img);
+  // Click on backdrop area (the dialog itself, outside the img) → close
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  // Cleanup on close (Esc is handled natively by <dialog>)
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.appendChild(dlg);
+  dlg.showModal();
+}
+
+function attachLightbox(root) {
+  root.querySelectorAll('img:not([data-lb])').forEach(img => {
+    img.dataset.lb = '1';
+    img.addEventListener('click', () => openLightbox(img.src, img.alt));
+  });
+}
+
+// ── Image paste-to-upload (markdown editor only) ────────────────────
+(function () {
+  let _imgPasteEnabled = true;  // default on; overridden after settings load
+
+  // Patch settings open so we can sync the flag after each load
+  const _origSettingsOpen = $('#openSettings').onclick;
+  $('#openSettings').onclick = async function (e) {
+    await _origSettingsOpen.call(this, e);
+    // '#setImgPaste' is now populated — reflect into our flag on dialog close
+    const dlg = $('#settingsDlg');
+    const sync = () => { _imgPasteEnabled = $('#setImgPaste').checked; };
+    dlg.addEventListener('close', sync, { once: true });
+  };
+
+  // Load flag once at startup so it's accurate without opening settings
+  fetch('/api/settings').then(r => r.json()).then(s => {
+    _imgPasteEnabled = s.img_paste_enabled !== false;
+  }).catch(() => {});
+
+  $('#emContent').addEventListener('paste', async (e) => {
+    if (!_imgPasteEnabled) return;
+    const items = Array.from(e.clipboardData?.items || []);
+    const imgItem = items.find(it => it.type.startsWith('image/'));
+    if (!imgItem) return;
+
+    e.preventDefault();
+    const file = imgItem.getAsFile();
+    if (!file) return;
+
+    if (!CURRENT?.id) {
+      setStatus('open a card first to paste images', 'warn');
+      return;
+    }
+
+    setStatus('uploading image…');
+    const fd = new FormData();
+    fd.append('image', file);
+    fd.append('card_id', CURRENT.id);
+
+    try {
+      const r = await fetch('/skill-cards/api/upload-image', { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!r.ok || data.error) throw new Error(data.error || r.statusText);
+
+      const md = `![](${data.url})`;
+      const ta = $('#emContent');
+      const s = ta.selectionStart, end = ta.selectionEnd;
+      ta.value = ta.value.slice(0, s) + md + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = s + md.length;
+      ta.dispatchEvent(new Event('input'));
+      setStatus('image saved', 'ok');
+    } catch (err) {
+      setStatus('image upload failed: ' + (err.message || err), 'err');
+    }
+  });
+})();
 </script>
 </body>
 </html>

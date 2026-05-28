@@ -4,14 +4,14 @@ A browser-based manager for **markdown skill cards** — short, scannable
 reference cards (aliases, env vars, recipes, keybindings) with:
 
 - ✨ **AI Extract** — paste rough notes, get a tight skill card back
-- 💬 **Per-card Chat** — chat with Claude scoped to a single card
+- 💬 **Per-card Chat** — chat with Claude or Codex scoped to a single card
 - 🔄 **GitHub Sync** — diff-based push/pull/delete with public + private repos
 - 🏷 **Tag-based routing** — `private`-tagged cards go to your private repo
 - 🙈 **Ignore patterns** — keep `sibyl-*` (or anything else) out of the diff
 
 ## Install
 
-Requires **Python 3.11+** and `git`. Optional: [`claude`](https://docs.claude.com/en/docs/claude-code) on `PATH` for AI features.
+Requires **Python 3.11+** and `git`. Optional: [`claude`](https://docs.claude.com/en/docs/claude-code) and/or [`codex`](https://developers.openai.com/codex) on `PATH` for AI features.
 
 ```bash
 # Recommended: pipx (isolated, like npx for Python)
@@ -44,16 +44,21 @@ pipx upgrade oh-my-skill
 
 ## Optional: AI features
 
-Extract / Chat use `claude -p`. If `claude` isn't on `PATH` and no token
-is configured, those buttons say **"AI not configured"** and the rest of
-the app keeps working.
+Extract uses `claude -p`. Per-card chat can use either `claude -p` or
+`codex exec --json`, depending on **Settings → Chat provider**. If the
+selected provider is unavailable, the chat UI degrades gracefully and the
+rest of the app keeps working.
 
 To enable:
 
 1. Install [Claude Code](https://docs.claude.com/en/docs/claude-code):
    `npm i -g @anthropic-ai/claude-code`
-2. Open **Settings → Claude OAuth token** in oh-my-skill, paste your
-   token (or set `CLAUDE_CODE_OAUTH_TOKEN` in the environment).
+2. Optional for chat: install Codex CLI:
+   `npm i -g @openai/codex`
+3. For Claude, open **Settings → Claude OAuth token** in oh-my-skill, paste
+   your token (or set `CLAUDE_CODE_OAUTH_TOKEN` in the environment).
+4. For Codex, run `codex login` first. The app checks `codex login status`
+   before enabling Codex chat.
 
 ## Optional: GitHub sync
 

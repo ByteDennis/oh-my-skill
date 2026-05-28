@@ -18,23 +18,25 @@ import uuid
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
 
-from oh_my_skill.shared import claude_chat, claude_stream, logger
-from oh_my_skill.shared.config import get_setting
+from oh_my_skill.shared import chat_store, claude_chat, claude_stream, codex_chat, logger
+from oh_my_skill.shared.ai_providers import (
+    active_chat_status, claude_status, codex_status, get_chat_model,
+    get_chat_provider,
+)
 from oh_my_skill.shared.system_prompt import SKILL_SYSTEM_PROMPT
 
 
-def _ai_unavailable_reason() -> str:
-    """Returns '' if AI is reachable, else a short reason string."""
-    import glob as _glob, shutil as _shutil
-    bin_path = os.environ.get('CLAUDE_BIN') or _shutil.which('claude')
-    if not bin_path:
-        cands = sorted(_glob.glob('/opt/claude/versions/*'), key=os.path.getmtime)
-        bin_path = cands[-1] if cands else None
-    if not bin_path:
-        return 'claude binary not found'
-    if not get_setting('global', 'claude_code_oauth_token'):
-        return 'no Claude OAuth token (Settings → Claude OAuth token)'
-    return ''
+def _chat_backend(provider: str | None = None):
+    provider = provider or get_chat_provider()
+    return codex_chat if provider == 'codex' else claude_chat
+
+
+def _chat_unavailable_reason(provider: str | None = None) -> str:
+    if provider in (None, get_chat_provider()):
+        status = active_chat_status()
+    else:
+        status = codex_status() if provider == 'codex' else claude_status()
+    return '' if status.get('configured') else (status.get('reason') or 'AI not configured')
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -101,89 +103,76 @@ def _lessons_section() -> str:
             "future sessions will read it and avoid the same mistake._\n")
 
 
+def _codex_md_for_card(card: dict) -> str:
+    return f"""# Card {card['id']}
+id: {card['id']} | title: {card['title']!r} | tags: {card.get('tags') or []}
+Edit ./card.md then run `oms-save`. H1 = title, rest = body.
+"""
+
+
 def _claude_md_for_card(card: dict) -> str:
-    return f"""# Editing skill card {card['id']}
-
-You are scoped to a single skill card. The user is editing it in the
-oh-my-skill web UI right now — they want help refining it.
-
-## Current card
-
-- **id**: `{card['id']}`
-- **title**: {card['title']!r}
-- **tags**: {card.get('tags') or []}
-- **updated**: `{card.get('updated_at', '')}`
-
-## Where to make edits
-
-The card content lives in `./card.md` in this folder. Edit it there.
-The H1 in card.md becomes the title; everything below becomes the body.
-
-## CLI helpers
-
-```bash
-oms-save             # save ./card.md back to the DB (title from H1, body from rest)
-oms-tag <tag>        # add a tag
-oms-untag <tag>      # remove a tag
-oms-show             # print the current saved version
-oms-lesson "<text>"  # append a one-line lesson to the self-growing lessons card
-```
-
-## How to make changes
-
-1. **Read** `./card.md` first.
-2. Edit it — preserve the H1 unless asked to rename.
-3. Run `oms-save` to persist back. The web UI picks up your changes.
-4. The user sees the UI live — confirm any destructive change in one
-   short sentence first, then act.
-
-## Style brain
-
-The skill-card style brain is appended to your system prompt. Follow it:
-精简, scannable, table-heavy, fenced code blocks for multi-line snippets.
-
-## Markdown features available in this editor
-
-If the user asks about which markdown syntax is supported (callouts,
-wiki-links, image sizing, math, frontmatter, …), don't guess — read the
-canonical cheatsheet card first:
-
-```bash
-oms-show 6a030f9960ffc | head -200    # card-id: Markdown Cheatsheet
-```
-
-It documents every supported feature with copy-pasteable examples and
-notes any oh-my-skill-specific extensions (`==highlight==`, `[[wiki-links]]`,
-`> [!NOTE]` admonitions, image sizing dialects, etc.). When you build new
-cards or edit existing ones, prefer those features over alternatives the
-renderer doesn't support.
-{_lessons_section()}"""
+    return f"""# Card {card['id']}
+You are Claude by Anthropic.
+id: {card['id']} | title: {card['title']!r} | tags: {card.get('tags') or []}
+Edit ./card.md then run `oms-save`. H1 = title, rest = body.
+"""
 
 
 def _claude_md_workspace(project: str) -> str:
-    return f"""# {project} workspace
-
-Free-form oh-my-skill workspace.
-
-## Tools available
-
-- `oms-save` / `oms-tag` / `oms-untag` / `oms-show` — card CLI helpers
-- `oms-lesson "<text>"` — record a one-line mistake to avoid in future sessions
-- `Read`, `Edit`, `Write`, `Bash`, `Glob`, `Grep`
-
-The skill-card style brain is appended to your system prompt.
-{_lessons_section()}"""
+    return f"# {project} workspace\nEdit files, run `oms-save` to persist.\n"
 
 
-def _ensure_workspace(project: str, card_id: str = '') -> tuple[str, dict | None]:
-    """Returns (cwd, card_row). Writes a fresh CLAUDE.md every call so the AI
-    always sees current state. Writes ./card.md when scoped."""
+_PREAMBLE_PATH = os.path.join(os.environ.get('OMI_DATA_DIR', '/data'), 'context.md')
+_PREAMBLE_DEFAULT = """\
+## CLI helpers
+oms-save — save ./card.md back to DB
+oms-tag <tag> / oms-untag <tag> — manage tags
+oms-show — print current saved version
+oms-lesson "<text>" — append a lesson to the lessons card
+
+## How to edit
+1. Read `./card.md` first.
+2. Edit — preserve the H1 unless asked to rename.
+3. Run `oms-save` to persist. The web UI picks up changes live.
+
+## Style
+Concise, scannable, table-heavy, fenced code blocks for multi-line snippets.
+
+## Markdown features
+For supported syntax (callouts, wiki-links, image sizing, math, frontmatter),
+read the cheatsheet card first: `oms-show 6a030f9960ffc | head -200`
+"""
+
+
+def _get_preamble() -> str:
+    """Read the user-editable preamble file, seeding defaults if missing."""
+    if not os.path.exists(_PREAMBLE_PATH):
+        with open(_PREAMBLE_PATH, 'w') as f:
+            f.write(_PREAMBLE_DEFAULT)
+    try:
+        with open(_PREAMBLE_PATH) as f:
+            return f.read()
+    except OSError:
+        return _PREAMBLE_DEFAULT
+
+
+def _ensure_workspace(project: str, card_id: str = '', provider: str = 'claude') -> tuple[str, dict | None]:
+    """Returns (cwd, card_row). Writes CLAUDE.md (for Claude) or AGENTS.md
+    (for Codex) so the AI always sees current state. Writes ./card.md when scoped."""
     cwd = os.path.join(PROJECTS_DIR, _safe_slug(project))
     os.makedirs(cwd, exist_ok=True)
+    # Provider-appropriate project instructions file; remove the other
+    # so the AI doesn't ingest both (doubles token cost).
+    inst_file = 'AGENTS.md' if provider == 'codex' else 'CLAUDE.md'
+    stale_file = 'CLAUDE.md' if provider == 'codex' else 'AGENTS.md'
+    stale_path = os.path.join(cwd, stale_file)
+    if os.path.exists(stale_path):
+        try:
+            os.remove(stale_path)
+        except OSError:
+            pass
     card = _lookup_card(card_id) if card_id else None
     if card:
-        # Emit YAML-ish frontmatter for parent_id / links so they survive
-        # the disk round-trip (Claude edits ./card.md, oms-save parses it).
         meta = card.get('metadata') or {}
         if isinstance(meta, str):
             try:
@@ -199,10 +188,12 @@ def _ensure_workspace(project: str, card_id: str = '') -> tuple[str, dict | None
         fm_block = ('---\n' + '\n'.join(fm_lines) + '\n---\n\n') if fm_lines else ''
         with open(os.path.join(cwd, 'card.md'), 'w') as f:
             f.write(f"{fm_block}# {card['title']}\n\n{card.get('content', '')}\n")
-        with open(os.path.join(cwd, 'CLAUDE.md'), 'w') as f:
-            f.write(_claude_md_for_card(card))
+        inst_content = _codex_md_for_card(card) if provider == 'codex' else _claude_md_for_card(card)
+        # Both are now minimal — detailed context goes in first-turn preamble
+        with open(os.path.join(cwd, inst_file), 'w') as f:
+            f.write(inst_content)
     else:
-        md = os.path.join(cwd, 'CLAUDE.md')
+        md = os.path.join(cwd, inst_file)
         if not os.path.exists(md):
             with open(md, 'w') as f:
                 f.write(_claude_md_workspace(project))
@@ -230,22 +221,26 @@ def chat_new():
     card_id = (data.get('card_id') or '').strip()
     force_new = bool(data.get('force_new', False))
     project = data.get('project') or (f'card-{card_id[:8]}' if card_id else 'default')
+    provider = get_chat_provider()
+    backend = _chat_backend(provider)
 
-    cwd, card = _ensure_workspace(project, card_id)
+    cwd, card = _ensure_workspace(project, card_id, provider=provider)
     if card_id and not card:
         return jsonify({'error': f'card {card_id} not found'}), 404
 
     if force_new or not card_id:
-        chat_id = claude_chat.new_session(cwd, card_id=card_id)
+        chat_id = backend.new_session(cwd, card_id=card_id)
         history, resumed = [], False
     else:
-        chat_id, created = claude_chat.find_or_create_for_card(cwd, card_id)
-        sess = claude_chat.get_session(chat_id) or {}
+        chat_id, created = backend.find_or_create_for_card(cwd, card_id)
+        sess = backend.get_session(chat_id) or {}
         history = sess.get('history') or []
         resumed = not created
 
     return jsonify({
         'chat_id': chat_id, 'project': project, 'cwd': cwd,
+        'provider': provider,
+        'model': get_chat_model(provider),
         'card_id': card_id or None,
         'card_meta': _card_meta_for(card),
         'resumed': resumed,
@@ -255,13 +250,17 @@ def chat_new():
 
 @chat_bp.route('/api/chat/<chat_id>', methods=['GET'])
 def chat_history(chat_id):
-    s = claude_chat.get_session(chat_id)
+    s = chat_store.get(chat_id)
     if not s:
         return jsonify({'error': 'unknown chat_id'}), 404
     return jsonify({
         'chat_id': chat_id, 'cwd': s['cwd'],
+        'provider': s.get('provider') or 'claude',
+        'model': get_chat_model(s.get('provider') or 'claude'),
         'card_id': s.get('card_id'),
+        'closed': bool(s.get('closed')),
         'claude_session_id': s.get('claude_session_id'),
+        'provider_session_id': s.get('provider_session_id'),
         'history': s['history'],
     })
 
@@ -270,22 +269,74 @@ def chat_history(chat_id):
 def chat_send(chat_id):
     data = request.get_json() or {}
     msg = (data.get('message') or '').strip()
+    mode = data.get('mode') or 'edit'
+    if mode not in ('edit', 'explain'):
+        mode = 'edit'
     if not msg:
         return jsonify({'error': 'message required'}), 400
-    s = claude_chat.get_session(chat_id)
+    s = chat_store.get(chat_id)
     if not s:
         return jsonify({'error': 'unknown chat_id'}), 404
-    reason = _ai_unavailable_reason()
+    # Frontend may override provider (e.g. user switched dropdown mid-chat)
+    requested_provider = (data.get('provider') or '').strip().lower()
+    provider = s.get('provider') or get_chat_provider()
+    if requested_provider in ('claude', 'codex') and requested_provider != provider:
+        # Provider mismatch — create a new session with the correct provider
+        project = s['cwd'].rsplit('/', 1)[-1]
+        card_id = s.get('card_id') or ''
+        new_backend = _chat_backend(requested_provider)
+        cwd, _ = _ensure_workspace(project, card_id, provider=requested_provider)
+        new_chat_id = new_backend.new_session(cwd, card_id=card_id)
+        chat_id = new_chat_id
+        s = chat_store.get(chat_id)
+        provider = requested_provider
+    backend = _chat_backend(provider)
+    reason = _chat_unavailable_reason(provider)
     if reason:
         return jsonify({'error': f'AI not configured: {reason}'}), 503
 
     # Refresh card workspace every turn so AI sees latest DB state
     if s.get('card_id'):
-        _ensure_workspace(s['cwd'].rsplit('/', 1)[-1], s['card_id'])
+        _ensure_workspace(s['cwd'].rsplit('/', 1)[-1], s['card_id'], provider=provider)
 
-    log_id = logger.start('chat-send', model='sonnet',
+    # First turn of a new chat: prepend the shared preamble (CLI helpers,
+    # style brain, etc.) so the AI has full context without bloating the
+    # project instructions file on every subsequent turn.
+    history = s.get('history') or []
+    is_first_turn = not any(m.get('role') == 'user' for m in history)
+    actual_msg = msg
+    if is_first_turn and s.get('card_id'):
+        preamble = _get_preamble().strip()
+        if preamble:
+            actual_msg = preamble + '\n\n---\n\n' + msg
+
+    # Capture the full prompt that will be sent to the AI for debug inspection
+    _debug_prompt = ''
+    _debug_cmd = ''
+    if provider == 'codex':
+        from oh_my_skill.shared.codex_chat import _initial_prompt, _build_cmd
+        _debug_prompt = _initial_prompt(s, actual_msg, mode)
+        _debug_cmd_list, _ = _build_cmd(s, _debug_prompt, mode)
+        _debug_cmd = ' '.join(_debug_cmd_list[:-1]) + ' <prompt>'
+    else:
+        _debug_cmd = f'claude -p --model {get_chat_model(provider)} --allowedTools ...'
+        _debug_prompt = actual_msg
+
+    # List workspace files for token audit
+    import glob as _g
+    _wfiles = {}
+    for fp in _g.glob(os.path.join(s['cwd'], '*')):
+        if os.path.isfile(fp):
+            try:
+                _wfiles[os.path.basename(fp)] = os.path.getsize(fp)
+            except OSError:
+                pass
+
+    log_id = logger.start('chat-send', model=get_chat_model(provider),
                           detail=msg[:200], chat_id=chat_id,
-                          card_id=s.get('card_id') or '')
+                          card_id=s.get('card_id') or '', mode=mode, provider=provider,
+                          prompt=_debug_prompt, cmd=_debug_cmd,
+                          workspace_files=_wfiles, cwd=s['cwd'])
 
     @stream_with_context
     def gen():
@@ -293,7 +344,7 @@ def chat_send(chat_id):
         full_text = ''
         had_error = False
         try:
-            for chunk in claude_chat.send(chat_id, msg):
+            for chunk in backend.send(chat_id, actual_msg, mode=mode):
                 if chunk.startswith('data: ') and chunk != 'data: [DONE]\n\n':
                     try:
                         ev = json.loads(chunk[6:].rstrip())
@@ -316,13 +367,17 @@ def chat_send(chat_id):
 
 @chat_bp.route('/api/chat/<chat_id>/stop', methods=['POST'])
 def chat_stop(chat_id):
-    return jsonify({'stopped': claude_chat.stop(chat_id)})
+    s = chat_store.get(chat_id)
+    if not s:
+        return jsonify({'stopped': False})
+    return jsonify({'stopped': _chat_backend(s.get('provider')).stop(chat_id)})
 
 
 @chat_bp.route('/api/chat', methods=['GET'])
 def chat_list():
     card_id = request.args.get('card_id')
-    return jsonify(claude_chat.list_sessions(
+    provider = request.args.get('provider') or get_chat_provider()
+    return jsonify(_chat_backend(provider).list_sessions(
         limit=int(request.args.get('limit', 30)),
         card_id=card_id,
     ))
@@ -330,13 +385,41 @@ def chat_list():
 
 @chat_bp.route('/api/chat/<chat_id>/close', methods=['POST'])
 def chat_close(chat_id):
-    claude_chat.close_session(chat_id)
+    s = chat_store.get(chat_id)
+    if s:
+        _chat_backend(s.get('provider')).close_session(chat_id)
+    return jsonify({'ok': True})
+
+
+@chat_bp.route('/api/chat/<chat_id>/reopen', methods=['POST'])
+def chat_reopen(chat_id):
+    """Reactivate a previously closed session."""
+    s = chat_store.get(chat_id)
+    if s:
+        _chat_backend(s.get('provider')).reopen_session(chat_id)
+    s = chat_store.get(chat_id)
+    if not s:
+        return jsonify({'error': 'unknown chat_id'}), 404
+    return jsonify({'ok': True, 'provider': s.get('provider') or 'claude',
+                    'model': get_chat_model(s.get('provider') or 'claude'),
+                    'history': s.get('history') or []})
+
+
+@chat_bp.route('/api/chat/<chat_id>/clear', methods=['POST'])
+def chat_clear(chat_id):
+    """Clear history + claude context — next send starts a fresh conversation."""
+    s = chat_store.get(chat_id)
+    if not s:
+        return jsonify({'error': 'unknown chat_id'}), 404
+    _chat_backend(s.get('provider')).clear_session_context(chat_id)
     return jsonify({'ok': True})
 
 
 @chat_bp.route('/api/chat/<chat_id>', methods=['DELETE'])
 def chat_delete(chat_id):
-    claude_chat.delete_session(chat_id)
+    s = chat_store.get(chat_id)
+    if s:
+        _chat_backend(s.get('provider')).delete_session(chat_id)
     return jsonify({'ok': True})
 
 
@@ -350,12 +433,13 @@ def extract_skill():
     rough = (data.get('notes') or '').strip()
     if not rough:
         return jsonify({'error': 'notes required'}), 400
-    reason = _ai_unavailable_reason()
+    cstat = claude_status()
+    reason = '' if cstat.get('configured') else cstat.get('reason')
     if reason:
         return jsonify({'error': f'AI not configured: {reason}'}), 503
     job_id = data.get('job_id') or str(uuid.uuid4())
 
-    log_id = logger.start('extract-skill', model='sonnet',
+    log_id = logger.start('extract-skill', model=get_chat_model('claude'),
                           detail=rough[:200], job_id=job_id)
 
     @stream_with_context
@@ -366,7 +450,7 @@ def extract_skill():
         t0 = time.time()
         try:
             for chunk in claude_stream.stream(job_id, SKILL_SYSTEM_PROMPT, rough,
-                                              model='sonnet'):
+                                              model=get_chat_model('claude')):
                 if chunk.startswith('data: '):
                     try:
                         ev = json.loads(chunk[6:].rstrip())

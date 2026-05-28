@@ -4,8 +4,11 @@ FROM python:3.11-slim
 # instead of failing — saves ~1-2s per chat turn.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git openssh-client \
-    nodejs \
+    nodejs npm \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Codex CLI so the in-app chat provider can use it when selected.
+RUN npm install -g @openai/codex
 
 WORKDIR /app
 

@@ -8,9 +8,19 @@ vendor:
     # Re-rewrite the absolute import after vendoring
     sed -i 's|^from shared\.config|from oh_my_skill.shared.config|' oh_my_skill/routes/skillcards.py
 
-# Build the Docker image (uses pyproject.toml + oh_my_skill/ package)
+# Build the Docker image
 build:
     cd .. && docker compose build oh-my-skill
+
+# Build the image and start the service
+build-up:
+    cd .. && docker compose build oh-my-skill
+    cd .. && docker compose up -d oh-my-skill
+
+# Build the image and force-recreate the service
+rebuild-hard:
+    cd .. && docker compose build oh-my-skill
+    cd .. && docker compose up -d --force-recreate oh-my-skill
 
 up:
     cd .. && docker compose up -d oh-my-skill
