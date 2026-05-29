@@ -578,7 +578,11 @@
     display: none;                       /* hidden until find widget activates */
     position: absolute; pointer-events: none;
     overflow: hidden; z-index: 1;
-    color: transparent; white-space: pre-wrap; word-wrap: break-word;
+    color: transparent; white-space: pre-wrap;
+    /* `overflow-wrap: normal` matches the textarea's soft-wrap behaviour —
+       long unbreakable runs (URLs, etc.) stay on one line in both, so the
+       overlay's <mark> stays aligned with the textarea's text. */
+    overflow-wrap: normal; word-break: normal;
   }
   .find-highlights.active { display: block; }
   .find-highlights mark { background: rgba(255, 200, 80, 0.45); color: transparent; border-radius: 2px; padding: 0; }
@@ -1714,6 +1718,55 @@ function _groupHeadings(parent, level) {
     i = j;
   }
 }
+function _extractBlockquoteCode(text) {
+  // Code fences nested inside a blockquote (e.g. inside a [!NOTE] callout)
+  // arrive with each line prefixed by `> ` so the normal fenced-code regex
+  // doesn't match. Walk the source, find `> ```lang` / `> ~~~lang` openings,
+  // collect until the matching closing fence at the same prefix, dedent and
+  // hand the body to the fenced-code registry. The placeholder we emit keeps
+  // the same `> ` prefix so it stays inside the blockquote after marked.parse,
+  // and the splice step (further down) replaces it with the rendered card.
+  if (!_MD_CTX) return text;
+  const fenced = _MD_CTX.fenced;
+  const lines = (text || '').split('\n');
+  const out = [];
+  let i = 0;
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  while (i < lines.length) {
+    const line = lines[i];
+    // Prefix: leading spaces + one or more `> ` blockquote markers.
+    const open = line.match(/^([ \t]*(?:>[ \t]?)+)(`{3,}|~{3,})([^\n`~]*)$/);
+    if (!open) { out.push(line); i++; continue; }
+    const prefix = open[1], fence = open[2], info = open[3];
+    const closeRe = new RegExp('^' + esc(prefix) + esc(fence) + '[ \\t]*$');
+    let j = i + 1;
+    const body = [];
+    while (j < lines.length && !closeRe.test(lines[j])) {
+      // Strip the matching prefix from each body line; if the line is shorter
+      // (e.g. blank `>` only) just drop whatever prefix is there.
+      const re = new RegExp('^' + esc(prefix));
+      body.push(re.test(lines[j]) ? lines[j].replace(re, '') : lines[j].replace(/^[ \t]*(?:>[ \t]?)+/, ''));
+      j++;
+    }
+    if (j >= lines.length) { out.push(line); i++; continue; }
+    // Parse `+`/`-` collapsible marker the same way _extractCode does.
+    const tokens = (info || '').trim().split(/\s+/).filter(Boolean);
+    let lang = tokens[0] || '';
+    let collapse = null;
+    if (lang.length >= 2 && (lang.endsWith('+') || lang.endsWith('-'))) {
+      const stripped = lang.slice(0, -1);
+      if (!stripped.endsWith('+') && !stripped.endsWith('-')) {
+        collapse = lang.endsWith('+') ? 'open' : 'closed';
+        lang = stripped;
+      }
+    }
+    const title = tokens.slice(1).join(' ').trim();
+    fenced.push({lang, code: body.join('\n') + '\n', collapse, title});
+    out.push(prefix + `\x00FCODE${fenced.length - 1}\x00`);
+    i = j + 1;
+  }
+  return out.join('\n');
+}
 function _extractCode(text) {
   // Pull fenced/inline code out of the source *before* any other pre-processor
   // touches it, so KaTeX patterns / footnote refs / `===` tabs / `???`
@@ -1730,12 +1783,27 @@ function _extractCode(text) {
   let out = (text || '').replace(
     /^([ \t]*)(`{3,}|~{3,})([^\n`~]*)\n([\s\S]*?)^\1?\2[ \t]*$/gm,
     (_m, ind, _fence, info, code) => {
-      const lang = (info || '').trim().split(/\s+/)[0] || '';
+      const tokens = (info || '').trim().split(/\s+/).filter(Boolean);
+      let lang = tokens[0] || '';
+      // Collapsible code: ```lang+ → open, ```lang- → closed. The marker is
+      // a single trailing + or − that is NOT part of a doubled suffix, so
+      // `c++` stays as the C++ language (no collapse), but `python+` parses
+      // as language=python + collapse=open. Rest of the info string becomes
+      // the summary title (falls back to the language name).
+      let collapse = null;
+      if (lang.length >= 2 && (lang.endsWith('+') || lang.endsWith('-'))) {
+        const stripped = lang.slice(0, -1);
+        if (!stripped.endsWith('+') && !stripped.endsWith('-')) {
+          collapse = lang.endsWith('+') ? 'open' : 'closed';
+          lang = stripped;
+        }
+      }
+      const title = tokens.slice(1).join(' ').trim();
       if (ind) {
         const dedentRe = new RegExp('^' + ind.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gm');
         code = code.replace(dedentRe, '');
       }
-      fenced.push({lang, code});
+      fenced.push({lang, code, collapse, title});
       return `\n${ind}\x00FCODE${fenced.length - 1}\x00\n`;
     });
   // Inline: matched-tick spans `…` / ``…with ` inside…``.
@@ -1757,7 +1825,10 @@ function _renderInner(body) {
   // shared code registry) is populated by the outer renderMarkdown so
   // recursive calls can find placeholders that the outer scope created.
   if (!_MD_CTX) _MD_CTX = {fenced: [], inline: []};   // safety fallback
-  const t0 = _extractCode(body);
+  // Lift code blocks out of `> ` blockquotes FIRST so the normal fenced-code
+  // extractor (which keys on a leading-whitespace fence) can still see them.
+  const tQ = _extractBlockquoteCode(body);
+  const t0 = _extractCode(tQ);
   const tableInfo = _extractTableColInfo(t0);
   const {text: t1, blocks} = _extractCustomBlocks(t0);
   const {text: t1b, links: wikiLinks} = _extractWikiLinks(t1);
@@ -1792,7 +1863,8 @@ function _renderInner(body) {
   // (no `hljs` prefix); we also apply hljs.highlight ourselves below since
   // marked v9 removed the `highlight` setOptions callback.
   const COPY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-  function _wrapCode(lang, codeHtml) {
+  function _wrapCode(lang, codeHtml, opts) {
+    opts = opts || {};
     const langLabel = lang || '';
     // codeHtml is the inner HTML of <code> as marked produced it (entity-
     // escaped plain text). If we have a language, run hljs on the *text*
@@ -1810,7 +1882,7 @@ function _renderInner(body) {
       } catch {}
     }
     const codeAttr = lang ? ` class="hljs language-${lang}"` : ' class="hljs"';
-    return (
+    const card = (
       `<div class="pv-code"${lang ? ` data-lang="${lang}"` : ''}>` +
         `<div class="pv-code-head">` +
           `<span class="pv-code-lang">${langLabel}</span>` +
@@ -1819,6 +1891,21 @@ function _renderInner(body) {
         `<pre><code${codeAttr}>${inner}</code></pre>` +
       `</div>`
     );
+    // Collapsible wrapper — emitted only when the fence used `lang+`/`lang-`.
+    // Summary defaults to the title in the info string, else the language.
+    if (opts.collapse) {
+      const openAttr = opts.collapse === 'open' ? ' open' : '';
+      const summary = opts.title || langLabel || 'code';
+      return (
+        `<details class="pv-code-collapse"${openAttr}>` +
+          `<summary><span class="pv-code-collapse-title">${escapeHtml(summary)}</span>` +
+            (lang && !opts.title ? '' : (lang ? `<span class="pv-code-collapse-lang">${escapeHtml(langLabel)}</span>` : '')) +
+          `</summary>` +
+          card +
+        `</details>`
+      );
+    }
+    return card;
   }
   // Note: marked will *not* see any fenced code (we extracted it upstream).
   // It may still emit a <pre><code> for indented-code blocks (4 leading
@@ -1955,11 +2042,11 @@ function _renderInner(body) {
   // on their own paragraph (unwrap the <p>); inline code is always inline.
   html = html.replace(/<p>\s*\x00FCODE(\d+)\x00\s*<\/p>/g, (_m, i) => {
     const b = _MD_CTX.fenced[+i]; if (!b) return '';
-    return _wrapCode(b.lang, escapeHtml(b.code.replace(/\n$/, '')));
+    return _wrapCode(b.lang, escapeHtml(b.code.replace(/\n$/, '')), {collapse: b.collapse, title: b.title});
   });
   html = html.replace(/\x00FCODE(\d+)\x00/g, (_m, i) => {
     const b = _MD_CTX.fenced[+i]; if (!b) return '';
-    return _wrapCode(b.lang, escapeHtml(b.code.replace(/\n$/, '')));
+    return _wrapCode(b.lang, escapeHtml(b.code.replace(/\n$/, '')), {collapse: b.collapse, title: b.title});
   });
   html = html.replace(/\x00ICODE(\d+)\x00/g, (_m, i) => {
     const c = _MD_CTX.inline[+i]; if (c == null) return '';
@@ -2252,6 +2339,12 @@ function renderGrid() {
 }
 
 // ── Editor modal ───────────────────────────────────────────────────
+// Default tab title (restored whenever no card is in focus). Captured from
+// the markup so we don't hardcode it in two places.
+const _BASE_TITLE = document.title || 'oh-my-skill';
+function _setTabTitle(card) {
+  document.title = card && card.title ? `${card.title} · ${_BASE_TITLE}` : _BASE_TITLE;
+}
 window.openCard = function (id) {
   const card = CARDS.find(c => c.id === id);
   if (!card) return;
@@ -2270,6 +2363,7 @@ window.openCard = function (id) {
   if (typeof window._refreshCascadeTrigger === 'function') window._refreshCascadeTrigger();
   if (typeof window._showCardLineage === 'function') window._showCardLineage(id);
   refreshPullButton();
+  _setTabTitle(card);
 };
 
 // "Pull" is only meaningful once a chat session exists for this card.
@@ -2477,6 +2571,8 @@ function askSaveDiscard({ title, msg }) {
 $('#editorModal').addEventListener('close', () => {
   CURRENT = null;
   document.body.classList.remove('modal-open');
+  // Restore the default tab title unless the focus pane is showing a card.
+  if (!FOCUS_CARD_ID) _setTabTitle(null);
 });
 
 // ── Edit w/ AI: opens chat panel scoped to this card ───────────────
@@ -2499,6 +2595,7 @@ function showCardFocus(cardId) {
   $('#gridArea').style.display = 'none';
   $('#focusArea').style.display = '';
   renderFocusFromCard(card);
+  _setTabTitle(card);
 }
 function hideCardFocus() {
   FOCUS_CARD_ID = null;
@@ -2507,6 +2604,8 @@ function hideCardFocus() {
   $('#focusArea').classList.remove('edit-mode');
   FOCUS_EDIT_MODE = false;
   _focusToggleLabel(false);
+  if (typeof window._closeFindWidget === 'function') window._closeFindWidget();
+  if (!(document.getElementById('editorModal') || {}).open) _setTabTitle(null);
 }
 function renderFocusFromCard(card) {
   $('#focusTitle').textContent = card.title || 'Untitled';
@@ -2613,6 +2712,54 @@ $('#focusEditTa').addEventListener('keydown', (e) => {
     if (FOCUS_EDIT_MODE) _focusSaveContent();
   }
 });
+
+// ── Tab support in markdown textareas ──────────────────────────────
+// Tab inserts indent (or indents selected lines); Shift+Tab outdents.
+// Wired to both #emContent (modal) and #focusEditTa (focus pane).
+const _TAB_INDENT = '  ';            // 2 spaces — matches existing card prose
+function _handleTextareaTab(e) {
+  if (e.key !== 'Tab') return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  const ta = e.currentTarget;
+  const val = ta.value;
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+  const multiLine = val.slice(start, end).includes('\n');
+  if (e.shiftKey) {
+    // Outdent: strip up to _TAB_INDENT.length leading spaces (or one tab) from
+    // each line touched by the selection. Replace the whole touched block in
+    // one execCommand so the undo stack records a single edit.
+    const blockEnd = end > start ? end : start;
+    const block = val.slice(lineStart, blockEnd);
+    let stripped = 0;
+    const newBlock = block.split('\n').map(line => {
+      if (line.startsWith(_TAB_INDENT)) { stripped += _TAB_INDENT.length; return line.slice(_TAB_INDENT.length); }
+      if (line.startsWith('\t'))        { stripped += 1; return line.slice(1); }
+      const m = line.match(/^ {1,}/);
+      if (m) { const n = Math.min(m[0].length, _TAB_INDENT.length); stripped += n; return line.slice(n); }
+      return line;
+    }).join('\n');
+    window._editReplace(ta, newBlock, lineStart, blockEnd);
+    ta.selectionStart = Math.max(lineStart, start - _TAB_INDENT.length);
+    ta.selectionEnd = blockEnd - stripped;
+  } else if (multiLine) {
+    // Indent every selected line.
+    const block = val.slice(lineStart, end);
+    const newBlock = block.split('\n').map((line, i, arr) =>
+      (i === arr.length - 1 && line === '') ? line : _TAB_INDENT + line
+    ).join('\n');
+    const added = newBlock.length - block.length;
+    window._editReplace(ta, newBlock, lineStart, end);
+    ta.selectionStart = start + _TAB_INDENT.length;
+    ta.selectionEnd = end + added;
+  } else {
+    // Plain Tab — insert spaces at cursor (replaces selection if any).
+    window._editReplace(ta, _TAB_INDENT, start, end);
+  }
+}
+$('#emContent')?.addEventListener('keydown', _handleTextareaTab);
+$('#focusEditTa')?.addEventListener('keydown', _handleTextareaTab);
 
 $('#emSyncFromAi').onclick = async () => {
   if (!CURRENT) return;
@@ -4076,22 +4223,20 @@ document.addEventListener('keydown', (e) => {
     if (cur < 0 || cur >= matches.length) return;
     const { start, end } = matches[cur];
     const replacement = opts.regex ? interpRegexReplacement(repIn.value, ta.value.substring(start, end)) : repIn.value;
-    ta.setRangeText(replacement, start, end, 'end');
-    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    window._editReplace(ta, replacement, start, end);
     recompute();
     if (matches.length) { cur = Math.min(cur, matches.length - 1); scrollMatchIntoView(cur); render(); }
   }
   function replaceAll() {
     if (!matches.length) return;
     let text = ta.value;
-    // Iterate from end so indices stay valid
     for (let i = matches.length - 1; i >= 0; i--) {
       const { start, end } = matches[i];
       const replacement = opts.regex ? interpRegexReplacement(repIn.value, text.substring(start, end)) : repIn.value;
       text = text.substring(0, start) + replacement + text.substring(end);
     }
-    ta.value = text;
-    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    // Single execCommand → one undo step for the whole replace-all.
+    window._editReplace(ta, text, 0, ta.value.length);
     recompute();
   }
   function interpRegexReplacement(template, matched) {
@@ -4112,6 +4257,13 @@ document.addEventListener('keydown', (e) => {
 
   // Re-render highlights whenever editor content changes (e.g. via AI sync)
   ta.addEventListener('input', () => { if (widget.classList.contains('show')) recompute(); });
+
+  // Reset the find widget whenever the editor modal closes or the focus pane
+  // is hidden — otherwise stale highlights from the previous card bleed into
+  // whatever card opens next.
+  const dlg = document.getElementById('editorModal');
+  if (dlg) dlg.addEventListener('close', () => close());
+  window._closeFindWidget = close;
 })();
 
 // ─── Editor sizing: default → wide → fullscreen ───────────────────
@@ -5339,14 +5491,341 @@ function attachLightbox(root) {
       const md = `![](${data.url})`;
       const ta = $('#emContent');
       const s = ta.selectionStart, end = ta.selectionEnd;
-      ta.value = ta.value.slice(0, s) + md + ta.value.slice(end);
-      ta.selectionStart = ta.selectionEnd = s + md.length;
-      ta.dispatchEvent(new Event('input'));
+      window._editReplace(ta, md, s, end);
       setStatus('image saved', 'ok');
     } catch (err) {
       setStatus('image upload failed: ' + (err.message || err), 'err');
     }
   });
+})();
+
+// ─── Undo-safe textarea edit helper ─────────────────────────────────
+// Replace [start, end] of the textarea with `text` while keeping the
+// browser's native undo stack intact (so Ctrl+Z and Ctrl+Shift+Z work
+// on programmatic edits). Uses execCommand('insertText') — it's the
+// only widely-supported API that pushes to the textarea undo stack.
+// Falls back to setRangeText if execCommand isn't available; that path
+// loses undo but at least edits the content.
+window._editReplace = function (ta, text, start, end) {
+  ta.focus();
+  ta.setSelectionRange(start, end);
+  let ok = false;
+  try { ok = document.execCommand('insertText', false, text); } catch {}
+  if (!ok) {
+    ta.setRangeText(text, start, end, 'end');
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+};
+
+// ─── Markdown editor enhancements ───────────────────────────────────
+// Smart Enter on list/quote/checkbox markers, auto-wrap selection with
+// punctuation, drag-drop image upload, and a slash command menu.
+// Wired to both #emContent (modal) and #focusEditTa (focus pane).
+(function () {
+  // ─── Smart Enter ─────────────────────────────────────────────────
+  // Press Enter inside `- foo` → next line starts with `- `. Empty marker
+  // line on Enter removes the marker (escapes the list). Ordered list
+  // numbers increment. `- [x]` becomes `- [ ]` on the next line.
+  function _handleSmartEnter(e) {
+    if (e.key !== 'Enter') return;
+    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    const ta = e.currentTarget;
+    if (ta.selectionStart !== ta.selectionEnd) return;
+    const val = ta.value, start = ta.selectionStart;
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd   = val.indexOf('\n', start);
+    const line = val.slice(lineStart, lineEnd === -1 ? val.length : lineEnd);
+    // Capture: indent / marker (with trailing space) / content
+    //   - foo     /  *   /  +   /  - [ ]   /  > foo   /  1. foo
+    const m = line.match(/^([ \t]*)([-*+]\s+(?:\[[ xX]\]\s+)?|\d+\.\s+|>\s?)(.*)$/);
+    if (!m) return;
+    const indent = m[1], marker = m[2], content = m[3];
+    if (content === '') {
+      // Empty marker → escape the list/quote: strip the marker on this line
+      e.preventDefault();
+      window._editReplace(ta, '', lineStart, lineStart + indent.length + marker.length);
+      return;
+    }
+    let nextMarker = marker;
+    const ord = marker.match(/^(\d+)(\.\s+)$/);
+    if (ord) nextMarker = (parseInt(ord[1], 10) + 1) + ord[2];
+    nextMarker = nextMarker.replace(/\[[xX]\]/g, '[ ]');
+    e.preventDefault();
+    window._editReplace(ta, '\n' + indent + nextMarker, start, start);
+  }
+
+  // ─── Auto-wrap selection ─────────────────────────────────────────
+  // Select text, press `*` → wraps `*selection*`. Same for `_`, `~`, `` ` ``,
+  // `(`, `[`, `{`, `"`, `'`. With no selection, only `(`, `[`, `{`, `"`,
+  // `'`, `` ` `` auto-pair (formatting marks don't, to avoid mid-word noise).
+  // Typing a closing char that's already there just skips past it.
+  const _PAIRS = {'(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`',
+                  '*': '*', '_': '_', '~': '~'};
+  const _PAIR_NO_SEL = '([{"\'`';
+  function _handleAutoWrap(e) {
+    const ch = e.key;
+    if (!(ch in _PAIRS)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const close = _PAIRS[ch];
+    const ta = e.currentTarget;
+    const s = ta.selectionStart, end = ta.selectionEnd;
+    if (end > s) {
+      e.preventDefault();
+      const sel = ta.value.slice(s, end);
+      window._editReplace(ta, ch + sel + close, s, end);
+      ta.selectionStart = s + ch.length;
+      ta.selectionEnd   = end + ch.length;
+      return;
+    }
+    if (!_PAIR_NO_SEL.includes(ch)) return;
+    // Skip-over: typing the same char as next char → just move past it
+    if (ta.value[s] === close && ch === close) {
+      e.preventDefault();
+      ta.selectionStart = ta.selectionEnd = s + 1;
+      return;
+    }
+    e.preventDefault();
+    window._editReplace(ta, ch + close, s, s);
+    ta.selectionStart = ta.selectionEnd = s + 1;
+  }
+
+  // ─── Drag-drop image upload ──────────────────────────────────────
+  // Drop one or more image files onto the textarea → upload each via
+  // /skill-cards/api/upload-image and splice ![](url) at the cursor.
+  function _imageDropHandler(ta, getCardId) {
+    return async (e) => {
+      const files = Array.from(e.dataTransfer?.files || []);
+      const imgs = files.filter(f => f.type.startsWith('image/'));
+      if (!imgs.length) return;
+      e.preventDefault();
+      ta.classList.remove('drop-target');
+      const cardId = getCardId();
+      if (!cardId) { setStatus('open a card first to drop images', 'warn'); return; }
+      for (const file of imgs) {
+        setStatus('uploading image…');
+        const fd = new FormData();
+        fd.append('image', file);
+        fd.append('card_id', cardId);
+        try {
+          const r = await fetch('/skill-cards/api/upload-image', {method: 'POST', body: fd});
+          const data = await r.json();
+          if (!r.ok || data.error) throw new Error(data.error || r.statusText);
+          const md = `![](${data.url})`;
+          const s = ta.selectionStart, end = ta.selectionEnd;
+          window._editReplace(ta, md, s, end);
+          setStatus('image saved', 'ok');
+        } catch (err) {
+          setStatus('image upload failed: ' + (err.message || err), 'err');
+        }
+      }
+    };
+  }
+  function _imageDragoverHandler(ta) {
+    return (e) => {
+      // Only react if files are being dragged (skip text/card-link drags)
+      const types = e.dataTransfer?.types || [];
+      if (!Array.from(types).includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      ta.classList.add('drop-target');
+    };
+  }
+
+  // ─── Slash command menu ──────────────────────────────────────────
+  // Typing `/` at a line's start (or after whitespace at line start) opens
+  // a filterable menu of insertable blocks. `$|$` in `insert` marks the
+  // post-insertion cursor position; if absent the cursor lands at the end.
+  const SLASH_ITEMS = [
+    {label: 'Heading 1',          desc: '# Large heading',      insert: '# $|$'},
+    {label: 'Heading 2',          desc: '## Medium heading',    insert: '## $|$'},
+    {label: 'Heading 3',          desc: '### Small heading',    insert: '### $|$'},
+    {label: 'Bulleted list',      desc: '- item',               insert: '- $|$'},
+    {label: 'Numbered list',      desc: '1. item',              insert: '1. $|$'},
+    {label: 'Checklist',          desc: '- [ ] task',           insert: '- [ ] $|$'},
+    {label: 'Blockquote',         desc: '> quoted text',        insert: '> $|$'},
+    {label: 'Code block',         desc: '```lang … ```',        insert: '```$|$\n\n```'},
+    {label: 'Collapsible code',   desc: '```lang+ Title',       insert: '```python+ $|$\n# code\n```'},
+    {label: 'Collapsible block',  desc: '??? "Title"',          insert: '??? "$|$"\n    body'},
+    {label: 'Content tabs',       desc: '=== "A" / === "B"',    insert: '=== "$|$"\n    tab A content\n=== "Tab 2"\n    tab B content'},
+    {label: 'Timeline',           desc: ':::timeline',          insert: ':::timeline\n    - $|$: event description\n    - 2026-01-01: another'},
+    {label: 'Table 3×3',          desc: '| col | col | col |',  insert: '| $|$    | Col 2 | Col 3 |\n|-------|-------|-------|\n|       |       |       |\n|       |       |       |'},
+    {label: 'Horizontal rule',    desc: '---',                  insert: '---'},
+    {label: 'Math block',         desc: '$$ E=mc^2 $$',         insert: '$$\n$|$\n$$'},
+    {label: 'Note callout',       desc: '> [!NOTE]',            insert: '> [!NOTE]\n> $|$'},
+    {label: 'Tip callout',        desc: '> [!TIP]',             insert: '> [!TIP]\n> $|$'},
+    {label: 'Important callout',  desc: '> [!IMPORTANT]',       insert: '> [!IMPORTANT]\n> $|$'},
+    {label: 'Warning callout',    desc: '> [!WARNING]',         insert: '> [!WARNING]\n> $|$'},
+    {label: 'Caution callout',    desc: '> [!CAUTION]',         insert: '> [!CAUTION]\n> $|$'},
+    {label: 'Wiki link',          desc: '[[Card Title]]',       insert: '[[$|$]]'},
+    {label: 'Footnote',           desc: 'text[^id]',            insert: '$|$[^1]\n\n[^1]: footnote text'},
+  ];
+
+  // Singleton menu DOM
+  let _menu = null, _menuList = null, _menuTa = null, _menuTrigStart = -1;
+  let _menuFilter = '', _menuActive = 0, _menuItems = [];
+  function _ensureMenu() {
+    if (_menu) return _menu;
+    _menu = document.createElement('div');
+    _menu.className = 'md-slash-menu';
+    _menu.setAttribute('role', 'listbox');
+    _menu.innerHTML = '<div class="md-slash-list" id="mdSlashList"></div>';
+    document.body.appendChild(_menu);
+    _menuList = _menu.querySelector('.md-slash-list');
+    // Mousedown to suppress textarea blur; click commits the selection.
+    _menu.addEventListener('mousedown', (e) => e.preventDefault());
+    _menu.addEventListener('click', (e) => {
+      const row = e.target.closest('.md-slash-item');
+      if (!row) return;
+      _menuActive = +row.dataset.i;
+      _commitMenuSelection();
+    });
+    return _menu;
+  }
+  function _caretCoords(ta) {
+    // Mirror-div trick to approximate caret pixel position.
+    const cs = getComputedStyle(ta);
+    const mirror = document.createElement('div');
+    const props = ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing',
+                   'paddingTop','paddingRight','paddingBottom','paddingLeft',
+                   'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth',
+                   'boxSizing','whiteSpace','wordWrap','tabSize','textIndent'];
+    props.forEach(p => mirror.style[p] = cs[p]);
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.style.overflowWrap = 'break-word';
+    mirror.style.width = ta.clientWidth + 'px';
+    mirror.style.top = '0'; mirror.style.left = '-9999px';
+    const before = document.createTextNode(ta.value.slice(0, ta.selectionEnd));
+    const marker = document.createElement('span');
+    marker.textContent = '​';
+    mirror.appendChild(before);
+    mirror.appendChild(marker);
+    document.body.appendChild(mirror);
+    const taR = ta.getBoundingClientRect();
+    const mR = marker.getBoundingClientRect();
+    const mirR = mirror.getBoundingClientRect();
+    const left = taR.left + (mR.left - mirR.left) - ta.scrollLeft;
+    const top  = taR.top  + (mR.top  - mirR.top)  - ta.scrollTop;
+    const lh = parseFloat(cs.lineHeight) || 18;
+    document.body.removeChild(mirror);
+    return {left, top, lh};
+  }
+  function _renderMenu() {
+    const q = _menuFilter.toLowerCase();
+    _menuItems = SLASH_ITEMS.filter(it =>
+      !q || it.label.toLowerCase().includes(q) || it.desc.toLowerCase().includes(q)
+    );
+    if (!_menuItems.length) { _hideMenu(); return; }
+    if (_menuActive >= _menuItems.length) _menuActive = 0;
+    _menuList.innerHTML = _menuItems.map((it, i) =>
+      `<div class="md-slash-item${i === _menuActive ? ' active' : ''}" data-i="${i}" role="option">` +
+        `<div class="md-slash-label">${escapeHtml(it.label)}</div>` +
+        `<div class="md-slash-desc">${escapeHtml(it.desc)}</div>` +
+      `</div>`
+    ).join('');
+    // Keep active row visible
+    const active = _menuList.querySelector('.md-slash-item.active');
+    if (active) active.scrollIntoView({block: 'nearest'});
+  }
+  function _positionMenu() {
+    const {left, top, lh} = _caretCoords(_menuTa);
+    _menu.style.left = Math.max(8, Math.min(window.innerWidth - 320, left)) + 'px';
+    _menu.style.top  = Math.min(window.innerHeight - 280, top + lh + 4) + 'px';
+  }
+  function _showMenu(ta, trigStart) {
+    _ensureMenu();
+    _menuTa = ta;
+    _menuTrigStart = trigStart;
+    _menuFilter = '';
+    _menuActive = 0;
+    _menu.classList.add('show');
+    _renderMenu();
+    _positionMenu();
+  }
+  function _hideMenu() {
+    if (!_menu) return;
+    _menu.classList.remove('show');
+    _menuTa = null;
+    _menuTrigStart = -1;
+  }
+  function _menuIsOpen() { return _menu && _menu.classList.contains('show') && _menuTa; }
+  function _commitMenuSelection() {
+    const item = _menuItems[_menuActive];
+    if (!item || !_menuTa) return;
+    const ta = _menuTa;
+    const tplt = item.insert;
+    const cursorMark = tplt.indexOf('$|$');
+    const insertText = cursorMark >= 0 ? tplt.replace('$|$', '') : tplt;
+    const cursorOffset = cursorMark >= 0 ? cursorMark : insertText.length;
+    const trig = _menuTrigStart;
+    const end = ta.selectionEnd;
+    window._editReplace(ta, insertText, trig, end);
+    const newPos = trig + cursorOffset;
+    ta.selectionStart = ta.selectionEnd = newPos;
+    _hideMenu();
+    ta.focus();
+  }
+  function _handleSlashKeydown(e) {
+    if (_menuIsOpen()) {
+      // Trap navigation/commit keys while menu is open
+      if (e.key === 'ArrowDown') { e.preventDefault(); _menuActive = (_menuActive + 1) % _menuItems.length; _renderMenu(); return; }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); _menuActive = (_menuActive - 1 + _menuItems.length) % _menuItems.length; _renderMenu(); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); _commitMenuSelection(); return; }
+      if (e.key === 'Escape')    { e.preventDefault(); _hideMenu(); return; }
+    }
+  }
+  function _handleSlashInput(e) {
+    const ta = e.currentTarget;
+    if (_menuIsOpen() && _menuTa === ta) {
+      // User is typing the filter after `/`
+      const caret = ta.selectionEnd;
+      if (caret < _menuTrigStart + 1) { _hideMenu(); return; }
+      _menuFilter = ta.value.slice(_menuTrigStart + 1, caret);
+      // If filter contains whitespace or newline, abort
+      if (/[\s\n]/.test(_menuFilter)) { _hideMenu(); return; }
+      _renderMenu();
+      _positionMenu();
+      return;
+    }
+    // Detect a freshly-typed `/` at line start (or after whitespace at line start).
+    const caret = ta.selectionEnd;
+    if (caret === 0) return;
+    if (ta.value[caret - 1] !== '/') return;
+    // Check that everything between line start and the `/` is whitespace.
+    const lineStart = ta.value.lastIndexOf('\n', caret - 2) + 1;
+    const before = ta.value.slice(lineStart, caret - 1);
+    if (before && !/^\s*$/.test(before)) return;
+    _showMenu(ta, caret - 1);
+  }
+  function _onDocClick(e) {
+    if (!_menuIsOpen()) return;
+    if (_menu.contains(e.target) || _menuTa === e.target) return;
+    _hideMenu();
+  }
+  document.addEventListener('click', _onDocClick, true);
+  window.addEventListener('resize', () => { if (_menuIsOpen()) _positionMenu(); });
+
+  // ─── Wire everything to a textarea ───────────────────────────────
+  function _wireMdTextarea(ta, getCardId) {
+    if (!ta || ta.dataset.mdEnh === '1') return;
+    ta.dataset.mdEnh = '1';
+    // Slash menu must intercept BEFORE Smart-Enter (Enter commits selection).
+    ta.addEventListener('keydown', _handleSlashKeydown);
+    ta.addEventListener('keydown', _handleSmartEnter);
+    ta.addEventListener('keydown', _handleAutoWrap);
+    ta.addEventListener('input', _handleSlashInput);
+    ta.addEventListener('blur', () => setTimeout(_hideMenu, 100));
+    // Image drag-drop. The dragover handler is additive — the existing
+    // card-link dragover stays in place and runs first.
+    ta.addEventListener('dragover', _imageDragoverHandler(ta));
+    ta.addEventListener('dragleave', () => ta.classList.remove('drop-target'));
+    ta.addEventListener('drop', _imageDropHandler(ta, getCardId));
+  }
+  // Apply to both editors. CURRENT.id for the modal; FOCUS_CARD_ID for focus.
+  _wireMdTextarea(document.getElementById('emContent'),    () => (typeof CURRENT       !== 'undefined' && CURRENT)       ? CURRENT.id       : null);
+  _wireMdTextarea(document.getElementById('focusEditTa'),  () => (typeof FOCUS_CARD_ID !== 'undefined' && FOCUS_CARD_ID) ? FOCUS_CARD_ID    : null);
 })();
 </script>
 </body>

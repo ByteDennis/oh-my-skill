@@ -604,6 +604,62 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 .pv-code-copy:hover .label { display: inline; }
 .pv-code-copy.done { color: #6f8159; background: rgba(143, 188, 143, 0.12); border-color: rgba(143, 188, 143, 0.45); }
 .pv-code-copy.done .label { display: inline; }
+
+/* ─── Collapsible code blocks (```lang+ / ```lang-) ────────────────
+   The fence's `+` or `-` suffix wraps the code card in a <details>.
+   Summary shows the title (or language name when no title given);
+   click toggles. */
+.pv details.pv-code-collapse {
+  margin: 12px 0;
+  border-radius: var(--omi-radius-sm);
+  border: 1px solid var(--omi-border);
+  background: rgba(255, 251, 244, 0.92);
+  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.08);
+  overflow: hidden;
+}
+.pv details.pv-code-collapse > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 7px 12px 7px 32px;
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, rgba(232, 224, 208, 0.55), rgba(232, 224, 208, 0.30));
+  border-bottom: 1px solid var(--omi-border);
+  font-size: 12.5px; color: var(--omi-fg);
+  user-select: none;
+  transition: background 0.12s ease;
+}
+.pv details.pv-code-collapse > summary::-webkit-details-marker { display: none; }
+.pv details.pv-code-collapse > summary:hover { background: rgba(232, 224, 208, 0.7); }
+.pv details.pv-code-collapse > summary::before {
+  content: '';
+  position: absolute; left: 10px; top: 50%;
+  width: 14px; height: 14px;
+  margin-top: -7px;
+  background-color: var(--omi-accent-deep);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pv details.pv-code-collapse[open] > summary::before { transform: rotate(90deg); }
+.pv details.pv-code-collapse:not([open]) > summary { border-bottom-color: transparent; }
+.pv-code-collapse-title {
+  flex: 1; min-width: 0; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pv-code-collapse-lang {
+  font-family: var(--omi-font-mono);
+  font-size: 10px; color: var(--omi-muted);
+  padding: 2px 7px; border-radius: 4px;
+  background: rgba(86, 72, 53, 0.08);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  flex-shrink: 0;
+}
+/* The inner .pv-code already has its own border/radius; flatten it so the
+   outer <details> shell owns the visual frame. */
+.pv details.pv-code-collapse > .pv-code {
+  margin: 0; border: none; border-radius: 0; box-shadow: none;
+}
 .pv-code-copy.fail { color: var(--omi-error-deep); background: rgba(177, 90, 88, 0.10); border-color: rgba(177, 90, 88, 0.45); }
 .pv-code-copy.fail .label { display: inline; }
 .pv-code pre {
@@ -616,6 +672,44 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   word-break: break-all;
 }
 .pv-code pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+
+/* ─── Slash command menu (typed `/` at line start in the editor) ──── */
+.md-slash-menu {
+  position: fixed;
+  display: none;
+  min-width: 260px; max-width: 320px;
+  max-height: 280px; overflow-y: auto;
+  background: var(--omi-bg, #fffbf3);
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius-md, 8px);
+  box-shadow: 0 12px 36px rgba(86, 72, 53, 0.18), 0 0 0 1px rgba(86, 72, 53, 0.05);
+  z-index: 9999;
+  font-size: 13px;
+  padding: 4px;
+}
+.md-slash-menu.show { display: block; }
+.md-slash-item {
+  display: flex; flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.08s ease;
+}
+.md-slash-item:hover { background: rgba(232, 224, 208, 0.45); }
+.md-slash-item.active {
+  background: color-mix(in srgb, var(--omi-accent-deep) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--omi-accent-deep) 28%, transparent);
+}
+.md-slash-label {
+  font-weight: 600; color: var(--omi-fg); font-size: 12.5px;
+}
+.md-slash-desc {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--omi-muted); font-size: 10.5px;
+  margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .editor-modal .pv blockquote {
   border-left: 3px solid var(--omi-accent);
   padding: 4px 12px; margin: 8px 0;
