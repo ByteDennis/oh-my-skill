@@ -348,6 +348,20 @@ def create_app() -> Flask:
             f.write(content)
         return jsonify({'ok': True})
 
+    @app.route('/oms.py')
+    @app.route('/oms')
+    def serve_oms_cli():
+        """Serve the standalone `oms` CLI (stdlib-only, zero deps). An agent on
+        any box can bootstrap it without installing the package:
+            curl -s http://HOST:5009/oms.py -o oms.py
+            OMI_API_BASE=http://HOST:5009 python3 oms.py add --title … --file …
+        """
+        p = os.path.join(os.path.dirname(__file__), 'oms.py')
+        if os.path.exists(p):
+            return send_file(p, mimetype='text/x-python',
+                             as_attachment=False, download_name='oms.py')
+        return '', 404
+
     @app.route('/favicon.ico')
     def favicon():
         p = os.path.join(os.path.dirname(__file__), 'templates', 'favicon.svg')

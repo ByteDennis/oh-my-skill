@@ -8,6 +8,12 @@ vendor:
     # Re-rewrite the absolute import after vendoring
     sed -i 's|^from shared\.config|from oh_my_skill.shared.config|' oh_my_skill/routes/skillcards.py
 
+# Pull @dennisl0731/oh-my-ui (omi.css/nav.js/icons.svg) into static/.
+# Build-time only — no npm at runtime; assets ship in the wheel for pipx.
+# Usage: `just vendor-ui` (latest) or `just vendor-ui 0.2.3`
+vendor-ui version="":
+    scripts/vendor-ui.sh {{version}}
+
 # Build the Docker image
 build:
     cd .. && docker compose build oh-my-skill

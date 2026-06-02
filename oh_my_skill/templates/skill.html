@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>oh-my-skill</title>
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260514h">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260602b">
+<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260602b">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -1328,7 +1329,30 @@
   </div>
 </dialog>
 
-<script src="/omi/ui/js/nav.js" data-service="skill"></script>
+<script>
+  // Shared top-nav config (matches oh-my-clipboard). nav.js@0.2.x renders
+  // links from window.__OMI_NAV__: {id, label (HTML), href}. Labels embed
+  // lucide sprite icons from /omi/ui/icons.svg. `data-service="skill"` on the
+  // nav.js tag marks the skill entry active.
+  const _ico = (name) => `<svg class="icon" aria-hidden="true"><use href="/omi/ui/icons.svg?v=20260602b#i-${name}"/></svg>`;
+  window.__OMI_NAV__ = [
+    { id: 'image',     label: `${_ico('image')} image`,         href: `${location.protocol}//${location.hostname}:5006/` },
+    { id: 'clipboard', label: `${_ico('clipboard')} clipboard`, href: `${location.protocol}//${location.hostname}:5007/` },
+    { id: 'slide',     label: `${_ico('presentation')} slide`,  href: `${location.protocol}//${location.hostname}:5008/` },
+    { id: 'skill',     label: `${_ico('brain')} skill`,         href: '/' },
+  ];
+  window.__OMI_THEME__ = { defaultTheme: 'paper' };
+  document.addEventListener('DOMContentLoaded', () => {
+    // nav.js@0.2.x doesn't auto-wire brand clicks; small enhancement.
+    const brand = document.querySelector('.omi-brand');
+    if (brand && !brand.closest('a')) {
+      brand.style.cursor = 'pointer';
+      brand.title = 'oh-my-skill home';
+      brand.addEventListener('click', () => { location.href = '/'; });
+    }
+  });
+</script>
+<script src="/omi/ui/js/nav.js?v=20260602b" data-service="skill"></script>
 <script>
 const $ = s => document.querySelector(s);
 const escapeHtml = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

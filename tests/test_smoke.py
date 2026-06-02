@@ -49,3 +49,16 @@ def test_omi_ui_static_served(client):
     r = client.get('/omi/ui/css/omi.css')
     assert r.status_code == 200
     assert b'@oh-my/ui' in r.data
+
+
+def test_oms_cli_served_standalone(client):
+    # The /oms.py route serves the zero-dependency CLI so an agent on any box
+    # can bootstrap it with curl. Both /oms and /oms.py must work.
+    for path in ('/oms.py', '/oms'):
+        r = client.get(path)
+        assert r.status_code == 200, path
+        body = r.data.decode()
+        assert 'oms — CLI for managing oh-my-skill cards' in body
+        # stdlib-only — must not import the package it ships with
+        assert 'import oh_my_skill' not in body
+        assert 'from oh_my_skill' not in body

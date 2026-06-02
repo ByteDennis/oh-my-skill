@@ -124,11 +124,19 @@ def _claude_md_workspace(project: str) -> str:
 
 _PREAMBLE_PATH = os.path.join(os.environ.get('OMI_DATA_DIR', '/data'), 'context.md')
 _PREAMBLE_DEFAULT = """\
-## CLI helpers
+## CLI helpers (scoped to THIS card via $OMI_CARD_ID)
 oms-save — save ./card.md back to DB
 oms-tag <tag> / oms-untag <tag> — manage tags
 oms-show — print current saved version
 oms-lesson "<text>" — append a lesson to the lessons card
+oms-guide — print the markdown style/feature reference (read before editing)
+oms-refine — emit a prompt to rewrite THIS card to the house style/syntax
+
+## CLI helpers (any card — also runnable as `oms <cmd>`)
+oms add  --title T [--tags a,b] [--file F | --content S | <stdin>] — create
+oms edit <id> [--title T] [--add-tag t] [--rm-tag t] [--file F | <stdin>] — update
+oms rm   <id> --yes — delete
+NEVER hand-escape JSON for content — pass --file or pipe via stdin.
 
 ## How to edit
 1. Read `./card.md` first.
@@ -139,8 +147,10 @@ oms-lesson "<text>" — append a lesson to the lessons card
 Concise, scannable, table-heavy, fenced code blocks for multi-line snippets.
 
 ## Markdown features
-For supported syntax (callouts, wiki-links, image sizing, math, frontmatter),
-read the cheatsheet card first: `oms-show 6a030f9960ffc | head -200`
+For supported syntax (collapsible H1/H2, callouts incl. code-in-callout,
+collapsible code ```lang+/-, tabs, timeline, wiki-links, image sizing, math,
+frontmatter), read the reference first: `oms-guide | head -250`.
+To reformat the current card to that reference, run `oms-refine` and apply it.
 """
 
 

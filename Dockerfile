@@ -20,11 +20,12 @@ COPY pyproject.toml README.md ./
 COPY oh_my_skill/ oh_my_skill/
 RUN pip install --no-cache-dir ".[prod]"
 
-# Symlink CLI helpers onto PATH so the chat workspace can call them.
-RUN for s in save show tag untag list lesson; do \
-        ln -sf /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-$s /usr/local/bin/oms-$s; \
-    done && \
-    chmod +x /usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers/oms-*
+# Symlink ALL CLI helpers onto PATH so the chat workspace can call them.
+# Globbing (not a hardcoded list) so new helpers (oms-add/edit/rm/guide/refine)
+# are picked up automatically.
+RUN HELPERS=/usr/local/lib/python3.11/site-packages/oh_my_skill/cli_helpers && \
+    chmod +x "$HELPERS"/oms-* && \
+    for f in "$HELPERS"/oms-*; do ln -sf "$f" /usr/local/bin/"$(basename "$f")"; done
 
 ENV OMI_DATA_DIR=/data \
     SETTINGS_DB=/data/oh-my-skill.db \

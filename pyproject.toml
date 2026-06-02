@@ -35,20 +35,20 @@ dev = ["pytest>=7", "pytest-asyncio"]
 
 [project.scripts]
 oh-my-skill = "oh_my_skill.cli:main"
+oms = "oh_my_skill.oms:main"
 
 [project.urls]
 Homepage = "https://github.com/ByteDennis/oh-my-skill"
 Repository = "https://github.com/ByteDennis/oh-my-skill"
 
-# ─── hatchling: bundle templates / static / themes_data / cli_helpers ───
+# ─── hatchling wheel ───
+# `packages = ["oh_my_skill"]` already bundles ALL files under the package —
+# templates/, static/ (incl. skill.css, icons.svg), themes_data/, cli_helpers/.
+# Do NOT add a force-include for those same dirs: it re-adds each file at the
+# identical archive path, which newer hatchling rejects with
+# "A second file is being added to the wheel archive at the same path".
 [tool.hatch.build.targets.wheel]
 packages = ["oh_my_skill"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"oh_my_skill/templates" = "oh_my_skill/templates"
-"oh_my_skill/static"    = "oh_my_skill/static"
-"oh_my_skill/themes_data" = "oh_my_skill/themes_data"
-"oh_my_skill/cli_helpers" = "oh_my_skill/cli_helpers"
 
 [tool.hatch.build.targets.sdist]
 include = [

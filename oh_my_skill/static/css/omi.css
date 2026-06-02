@@ -1,20 +1,23 @@
 /* @oh-my/ui — shared design language for oh-my-* services.
- * Inspired by oh-my-ppt: warm cream background, sage-green accents,
+ * Inspired by oh-my-ppt: warm cream background, earthy-brown accents,
  * soft layered cards, capped border radii, drop shadows on lift.
  *
+ * Default palette matches oh-my-skill (the earthy/tan colorway). Opt-in
+ * service colorways: body.service-image (terracotta), .service-slide
+ * (cool blue), .service-sage (the original sage green).
+ *
  * The 9 color themes from @oh-my/themes flow in via CSS custom properties
- * (--color-*) so per-service theme switching still works. Service colorway
- * tweaks (oh-my-image=warm, oh-my-slide=cool, oh-my-skill=earthy) are added
- * by setting body.service-{name} below.
+ * (--color-*) so per-service theme switching still works.
  */
 
-:root {
+:root,
+:root[data-omi-theme="paper"] {
   /* Warm-paper palette (defaults; --color-* may override) */
   --omi-bg-1: #f5f1e8;
   --omi-bg-2: #f1eadb;
   --omi-bg-3: #ece3cf;
-  --omi-tint-a: rgba(212, 228, 193, 0.55); /* sage green halo */
-  --omi-tint-b: rgba(200, 184, 158, 0.38); /* warm tan halo */
+  --omi-tint-a: rgba(206, 188, 158, 0.52); /* earthy tan halo */
+  --omi-tint-b: rgba(180, 158, 122, 0.34); /* warm tan halo */
 
   --omi-fg:        #3e4a32;
   --omi-fg-soft:   #5a6850;
@@ -24,14 +27,29 @@
   --omi-border:    rgba(166, 145, 110, 0.30);
   --omi-border-strong: rgba(146, 125, 92, 0.45);
 
-  --omi-accent:        #8fbc8f;        /* sage */
-  --omi-accent-deep:   #6f8159;
-  --omi-accent-deeper: #4f613f;
-  --omi-accent-ring:   rgba(143, 188, 143, 0.28);
+  --omi-accent:        #8a7042;        /* earthy brown */
+  --omi-accent-deep:   #6c5530;
+  --omi-accent-deeper: #4d3c1f;
+  --omi-accent-ring:   rgba(138, 112, 66, 0.24);
 
   --omi-warn:    #d4a04a;
   --omi-error:   #c97a64;
   --omi-error-deep: #b15a58;
+
+  /* Text colour that sits on a saturated accent/semantic fill (active nav,
+   * primary/danger buttons). White suits the dark-enough light-theme
+   * accents; pastel-accent themes (e.g. catppuccin) override it to a dark
+   * ink so buttons stay legible. */
+  --omi-on-accent: #ffffff;
+
+  /* Semantic hue channels (RGB) for status panels — alerts, toasts and
+   * message/tool blocks. Variants composite these at a low alpha so they
+   * tint the themed surface: pale on light backgrounds, deep on dark. The
+   * 7 warm-paper themes share these mids; dark themes brighten them. */
+  --omi-info-rgb: 90 141 168;
+  --omi-ok-rgb:   95 125 84;
+  --omi-warn-rgb: 212 160 74;
+  --omi-err-rgb:  201 122 100;
 
   --omi-radius-sm: 8px;
   --omi-radius:    10px;
@@ -42,12 +60,381 @@
   --omi-font-body:    'Inter', 'SF Pro Text', system-ui, sans-serif;
   --omi-font-mono:    'JetBrains Mono', 'Fira Code', Menlo, monospace;
 
-  --omi-shadow-sm: 0 4px 10px rgba(86, 72, 53, 0.08);
-  --omi-shadow:    0 14px 34px rgba(88, 75, 56, 0.12), 0 2px 8px rgba(79, 66, 49, 0.08);
-  --omi-shadow-lg: 0 20px 44px rgba(74, 59, 42, 0.18), 0 4px 12px rgba(83, 70, 52, 0.10);
+  /* Neutral surface channels (RGB triplets). Components composite these
+   * with an alpha — `rgb(var(--omi-surface) / 0.85)` — so one set of
+   * literals re-themes for light AND dark. The 7 original light themes
+   * inherit these paper values unchanged (their cards always rendered
+   * paper-white); only the dark/light/catppuccin/nord themes below
+   * override them. Shadows derive from --omi-shadow-rgb so dark themes
+   * cast near-black depth automatically. */
+  --omi-surface:    255 251 244;  /* elevated card / glass / panel */
+  --omi-surface-2:  244 238 225;  /* recessed surface / gradient end */
+  --omi-surface-3:  232 224 208;  /* hover / inset / muted fill */
+  --omi-shadow-rgb: 86 72 53;     /* warm drop-shadow ink */
+  --omi-scrim-rgb:  40 35 25;     /* modal / overlay backdrop */
+
+  --omi-shadow-sm: 0 4px 10px rgb(var(--omi-shadow-rgb) / 0.08);
+  --omi-shadow:    0 14px 34px rgb(var(--omi-shadow-rgb) / 0.12), 0 2px 8px rgb(var(--omi-shadow-rgb) / 0.08);
+  --omi-shadow-lg: 0 20px 44px rgb(var(--omi-shadow-rgb) / 0.18), 0 4px 12px rgb(var(--omi-shadow-rgb) / 0.10);
+
+  /* ─── Tailwind RGB channel variables ───────────────────────────────
+   * Tailwind 3 can only apply /opacity modifiers to colours expressed as
+   * space-separated RGB channels. These --tw-* variables mirror the
+   * --omi-* hex tokens so classes like `bg-fg/55` and `text-muted/60`
+   * produce rgba() output. Consumers using the @oh-my/ui tailwind preset
+   * get these for free. Per-service colorways below mirror the same. */
+  --tw-bg-1:        245 241 232;   /* #f5f1e8 */
+  --tw-bg-2:        241 234 219;   /* #f1eadb */
+  --tw-bg-3:        236 227 207;   /* #ece3cf */
+  --tw-fg:          62  74  50;    /* #3e4a32 */
+  --tw-fg-soft:     90 104  80;    /* #5a6850 */
+  --tw-muted:       124 132 116;   /* #7c8474 */
+  --tw-accent:      138 112  66;   /* #8a7042 */
+  --tw-accent-deep: 108  85  48;   /* #6c5530 */
+  --tw-accent-deeper: 77  60  31;  /* #4d3c1f */
 }
 
-/* Per-service colorway tints (subtle so themes still work) */
+:root[data-omi-theme="forest"] {
+  --omi-bg-1: #eef4eb;
+  --omi-bg-2: #e1eadc;
+  --omi-bg-3: #d5e0cf;
+  --omi-tint-a: rgba(154, 184, 150, 0.34);
+  --omi-tint-b: rgba(112, 145, 115, 0.22);
+  --omi-fg: #253328;
+  --omi-fg-soft: #39503b;
+  --omi-muted: #607262;
+  --omi-card-bg: rgba(251, 255, 248, 0.86);
+  --omi-card-bg-2: rgba(236, 243, 232, 0.88);
+  --omi-border: rgba(81, 111, 82, 0.24);
+  --omi-border-strong: rgba(58, 87, 61, 0.34);
+  --omi-accent: #5f7d54;
+  --omi-accent-deep: #45603f;
+  --omi-accent-deeper: #2b3f29;
+  --omi-accent-ring: rgba(95, 125, 84, 0.24);
+  --tw-bg-1: 238 244 235;
+  --tw-bg-2: 225 234 220;
+  --tw-bg-3: 213 224 207;
+  --tw-fg: 37 51 40;
+  --tw-fg-soft: 57 80 59;
+  --tw-muted: 96 114 98;
+  --tw-accent: 95 125 84;
+  --tw-accent-deep: 69 96 63;
+  --tw-accent-deeper: 43 63 41;
+}
+
+:root[data-omi-theme="ocean"] {
+  --omi-bg-1: #edf4f7;
+  --omi-bg-2: #deebf0;
+  --omi-bg-3: #cfdee5;
+  --omi-tint-a: rgba(120, 170, 194, 0.28);
+  --omi-tint-b: rgba(86, 131, 156, 0.18);
+  --omi-fg: #203647;
+  --omi-fg-soft: #335065;
+  --omi-muted: #5d7484;
+  --omi-card-bg: rgba(249, 253, 255, 0.86);
+  --omi-card-bg-2: rgba(235, 244, 248, 0.88);
+  --omi-border: rgba(72, 112, 132, 0.22);
+  --omi-border-strong: rgba(51, 86, 104, 0.34);
+  --omi-accent: #4f86a4;
+  --omi-accent-deep: #356885;
+  --omi-accent-deeper: #22475f;
+  --omi-accent-ring: rgba(79, 134, 164, 0.24);
+  --tw-bg-1: 237 244 247;
+  --tw-bg-2: 222 235 240;
+  --tw-bg-3: 207 222 229;
+  --tw-fg: 32 54 71;
+  --tw-fg-soft: 51 80 101;
+  --tw-muted: 93 116 132;
+  --tw-accent: 79 134 164;
+  --tw-accent-deep: 53 104 133;
+  --tw-accent-deeper: 34 71 95;
+}
+
+:root[data-omi-theme="sunset"] {
+  --omi-bg-1: #f8efe6;
+  --omi-bg-2: #f4e1d4;
+  --omi-bg-3: #eccfbc;
+  --omi-tint-a: rgba(224, 153, 116, 0.28);
+  --omi-tint-b: rgba(197, 104, 90, 0.18);
+  --omi-fg: #4d2f2d;
+  --omi-fg-soft: #6f4a43;
+  --omi-muted: #966e63;
+  --omi-card-bg: rgba(255, 250, 245, 0.88);
+  --omi-card-bg-2: rgba(249, 237, 228, 0.88);
+  --omi-border: rgba(144, 95, 78, 0.22);
+  --omi-border-strong: rgba(120, 71, 58, 0.34);
+  --omi-accent: #c56e52;
+  --omi-accent-deep: #a14f3f;
+  --omi-accent-deeper: #75342f;
+  --omi-accent-ring: rgba(197, 110, 82, 0.24);
+  --tw-bg-1: 248 239 230;
+  --tw-bg-2: 244 225 212;
+  --tw-bg-3: 236 207 188;
+  --tw-fg: 77 47 45;
+  --tw-fg-soft: 111 74 67;
+  --tw-muted: 150 110 99;
+  --tw-accent: 197 110 82;
+  --tw-accent-deep: 161 79 63;
+  --tw-accent-deeper: 117 52 47;
+}
+
+:root[data-omi-theme="grape"] {
+  --omi-bg-1: #f3eef8;
+  --omi-bg-2: #e8def2;
+  --omi-bg-3: #dccde9;
+  --omi-tint-a: rgba(146, 112, 176, 0.26);
+  --omi-tint-b: rgba(108, 76, 144, 0.18);
+  --omi-fg: #33283f;
+  --omi-fg-soft: #514063;
+  --omi-muted: #746487;
+  --omi-card-bg: rgba(252, 249, 255, 0.88);
+  --omi-card-bg-2: rgba(240, 234, 247, 0.88);
+  --omi-border: rgba(95, 75, 120, 0.22);
+  --omi-border-strong: rgba(72, 54, 99, 0.34);
+  --omi-accent: #8362a8;
+  --omi-accent-deep: #644884;
+  --omi-accent-deeper: #47315f;
+  --omi-accent-ring: rgba(131, 98, 168, 0.24);
+  --tw-bg-1: 243 238 248;
+  --tw-bg-2: 232 222 242;
+  --tw-bg-3: 220 205 233;
+  --tw-fg: 51 40 63;
+  --tw-fg-soft: 81 64 99;
+  --tw-muted: 116 100 135;
+  --tw-accent: 131 98 168;
+  --tw-accent-deep: 100 72 132;
+  --tw-accent-deeper: 71 49 95;
+}
+
+:root[data-omi-theme="graphite"] {
+  --omi-bg-1: #ece8e5;
+  --omi-bg-2: #dfd9d4;
+  --omi-bg-3: #d1c9c2;
+  --omi-tint-a: rgba(110, 105, 112, 0.20);
+  --omi-tint-b: rgba(64, 67, 80, 0.14);
+  --omi-fg: #2f3138;
+  --omi-fg-soft: #4b4e58;
+  --omi-muted: #70737d;
+  --omi-card-bg: rgba(252, 249, 247, 0.88);
+  --omi-card-bg-2: rgba(238, 233, 229, 0.88);
+  --omi-border: rgba(96, 93, 101, 0.20);
+  --omi-border-strong: rgba(71, 69, 77, 0.32);
+  --omi-accent: #60646f;
+  --omi-accent-deep: #474b56;
+  --omi-accent-deeper: #2f333d;
+  --omi-accent-ring: rgba(96, 100, 111, 0.22);
+  --tw-bg-1: 236 232 229;
+  --tw-bg-2: 223 217 212;
+  --tw-bg-3: 209 201 194;
+  --tw-fg: 47 49 56;
+  --tw-fg-soft: 75 78 88;
+  --tw-muted: 112 115 125;
+  --tw-accent: 96 100 111;
+  --tw-accent-deep: 71 75 86;
+  --tw-accent-deeper: 47 51 61;
+}
+
+:root[data-omi-theme="rose"] {
+  --omi-bg-1: #f8eff1;
+  --omi-bg-2: #f2dfe4;
+  --omi-bg-3: #e8cbd3;
+  --omi-tint-a: rgba(188, 120, 144, 0.24);
+  --omi-tint-b: rgba(145, 84, 110, 0.16);
+  --omi-fg: #482a34;
+  --omi-fg-soft: #6a4150;
+  --omi-muted: #8f6674;
+  --omi-card-bg: rgba(255, 249, 251, 0.88);
+  --omi-card-bg-2: rgba(247, 235, 239, 0.88);
+  --omi-border: rgba(132, 86, 102, 0.22);
+  --omi-border-strong: rgba(105, 64, 79, 0.34);
+  --omi-accent: #b86b80;
+  --omi-accent-deep: #8e4a60;
+  --omi-accent-deeper: #643041;
+  --omi-accent-ring: rgba(184, 107, 128, 0.24);
+  --tw-bg-1: 248 239 241;
+  --tw-bg-2: 242 223 228;
+  --tw-bg-3: 232 203 211;
+  --tw-fg: 72 42 52;
+  --tw-fg-soft: 106 65 80;
+  --tw-muted: 143 102 116;
+  --tw-accent: 184 107 128;
+  --tw-accent-deep: 142 74 96;
+  --tw-accent-deeper: 100 48 65;
+}
+
+/* ─── Dark + ported themes (from devhub) ────────────────────────────
+ * Unlike the warm-paper themes above, these override the neutral surface
+ * channels (--omi-surface*, --omi-shadow-rgb, --omi-scrim-rgb) so the
+ * bundled components re-skin for dark backgrounds. */
+
+/* GitHub-style dark. */
+:root[data-omi-theme="dark"] {
+  --omi-bg-1: #0d1117;
+  --omi-bg-2: #11161d;
+  --omi-bg-3: #161b22;
+  --omi-tint-a: rgba(56, 139, 253, 0.10);
+  --omi-tint-b: rgba(63, 185, 80, 0.06);
+  --omi-fg: #c9d1d9;
+  --omi-fg-soft: #adbac7;
+  --omi-muted: #8b949e;
+  --omi-card-bg: rgba(33, 38, 45, 0.90);
+  --omi-card-bg-2: rgba(22, 27, 34, 0.90);
+  --omi-border: rgba(110, 118, 129, 0.40);
+  --omi-border-strong: rgba(110, 118, 129, 0.60);
+  --omi-accent: #58a6ff;
+  --omi-accent-deep: #388bfd;
+  --omi-accent-deeper: #1f6feb;
+  --omi-accent-ring: rgba(56, 139, 253, 0.40);
+  --omi-warn: #d29922;
+  --omi-error: #f85149;
+  --omi-error-deep: #da3633;
+  --omi-surface: 33 38 45;
+  --omi-surface-2: 22 27 34;
+  --omi-surface-3: 48 54 61;
+  --omi-shadow-rgb: 1 4 9;
+  --omi-scrim-rgb: 1 4 9;
+  --omi-info-rgb: 88 166 255;
+  --omi-ok-rgb: 63 185 80;
+  --omi-warn-rgb: 210 153 34;
+  --omi-err-rgb: 248 81 73;
+  --tw-bg-1: 13 17 23;
+  --tw-bg-2: 17 22 29;
+  --tw-bg-3: 22 27 34;
+  --tw-fg: 201 209 217;
+  --tw-fg-soft: 173 186 199;
+  --tw-muted: 139 148 158;
+  --tw-accent: 88 166 255;
+  --tw-accent-deep: 56 139 253;
+  --tw-accent-deeper: 31 111 235;
+}
+
+/* GitHub-style light. */
+:root[data-omi-theme="light"] {
+  --omi-bg-1: #ffffff;
+  --omi-bg-2: #f6f8fa;
+  --omi-bg-3: #eaeef2;
+  --omi-tint-a: rgba(9, 105, 218, 0.05);
+  --omi-tint-b: rgba(9, 105, 218, 0.03);
+  --omi-fg: #1f2328;
+  --omi-fg-soft: #424a53;
+  --omi-muted: #656d76;
+  --omi-card-bg: rgba(255, 255, 255, 0.92);
+  --omi-card-bg-2: rgba(246, 248, 250, 0.92);
+  --omi-border: rgba(31, 35, 40, 0.12);
+  --omi-border-strong: rgba(31, 35, 40, 0.22);
+  --omi-accent: #0969da;
+  --omi-accent-deep: #0860ca;
+  --omi-accent-deeper: #0550ae;
+  --omi-accent-ring: rgba(9, 105, 218, 0.30);
+  --omi-warn: #9a6700;
+  --omi-error: #cf222e;
+  --omi-error-deep: #a40e26;
+  --omi-surface: 255 255 255;
+  --omi-surface-2: 246 248 250;
+  --omi-surface-3: 234 238 242;
+  --omi-shadow-rgb: 31 35 40;
+  --omi-scrim-rgb: 31 35 40;
+  --omi-info-rgb: 9 105 218;
+  --omi-ok-rgb: 26 127 55;
+  --omi-warn-rgb: 154 103 0;
+  --omi-err-rgb: 207 34 46;
+  --tw-bg-1: 255 255 255;
+  --tw-bg-2: 246 248 250;
+  --tw-bg-3: 234 238 242;
+  --tw-fg: 31 35 40;
+  --tw-fg-soft: 66 74 83;
+  --tw-muted: 101 109 118;
+  --tw-accent: 9 105 218;
+  --tw-accent-deep: 8 96 202;
+  --tw-accent-deeper: 5 80 174;
+}
+
+/* Catppuccin Mocha. Pastel accent → dark on-accent ink for legible fills. */
+:root[data-omi-theme="catppuccin"] {
+  --omi-bg-1: #1e1e2e;
+  --omi-bg-2: #181825;
+  --omi-bg-3: #11111b;
+  --omi-tint-a: rgba(203, 166, 247, 0.10);
+  --omi-tint-b: rgba(137, 180, 250, 0.06);
+  --omi-fg: #cdd6f4;
+  --omi-fg-soft: #bac2de;
+  --omi-muted: #a6adc8;
+  --omi-card-bg: rgba(49, 50, 68, 0.90);
+  --omi-card-bg-2: rgba(24, 24, 37, 0.90);
+  --omi-border: rgba(69, 71, 90, 0.70);
+  --omi-border-strong: rgba(88, 91, 112, 0.80);
+  --omi-accent: #cba6f7;
+  --omi-accent-deep: #b186f0;
+  --omi-accent-deeper: #9d74e8;
+  --omi-accent-ring: rgba(203, 166, 247, 0.35);
+  --omi-on-accent: #11111b;
+  --omi-warn: #f9e2af;
+  --omi-error: #f38ba8;
+  --omi-error-deep: #e35f7a;
+  --omi-surface: 49 50 68;
+  --omi-surface-2: 24 24 37;
+  --omi-surface-3: 69 71 90;
+  --omi-shadow-rgb: 17 17 27;
+  --omi-scrim-rgb: 17 17 27;
+  --omi-info-rgb: 137 180 250;
+  --omi-ok-rgb: 166 227 161;
+  --omi-warn-rgb: 249 226 175;
+  --omi-err-rgb: 243 139 168;
+  --tw-bg-1: 30 30 46;
+  --tw-bg-2: 24 24 37;
+  --tw-bg-3: 17 17 27;
+  --tw-fg: 205 214 244;
+  --tw-fg-soft: 186 194 222;
+  --tw-muted: 166 173 200;
+  --tw-accent: 203 166 247;
+  --tw-accent-deep: 177 134 240;
+  --tw-accent-deeper: 157 116 232;
+}
+
+/* Nord. */
+:root[data-omi-theme="nord"] {
+  --omi-bg-1: #2e3440;
+  --omi-bg-2: #343a47;
+  --omi-bg-3: #2b303b;
+  --omi-tint-a: rgba(136, 192, 208, 0.08);
+  --omi-tint-b: rgba(94, 129, 172, 0.06);
+  --omi-fg: #eceff4;
+  --omi-fg-soft: #d8dee9;
+  --omi-muted: #a8b1c2;
+  --omi-card-bg: rgba(59, 66, 82, 0.90);
+  --omi-card-bg-2: rgba(46, 52, 64, 0.90);
+  --omi-border: rgba(76, 86, 106, 0.70);
+  --omi-border-strong: rgba(94, 107, 128, 0.80);
+  --omi-accent: #81a1c1;
+  --omi-accent-deep: #5e81ac;
+  --omi-accent-deeper: #4c6f93;
+  --omi-accent-ring: rgba(129, 161, 193, 0.35);
+  --omi-warn: #ebcb8b;
+  --omi-error: #bf616a;
+  --omi-error-deep: #a54e57;
+  --omi-surface: 59 66 82;
+  --omi-surface-2: 46 52 64;
+  --omi-surface-3: 67 76 94;
+  --omi-shadow-rgb: 31 36 46;
+  --omi-scrim-rgb: 31 36 46;
+  --omi-info-rgb: 136 192 208;
+  --omi-ok-rgb: 163 190 140;
+  --omi-warn-rgb: 235 203 139;
+  --omi-err-rgb: 191 97 106;
+  --tw-bg-1: 46 52 64;
+  --tw-bg-2: 52 58 71;
+  --tw-bg-3: 43 48 59;
+  --tw-fg: 236 239 244;
+  --tw-fg-soft: 216 222 233;
+  --tw-muted: 168 177 194;
+  --tw-accent: 129 161 193;
+  --tw-accent-deep: 94 129 172;
+  --tw-accent-deeper: 76 111 147;
+}
+
+/* Per-service colorway tints (subtle so themes still work).
+ * Each block also overrides --tw-accent* so tailwind utilities like
+ * `bg-accent/40` produce the correct rgba() for the active service. */
 body.service-image {
   --omi-tint-a: rgba(214, 199, 168, 0.50); /* warm */
   --omi-tint-b: rgba(232, 195, 145, 0.32);
@@ -55,6 +442,9 @@ body.service-image {
   --omi-accent-deep: #9a6a36;
   --omi-accent-deeper: #6f4d28;
   --omi-accent-ring: rgba(192, 138, 74, 0.25);
+  --tw-accent:        192 138  74;
+  --tw-accent-deep:   154 106  54;
+  --tw-accent-deeper: 111  77  40;
 }
 body.service-slide {
   --omi-tint-a: rgba(178, 207, 219, 0.55); /* cool blue */
@@ -63,14 +453,21 @@ body.service-slide {
   --omi-accent-deep: #3d6f8a;
   --omi-accent-deeper: #2c526b;
   --omi-accent-ring: rgba(90, 141, 168, 0.24);
+  --tw-accent:         90 141 168;
+  --tw-accent-deep:    61 111 138;
+  --tw-accent-deeper:  44  82 107;
 }
-body.service-skill {
-  --omi-tint-a: rgba(206, 188, 158, 0.52); /* earthy */
-  --omi-tint-b: rgba(180, 158, 122, 0.34);
-  --omi-accent:      #8a7042;
-  --omi-accent-deep: #6c5530;
-  --omi-accent-deeper: #4d3c1f;
-  --omi-accent-ring: rgba(138, 112, 66, 0.24);
+/* Opt-in: the original sage-green colorway (pre-0.2 default). */
+body.service-sage {
+  --omi-tint-a: rgba(212, 228, 193, 0.55); /* sage green halo */
+  --omi-tint-b: rgba(200, 184, 158, 0.38); /* warm tan halo */
+  --omi-accent:      #8fbc8f;              /* sage */
+  --omi-accent-deep: #6f8159;
+  --omi-accent-deeper: #4f613f;
+  --omi-accent-ring: rgba(143, 188, 143, 0.28);
+  --tw-accent:        143 188 143;
+  --tw-accent-deep:   111 129  89;
+  --tw-accent-deeper:  79  97  63;
 }
 
 /* ─── Base ───────────────────────────────────────────────────────── */
@@ -100,7 +497,7 @@ a:hover { color: var(--omi-accent-deeper); }
 .omi-topnav {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 20px;
-  background: rgba(255, 251, 244, 0.78);
+  background: rgb(var(--omi-surface) / 0.78);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--omi-border);
   box-shadow: var(--omi-shadow-sm);
@@ -123,11 +520,48 @@ a:hover { color: var(--omi-accent-deeper); }
   color: var(--omi-muted);
   transition: all 0.15s ease;
 }
-.omi-nav a:hover { background: rgba(232, 224, 208, 0.6); color: var(--omi-fg); }
+.omi-nav a:hover { background: rgb(var(--omi-surface-3) / 0.6); color: var(--omi-fg); }
 .omi-nav a.active {
   background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
-  color: white;
+  color: var(--omi-on-accent);
   box-shadow: var(--omi-shadow-sm);
+}
+.omi-theme-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--omi-muted);
+  font-size: 12px;
+}
+.omi-theme-picker label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.omi-theme-picker select {
+  appearance: none;
+  min-width: 128px;
+  background: linear-gradient(165deg, rgb(var(--omi-surface) / 0.93), rgb(var(--omi-surface-2) / 0.88));
+  border: 1px solid var(--omi-border-strong);
+  border-radius: var(--omi-radius-sm);
+  color: var(--omi-fg);
+  padding: 6px 30px 6px 10px;
+  font: inherit;
+  box-shadow: var(--omi-shadow-sm);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--omi-muted) 50%),
+    linear-gradient(135deg, var(--omi-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 13px,
+    calc(100% - 11px) 13px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.omi-theme-picker select:focus {
+  outline: none;
+  border-color: var(--omi-accent);
+  box-shadow: var(--omi-shadow-sm), 0 0 0 3px var(--omi-accent-ring);
 }
 .omi-grow { flex: 1; }
 .omi-status {
@@ -154,35 +588,35 @@ a:hover { color: var(--omi-accent-deeper); }
 .omi-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .omi-btn.primary {
   background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
-  color: white;
-  box-shadow: 0 4px 10px rgba(79, 97, 63, 0.3);
+  color: var(--omi-on-accent);
+  box-shadow: 0 4px 10px rgb(var(--omi-shadow-rgb) / 0.3);
 }
 .omi-btn.primary:hover:not(:disabled) {
-  box-shadow: 0 8px 18px rgba(79, 97, 63, 0.4);
+  box-shadow: 0 8px 18px rgb(var(--omi-shadow-rgb) / 0.4);
   transform: translateY(-1px);
 }
 .omi-btn.secondary {
-  background: linear-gradient(165deg, rgba(255,252,247,0.93), rgba(244,238,225,0.88));
+  background: linear-gradient(165deg, rgb(var(--omi-surface) / 0.93), rgb(var(--omi-surface-2) / 0.88));
   border-color: var(--omi-border-strong);
   box-shadow: var(--omi-shadow-sm);
 }
 .omi-btn.secondary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(83, 70, 52, 0.12);
+  box-shadow: 0 8px 16px rgb(var(--omi-shadow-rgb) / 0.12);
 }
 .omi-btn.ghost {
   color: var(--omi-fg-soft);
 }
 .omi-btn.ghost:hover:not(:disabled) {
-  background: rgba(232, 224, 208, 0.6);
+  background: rgb(var(--omi-surface-3) / 0.6);
 }
 .omi-btn.danger {
   background: linear-gradient(180deg, var(--omi-error), var(--omi-error-deep));
-  color: white;
+  color: var(--omi-on-accent);
 }
 .omi-btn.toggle.on {
   background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
-  color: white;
+  color: var(--omi-on-accent);
   box-shadow: var(--omi-shadow-sm);
 }
 .omi-btn.sm { height: 26px; padding: 4px 10px; font-size: 12px; }
@@ -194,12 +628,12 @@ a:hover { color: var(--omi-accent-deeper); }
 .omi-textarea {
   display: block;
   width: 100%;
-  background: rgba(255, 251, 245, 0.85);
-  border: 1px solid rgba(148, 128, 94, 0.30);
+  background: rgb(var(--omi-surface) / 0.85);
+  border: 1px solid var(--omi-border-strong);
   border-radius: var(--omi-radius-sm);
   padding: 8px 12px;
   font: inherit; color: var(--omi-fg);
-  box-shadow: inset 0 2px 6px rgba(73, 61, 44, 0.06);
+  box-shadow: inset 0 2px 6px rgb(var(--omi-shadow-rgb) / 0.06);
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .omi-input:focus,
@@ -207,7 +641,7 @@ a:hover { color: var(--omi-accent-deeper); }
 .omi-textarea:focus {
   outline: none;
   border-color: var(--omi-accent);
-  box-shadow: inset 0 2px 6px rgba(73, 61, 44, 0.04),
+  box-shadow: inset 0 2px 6px rgb(var(--omi-shadow-rgb) / 0.04),
               0 0 0 3px var(--omi-accent-ring);
 }
 .omi-textarea { min-height: 92px; resize: vertical; font-family: var(--omi-font-mono); font-size: 13px; line-height: 1.5; }
@@ -218,7 +652,7 @@ a:hover { color: var(--omi-accent-deeper); }
 
 /* ─── Cards ──────────────────────────────────────────────────────── */
 .omi-card {
-  background: linear-gradient(165deg, rgba(255,252,247,0.93), rgba(244,238,225,0.88));
+  background: linear-gradient(165deg, rgb(var(--omi-surface) / 0.93), rgb(var(--omi-surface-2) / 0.88));
   border: 1px solid var(--omi-border-strong);
   border-radius: var(--omi-radius-lg);
   box-shadow: var(--omi-shadow);
@@ -227,6 +661,439 @@ a:hover { color: var(--omi-accent-deeper); }
 }
 .omi-card:hover { transform: translateY(-2px); box-shadow: var(--omi-shadow-lg); }
 .omi-card-body { padding: 12px; }
+
+.omi-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.omi-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: linear-gradient(165deg, rgb(var(--omi-surface) / 0.96), rgb(var(--omi-surface-2) / 0.90));
+  border: 1px solid var(--omi-border-strong);
+  border-radius: var(--omi-radius-lg);
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--omi-muted);
+}
+.omi-stat-value {
+  font-family: var(--omi-font-heading);
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--omi-fg);
+}
+.omi-stat-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--omi-fg-soft);
+  font-size: 12px;
+}
+.omi-stat-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--omi-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+}
+.omi-stat-delta.up {
+  background: rgba(143, 188, 143, 0.18);
+  color: #345834;
+}
+.omi-stat-delta.down {
+  background: rgba(201, 122, 100, 0.16);
+  color: #7f4335;
+}
+
+/* ─── Alerts / callouts ──────────────────────────────────────────── */
+.omi-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--omi-border-strong);
+  border-radius: var(--omi-radius);
+  background: rgb(var(--omi-surface) / 0.82);
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-alert strong {
+  display: block;
+  margin-bottom: 2px;
+}
+.omi-alert-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--omi-accent-deep);
+}
+.omi-alert-body {
+  color: var(--omi-fg-soft);
+  line-height: 1.5;
+}
+.omi-alert.info {
+  background: rgb(var(--omi-info-rgb) / 0.16);
+  border-color: rgb(var(--omi-info-rgb) / 0.50);
+}
+.omi-alert.success {
+  background: rgb(var(--omi-ok-rgb) / 0.16);
+  border-color: rgb(var(--omi-ok-rgb) / 0.50);
+}
+.omi-alert.warn {
+  background: rgb(var(--omi-warn-rgb) / 0.18);
+  border-color: rgb(var(--omi-warn-rgb) / 0.50);
+}
+.omi-alert.error {
+  background: rgb(var(--omi-err-rgb) / 0.16);
+  border-color: rgb(var(--omi-err-rgb) / 0.50);
+}
+
+/* ─── Toolbars / filter rows ─────────────────────────────────────── */
+.omi-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgb(var(--omi-surface) / 0.70);
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius-lg);
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.omi-toolbar-spacer {
+  flex: 1 1 auto;
+}
+.omi-segmented {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: rgb(var(--omi-surface-3) / 0.68);
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius-pill);
+}
+.omi-segmented button,
+.omi-segmented .item {
+  border: 0;
+  background: transparent;
+  color: var(--omi-muted);
+  padding: 6px 12px;
+  border-radius: var(--omi-radius-pill);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.omi-segmented button.active,
+.omi-segmented .item.active {
+  background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
+  color: var(--omi-on-accent);
+  box-shadow: var(--omi-shadow-sm);
+}
+
+/* ─── Tables ─────────────────────────────────────────────────────── */
+.omi-table-wrap {
+  overflow: auto;
+  background: rgb(var(--omi-surface) / 0.72);
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius-lg);
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+.omi-table th,
+.omi-table td {
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--omi-border);
+}
+.omi-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgb(var(--omi-surface) / 0.94);
+  color: var(--omi-fg-soft);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.omi-table tbody tr {
+  transition: background 0.12s ease;
+}
+.omi-table tbody tr:hover {
+  background: rgb(var(--omi-surface) / 0.36);
+}
+.omi-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.omi-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.omi-table-empty {
+  padding: 42px 20px;
+  text-align: center;
+  color: var(--omi-muted);
+}
+
+/* ─── List rows ─────────────────────────────────────────────────── */
+.omi-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.omi-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgb(var(--omi-surface) / 0.74);
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius-lg);
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-list-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.omi-list-row-title {
+  font-weight: 700;
+  color: var(--omi-fg);
+}
+.omi-list-row-meta {
+  margin-top: 3px;
+  color: var(--omi-fg-soft);
+  font-size: 12px;
+}
+.omi-list-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ─── Menus / popovers / drawers / toasts ───────────────────────── */
+.omi-menu,
+.omi-popover,
+.omi-toast,
+.omi-drawer {
+  background: linear-gradient(165deg, rgb(var(--omi-surface) / 0.97), rgb(var(--omi-surface-2) / 0.94));
+  border: 1px solid var(--omi-border-strong);
+  box-shadow: var(--omi-shadow);
+}
+.omi-menu,
+.omi-popover {
+  border-radius: var(--omi-radius-lg);
+}
+.omi-menu {
+  min-width: 180px;
+  padding: 6px;
+}
+.omi-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--omi-radius-sm);
+  background: transparent;
+  color: var(--omi-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.omi-menu-item:hover {
+  background: rgb(var(--omi-surface-3) / 0.58);
+}
+.omi-menu-item.danger {
+  color: var(--omi-error-deep);
+}
+.omi-popover {
+  min-width: 240px;
+  padding: 12px;
+}
+.omi-popover-title {
+  font-weight: 700;
+  color: var(--omi-fg);
+  margin-bottom: 4px;
+}
+.omi-popover-text {
+  color: var(--omi-fg-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.omi-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(var(--omi-scrim-rgb) / 0.36);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.omi-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(460px, 92vw);
+  padding: 18px;
+  border-radius: 0;
+  border-left: 1px solid var(--omi-border-strong);
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+  z-index: 1001;
+}
+.omi-drawer.open,
+.omi-drawer[data-open="true"] {
+  transform: translateX(0);
+}
+.omi-drawer.open + .omi-drawer-backdrop,
+.omi-drawer[data-open="true"] + .omi-drawer-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+.omi-drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.omi-drawer-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+.omi-drawer-body {
+  overflow: auto;
+  height: calc(100vh - 88px);
+}
+.omi-toast-stack {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1100;
+}
+.omi-toast {
+  width: min(360px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border-radius: var(--omi-radius-lg);
+}
+.omi-toast-title {
+  font-weight: 700;
+  color: var(--omi-fg);
+  margin-bottom: 2px;
+}
+.omi-toast-body {
+  color: var(--omi-fg-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.omi-toast.success {
+  border-color: rgb(var(--omi-ok-rgb) / 0.50);
+}
+.omi-toast.error {
+  border-color: rgb(var(--omi-err-rgb) / 0.50);
+}
+
+/* ─── Skeletons ─────────────────────────────────────────────────── */
+@keyframes omi-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.omi-skeleton {
+  border-radius: var(--omi-radius-sm);
+  background: linear-gradient(
+    90deg,
+    rgb(var(--omi-surface-3) / 0.62) 0%,
+    rgb(var(--omi-surface) / 0.95) 50%,
+    rgb(var(--omi-surface-3) / 0.62) 100%
+  );
+  background-size: 200% 100%;
+  animation: omi-shimmer 1.35s linear infinite;
+}
+.omi-skeleton.line {
+  height: 12px;
+}
+.omi-skeleton.title {
+  height: 20px;
+  width: 42%;
+}
+.omi-skeleton.block {
+  height: 120px;
+}
+
+/* ─── Code / docs blocks ────────────────────────────────────────── */
+.omi-codeblock {
+  overflow: hidden;
+  border: 1px solid rgba(59, 52, 44, 0.72);
+  border-radius: var(--omi-radius-lg);
+  box-shadow: var(--omi-shadow);
+}
+.omi-codeblock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #231f1b;
+  color: #efe2c9;
+  font-size: 12px;
+}
+.omi-codeblock-title {
+  font-family: var(--omi-font-mono);
+}
+.omi-codeblock-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.omi-codeblock pre {
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  background: #2c2722;
+  color: #f7f2e7;
+  font-family: var(--omi-font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.omi-doc-block {
+  padding: 16px 18px;
+  background: rgb(var(--omi-surface) / 0.76);
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius-lg);
+  box-shadow: var(--omi-shadow-sm);
+}
+.omi-doc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
 
 /* ─── Pills / badges ─────────────────────────────────────────────── */
 .omi-pill {
@@ -243,7 +1110,7 @@ a:hover { color: var(--omi-accent-deeper); }
 .omi-pill.warn { background: rgba(244, 219, 159, 0.7); border-color: rgba(212, 160, 74, 0.5); color: #6e4a16; }
 .omi-pill.err  { background: rgba(238, 196, 188, 0.7); border-color: rgba(201, 122, 100, 0.5); color: var(--omi-error-deep); }
 .omi-pill.ok   { background: rgba(212, 228, 193, 0.8); border-color: rgba(143, 188, 143, 0.6); color: var(--omi-accent-deeper); }
-.omi-pill.muted{ background: rgba(228, 220, 202, 0.6); border-color: var(--omi-border); color: var(--omi-muted); }
+.omi-pill.muted{ background: rgb(var(--omi-surface-3) / 0.6); border-color: var(--omi-border); color: var(--omi-muted); }
 
 /* ─── Panels (left form / center / right toggle) ─────────────────── */
 .omi-main {
@@ -258,7 +1125,7 @@ a:hover { color: var(--omi-accent-deeper); }
 .omi-main.with-right { grid-template-columns: 360px 1fr 580px; }
 
 .omi-panel {
-  background: rgba(255, 251, 244, 0.78);
+  background: rgb(var(--omi-surface) / 0.78);
   backdrop-filter: blur(12px);
   border: 1px solid var(--omi-border);
   border-radius: var(--omi-radius-lg);
@@ -269,15 +1136,21 @@ a:hover { color: var(--omi-accent-deeper); }
 .omi-panel-header {
   padding: 10px 14px;
   border-bottom: 1px solid var(--omi-border);
-  background: rgba(255, 250, 241, 0.78);
+  background: rgb(var(--omi-surface) / 0.78);
   display: flex; align-items: center; gap: 8px; flex-shrink: 0;
 }
 .omi-panel-title { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--omi-fg-soft); }
-.omi-panel-body { flex: 1; padding: 14px; overflow-y: auto; min-height: 0; }
+/* Panel body defaults to NO auto-scroll — short static panels were getting
+ * surprise scrollbars when placed in flex column containers. Add `.scroll`
+ * to opt in for dashboard panels that genuinely need overflow control.
+ * Behavior change from 0.2.x — consumers that relied on auto-scroll should
+ * add the .scroll modifier on the panel-body. */
+.omi-panel-body { flex: 1; padding: 14px; min-height: 0; }
+.omi-panel-body.scroll { overflow-y: auto; }
 .omi-panel-body.flush { padding: 0; }
 
 /* Tabs in right panel */
-.omi-tabs { display: flex; border-bottom: 1px solid var(--omi-border); background: rgba(255, 250, 241, 0.6); flex-shrink: 0; }
+.omi-tabs { display: flex; border-bottom: 1px solid var(--omi-border); background: rgb(var(--omi-surface) / 0.6); flex-shrink: 0; }
 .omi-tabs button {
   background: none; border: none; cursor: pointer;
   padding: 10px 16px; font: inherit; font-size: 13px;
@@ -299,34 +1172,16 @@ a:hover { color: var(--omi-accent-deeper); }
 /* Logs panel */
 .omi-logs { flex: 1; overflow-y: auto; padding: 4px; font-family: var(--omi-font-mono); font-size: 11px; }
 .omi-log-row { padding: 8px 10px; border-bottom: 1px solid var(--omi-border); cursor: pointer; transition: background 0.1s; }
-.omi-log-row:hover { background: rgba(255, 255, 255, 0.4); }
+.omi-log-row:hover { background: rgb(var(--omi-surface) / 0.4); }
 .omi-log-row .top { display: flex; gap: 8px; align-items: center; }
 .omi-log-row .ts { color: var(--omi-muted); font-size: 10px; }
 .omi-log-row .action { font-weight: 600; color: var(--omi-fg); }
-.log-provider {
-  font-size: 10px; color: var(--omi-muted); font-weight: 600;
-  background: rgba(148,128,94,0.10); padding: 1px 6px;
-  border-radius: 10px; white-space: nowrap;
-}
-.log-tokens {
-  font-size: 10px; color: var(--omi-accent-deep); white-space: nowrap;
-}
-.log-inspect-btn {
-  background: none; border: 1px solid var(--omi-border); border-radius: 4px;
-  color: var(--omi-muted); font-size: 11px; cursor: pointer;
-  padding: 1px 5px; line-height: 1.2;
-}
-.log-inspect-btn:hover { color: var(--omi-fg); background: rgba(148,128,94,0.10); }
-.omi-log-row .detail {
-  color: var(--omi-fg-soft); margin-top: 4px; line-height: 1.4;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.omi-log-row.show-tb .detail { white-space: normal; word-break: break-word; }
+.omi-log-row .detail { color: var(--omi-fg-soft); margin-top: 4px; word-break: break-word; line-height: 1.4; }
 .omi-log-row .err { color: var(--omi-error-deep); margin-top: 4px; white-space: pre-wrap; line-height: 1.4; }
 .omi-log-row .tb {
   color: var(--omi-muted); font-size: 10px; margin-top: 6px;
   white-space: pre-wrap; max-height: 240px; overflow-y: auto;
-  background: rgba(255, 255, 255, 0.5); padding: 8px; border-radius: var(--omi-radius-sm);
+  background: rgb(var(--omi-surface) / 0.5); padding: 8px; border-radius: var(--omi-radius-sm);
   display: none;
 }
 .omi-log-row.show-tb .tb { display: block; }
@@ -335,7 +1190,7 @@ a:hover { color: var(--omi-accent-deeper); }
 .omi-log-row .links { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
 .omi-log-row .kvs {
   display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px;
-  background: rgba(255, 255, 255, 0.4); padding: 6px 8px; border-radius: 6px;
+  background: rgb(var(--omi-surface) / 0.4); padding: 6px 8px; border-radius: 6px;
   font-size: 11px;
 }
 .omi-log-row .kvs .k { color: var(--omi-muted); font-weight: 600; }
@@ -346,7 +1201,7 @@ a:hover { color: var(--omi-accent-deeper); }
 dialog.omi-dialog {
   border: 1px solid var(--omi-border-strong);
   border-radius: var(--omi-radius-lg);
-  background: linear-gradient(165deg, rgba(255,252,247,0.98), rgba(244,238,225,0.96));
+  background: linear-gradient(165deg, rgb(var(--omi-surface) / 0.98), rgb(var(--omi-surface-2) / 0.96));
   box-shadow: var(--omi-shadow-lg);
   padding: 20px;
   max-width: 540px;
@@ -354,7 +1209,7 @@ dialog.omi-dialog {
   color: var(--omi-fg);
 }
 dialog.omi-dialog::backdrop {
-  background: rgba(40, 35, 25, 0.4);
+  background: rgb(var(--omi-scrim-rgb) / 0.4);
   backdrop-filter: blur(2px);
 }
 dialog.omi-dialog h3 { margin: 0 0 14px 0; font-family: var(--omi-font-heading); }
@@ -403,7 +1258,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   display: inline-flex; align-items: center;
   font-size: 11px; padding: 3px 10px;
   border-radius: var(--omi-radius-pill);
-  background: rgba(255, 251, 244, 0.7);
+  background: rgb(var(--omi-surface) / 0.7);
   border: 1px solid var(--omi-border);
   color: var(--omi-fg-soft);
   cursor: pointer;
@@ -418,7 +1273,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 .omi-tag-chip.active {
   background: linear-gradient(180deg, var(--omi-accent-deep), var(--omi-accent-deeper));
   border-color: var(--omi-accent-deeper);
-  color: white;
+  color: var(--omi-on-accent);
 }
 .omi-tag-chip.tiny { font-size: 10px; padding: 1px 8px; }
 
@@ -430,20 +1285,20 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   display: flex; flex-direction: column;
   overflow: hidden;
   /* Solid background so the card grid doesn't bleed through */
-  background: #fbf8f0;
+  background: rgb(var(--omi-surface));
   /* The native ::backdrop covers everything below the top layer, but raise
      z-index defensively in case anything has a stacking context that escapes */
   z-index: 10000;
 }
 .omi-dialog.editor-modal::backdrop {
-  background: rgba(40, 35, 25, 0.55);
+  background: rgb(var(--omi-scrim-rgb) / 0.55);
   backdrop-filter: blur(4px);
 }
 .editor-modal .em-header {
   padding: 12px 16px;
   border-bottom: 1px solid var(--omi-border);
   display: flex; gap: 8px; align-items: center;
-  background: rgba(255, 250, 241, 0.78);
+  background: rgb(var(--omi-surface) / 0.78);
   flex-shrink: 0;
 }
 .editor-modal .em-title {
@@ -455,16 +1310,16 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   background: transparent;
   font-family: var(--omi-font-heading);
 }
-.editor-modal .em-title:hover { border-color: var(--omi-border); background: rgba(255,255,255,0.4); }
+.editor-modal .em-title:hover { border-color: var(--omi-border); background: rgb(var(--omi-surface) / 0.4); }
 .editor-modal .em-title:focus {
-  border-color: var(--omi-accent); background: rgba(255,255,255,0.7);
+  border-color: var(--omi-accent); background: rgb(var(--omi-surface) / 0.7);
   outline: none; box-shadow: 0 0 0 3px var(--omi-accent-ring);
 }
 .editor-modal .em-tags {
   padding: 6px 16px;
   border-bottom: 1px solid var(--omi-border);
   display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
-  background: rgba(255, 250, 241, 0.5);
+  background: rgb(var(--omi-surface) / 0.5);
   flex-shrink: 0;
 }
 .editor-modal .em-tags input {
@@ -499,23 +1354,21 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 }
 .editor-modal .em-pane-edit {
   border-right: 1px solid var(--omi-border);
-  display: flex;
-  flex-direction: column;
 }
 .editor-modal .em-pane-edit textarea {
-  width: 100%; flex: 1; min-height: 0;
+  width: 100%; height: 100%;
   border: 0; resize: none; outline: none;
-  background: rgba(255, 251, 244, 0.4);
+  background: rgb(var(--omi-surface) / 0.4);
   color: var(--omi-fg);
-  padding: 14px 22px;
+  padding: 18px 22px;
   font-family: var(--omi-font-mono);
   font-size: 13px; line-height: 1.65;
 }
-.editor-modal .em-pane-edit textarea:focus { background: rgba(255, 251, 244, 0.6); }
+.editor-modal .em-pane-edit textarea:focus { background: rgb(var(--omi-surface) / 0.6); }
 .editor-modal .em-label {
   position: sticky; top: 0; z-index: 1;
   padding: 6px 16px;
-  background: rgba(255, 250, 241, 0.85);
+  background: rgb(var(--omi-surface) / 0.85);
   border-bottom: 1px solid var(--omi-border);
   font-size: 10px; font-weight: 700;
   letter-spacing: 0.08em; text-transform: uppercase;
@@ -545,11 +1398,11 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   text-align: left;
 }
 .editor-modal .pv th {
-  background: rgba(232, 224, 208, 0.55);
+  background: rgb(var(--omi-surface-3) / 0.55);
   font-weight: 600; color: var(--omi-fg);
 }
 .editor-modal .pv code:not(pre code) {
-  background: rgba(146, 125, 92, 0.18); padding: 1px 6px;
+  background: rgb(var(--tw-muted) / 0.18); padding: 1px 6px;
   border-radius: 4px; font-family: var(--omi-font-mono);
   font-size: 12.5px; color: var(--omi-fg);
 }
@@ -569,7 +1422,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   border-radius: var(--omi-radius-sm);
   border: 1px solid var(--omi-border);
   background: #2c2722;       /* warm dark — slightly lighter than near-black; brown undertone matches the paper theme */
-  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.10);
+  box-shadow: 0 1px 3px rgb(var(--omi-shadow-rgb) / 0.10);
   overflow: hidden;
 }
 .pv-code-head {
@@ -598,68 +1451,12 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   text-transform: uppercase; line-height: 1;
   transition: all 0.12s ease;
 }
-.pv-code-copy:hover { background: rgba(255, 251, 244, 0.08); color: #d8cdb6; border-color: #3b342c; }
+.pv-code-copy:hover { background: rgb(var(--omi-surface) / 0.08); color: #d8cdb6; border-color: #3b342c; }
 .pv-code-copy svg { width: 12px; height: 12px; }
 .pv-code-copy .label { display: none; }
 .pv-code-copy:hover .label { display: inline; }
 .pv-code-copy.done { color: #6f8159; background: rgba(143, 188, 143, 0.12); border-color: rgba(143, 188, 143, 0.45); }
 .pv-code-copy.done .label { display: inline; }
-
-/* ─── Collapsible code blocks (```lang+ / ```lang-) ────────────────
-   The fence's `+` or `-` suffix wraps the code card in a <details>.
-   Summary shows the title (or language name when no title given);
-   click toggles. */
-.pv details.pv-code-collapse {
-  margin: 12px 0;
-  border-radius: var(--omi-radius-sm);
-  border: 1px solid var(--omi-border);
-  background: rgba(255, 251, 244, 0.92);
-  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.08);
-  overflow: hidden;
-}
-.pv details.pv-code-collapse > summary {
-  list-style: none;
-  cursor: pointer;
-  padding: 7px 12px 7px 32px;
-  position: relative;
-  display: flex; align-items: center; gap: 10px;
-  background: linear-gradient(180deg, rgba(232, 224, 208, 0.55), rgba(232, 224, 208, 0.30));
-  border-bottom: 1px solid var(--omi-border);
-  font-size: 12.5px; color: var(--omi-fg);
-  user-select: none;
-  transition: background 0.12s ease;
-}
-.pv details.pv-code-collapse > summary::-webkit-details-marker { display: none; }
-.pv details.pv-code-collapse > summary:hover { background: rgba(232, 224, 208, 0.7); }
-.pv details.pv-code-collapse > summary::before {
-  content: '';
-  position: absolute; left: 10px; top: 50%;
-  width: 14px; height: 14px;
-  margin-top: -7px;
-  background-color: var(--omi-accent-deep);
-  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
-          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.pv details.pv-code-collapse[open] > summary::before { transform: rotate(90deg); }
-.pv details.pv-code-collapse:not([open]) > summary { border-bottom-color: transparent; }
-.pv-code-collapse-title {
-  flex: 1; min-width: 0; font-weight: 600;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.pv-code-collapse-lang {
-  font-family: var(--omi-font-mono);
-  font-size: 10px; color: var(--omi-muted);
-  padding: 2px 7px; border-radius: 4px;
-  background: rgba(86, 72, 53, 0.08);
-  letter-spacing: 0.04em; text-transform: uppercase;
-  flex-shrink: 0;
-}
-/* The inner .pv-code already has its own border/radius; flatten it so the
-   outer <details> shell owns the visual frame. */
-.pv details.pv-code-collapse > .pv-code {
-  margin: 0; border: none; border-radius: 0; box-shadow: none;
-}
 .pv-code-copy.fail { color: var(--omi-error-deep); background: rgba(177, 90, 88, 0.10); border-color: rgba(177, 90, 88, 0.45); }
 .pv-code-copy.fail .label { display: inline; }
 .pv-code pre {
@@ -667,49 +1464,9 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   background: transparent; color: #e6edf3;
   font-family: var(--omi-font-mono);
   font-size: 12.5px; line-height: 1.55;
-  overflow-x: hidden;
-  white-space: pre-wrap;
-  word-break: break-all;
+  overflow-x: auto;
 }
 .pv-code pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
-
-/* ─── Slash command menu (typed `/` at line start in the editor) ──── */
-.md-slash-menu {
-  position: fixed;
-  display: none;
-  min-width: 260px; max-width: 320px;
-  max-height: 280px; overflow-y: auto;
-  background: var(--omi-bg, #fffbf3);
-  border: 1px solid var(--omi-border);
-  border-radius: var(--omi-radius-md, 8px);
-  box-shadow: 0 12px 36px rgba(86, 72, 53, 0.18), 0 0 0 1px rgba(86, 72, 53, 0.05);
-  z-index: 9999;
-  font-size: 13px;
-  padding: 4px;
-}
-.md-slash-menu.show { display: block; }
-.md-slash-item {
-  display: flex; flex-direction: column;
-  padding: 6px 10px;
-  border-radius: 5px;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.08s ease;
-}
-.md-slash-item:hover { background: rgba(232, 224, 208, 0.45); }
-.md-slash-item.active {
-  background: color-mix(in srgb, var(--omi-accent-deep) 14%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--omi-accent-deep) 28%, transparent);
-}
-.md-slash-label {
-  font-weight: 600; color: var(--omi-fg); font-size: 12.5px;
-}
-.md-slash-desc {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  color: var(--omi-muted); font-size: 10.5px;
-  margin-top: 1px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
 .editor-modal .pv blockquote {
   border-left: 3px solid var(--omi-accent);
   padding: 4px 12px; margin: 8px 0;
@@ -738,8 +1495,8 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   border: 1px solid var(--omi-border);
   border-left: 3px solid var(--adm-accent);
   border-radius: 6px;
-  background: rgba(255, 251, 244, 0.85);
-  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.06);
+  background: rgb(var(--omi-surface) / 0.85);
+  box-shadow: 0 1px 3px rgb(var(--omi-shadow-rgb) / 0.06);
   overflow: hidden;
   color: var(--omi-fg);
 }
@@ -778,101 +1535,24 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 /* ─── Manus/oh-my-ppt-style chat panel ───────────────────────────── */
 .omi-chat {
   flex: 1; display: flex; flex-direction: column;
-  min-height: 0; background: rgba(243, 236, 223, 0.50);
+  min-height: 0; background: rgb(var(--omi-surface-3) / 0.50);
 }
 .omi-chat-context {
-  padding: 0 10px;
-  height: 36px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--omi-border);
-  background: rgba(255, 250, 241, 0.85);
-  display: flex; align-items: center; gap: 0;
-  flex-shrink: 0; font-size: 12px;
+  background: rgb(var(--omi-surface) / 0.85);
+  display: flex; gap: 10px; align-items: center;
+  flex-shrink: 0;
 }
-.chat-ctx-left {
-  display: flex; align-items: center; gap: 5px;
-  min-width: 0; overflow: hidden;
+.omi-chat-context img {
+  width: 56px; height: 56px; object-fit: cover;
+  border-radius: var(--omi-radius-sm);
+  border: 1px solid var(--omi-border);
 }
-.chat-ctx-title {
-  font-weight: 700; color: var(--omi-fg);
-  white-space: nowrap;
-}
-.chat-ctx-sep { color: var(--omi-muted); opacity: 0.5; }
-.chat-ctx-sub {
-  color: var(--omi-muted); font-size: 11px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.chat-ctx-center {
-  display: flex; align-items: center; gap: 5px;
-  margin-left: auto; flex-shrink: 0;
-}
-.chat-mini-select {
-  height: 22px;
-  padding: 1px 20px 1px 7px;
-  border: 1px solid rgba(148, 128, 94, 0.25);
-  border-radius: 999px;
-  background: rgba(255, 251, 245, 0.96);
-  color: var(--omi-fg-soft);
-  font: inherit; font-size: 10.5px; font-weight: 600;
-  line-height: 1; max-width: 120px; cursor: pointer;
-}
-.chat-mini-select:focus {
-  outline: none;
-  border-color: var(--omi-accent);
-  box-shadow: 0 0 0 2px var(--omi-accent-ring);
-}
-.chat-ctx-actions {
-  display: flex; gap: 2px; align-items: center; flex-shrink: 0;
-  margin-left: 8px;
-  padding-left: 8px;
-  border-left: 1px solid var(--omi-border);
-}
-.chat-ctx-act-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px; border-radius: 6px;
-  font-size: 11px; font-weight: 600; color: var(--omi-muted);
-  white-space: nowrap;
-}
-.chat-ctx-act-btn:hover { color: var(--omi-fg); background: rgba(148,128,94,0.10); }
-.chat-ctx-stop { color: var(--omi-error); }
-.chat-ctx-stop:hover { color: var(--omi-error-deep); background: rgba(201,122,100,0.10); }
-
-/* ── Session history panel ── */
-.chat-session-panel {
-  border-bottom: 1px solid var(--omi-border);
-  background: rgba(255, 250, 241, 0.97);
-  flex-shrink: 0; max-height: 260px; overflow-y: auto;
-}
-.chat-session-panel .csp-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 7px 14px 6px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--omi-muted);
-  border-bottom: 1px solid var(--omi-border);
-  position: sticky; top: 0; background: rgba(255,250,241,0.97); z-index: 1;
-}
-.csp-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 14px;
-  cursor: pointer; border-bottom: 1px solid rgba(var(--omi-border-rgb,180,160,130),0.4);
-  transition: background 0.1s;
-}
-.csp-row:hover { background: rgba(148,128,94,0.07); }
-.csp-row.is-current { background: rgba(148,128,94,0.11); }
-.csp-info { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-.csp-age { font-size: 10px; color: var(--omi-muted); white-space: nowrap; }
-.csp-msgs { font-size: 10px; color: var(--omi-muted); }
-.csp-preview { flex: 1; font-size: 12px; color: var(--omi-fg-soft); min-width: 0;
+.omi-chat-context .meta { flex: 1; min-width: 0; font-size: 12px; }
+.omi-chat-context .meta .title { font-weight: 600; color: var(--omi-fg); }
+.omi-chat-context .meta .sub { color: var(--omi-muted); margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.csp-btns { flex-shrink: 0; }
-.csp-del { background: none; border: none; cursor: pointer; font-size: 13px;
-  color: var(--omi-muted); padding: 2px 4px; border-radius: 4px; line-height: 1;
-  opacity: 0.5; transition: opacity 0.15s; }
-.csp-del:hover { opacity: 1; color: var(--omi-error-deep); }
-.csp-badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 10px;
-  text-transform: uppercase; letter-spacing: 0.05em; }
-.csp-badge.active { background: rgba(var(--omi-ok-rgb,90,140,70),0.15); color: var(--omi-ok, #3a7a28); }
-.csp-badge.closed { background: rgba(148,128,94,0.15); color: var(--omi-muted); }
-.csp-empty { padding: 18px 14px; font-size: 12px; color: var(--omi-muted); text-align: center; }
 
 .omi-chat-stream {
   flex: 1; overflow-y: auto;
@@ -888,95 +1568,21 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 .omi-msg .bubble {
   padding: 9px 14px;
   border-radius: 14px;
-  box-shadow: 0 6px 14px rgba(74, 59, 42, 0.08);
+  box-shadow: 0 6px 14px rgb(var(--omi-shadow-rgb) / 0.08);
   line-height: 1.45;
   font-size: 13px;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
-/* Rendered markdown in assistant bubbles */
-.omi-msg.assistant .bubble.rendered {
-  white-space: normal;
-  padding: 10px 16px;
-}
-.omi-msg.assistant .bubble.rendered p  { margin: 5px 0; }
-.omi-msg.assistant .bubble.rendered p:first-child { margin-top: 0; }
-.omi-msg.assistant .bubble.rendered p:last-child  { margin-bottom: 0; }
-.omi-msg.assistant .bubble.rendered h1 { font-size: 16px; font-weight: 700; margin: 10px 0 5px; color: var(--omi-accent-deep); border-bottom: 1px solid var(--omi-border); padding-bottom: 4px; }
-.omi-msg.assistant .bubble.rendered h2 { font-size: 14px; font-weight: 700; margin: 10px 0 4px; color: var(--omi-accent-deep); }
-.omi-msg.assistant .bubble.rendered h3 { font-size: 13px; font-weight: 600; margin: 8px 0 3px; color: var(--omi-fg-soft); }
-.omi-msg.assistant .bubble.rendered ul,
-.omi-msg.assistant .bubble.rendered ol { padding-left: 20px; margin: 5px 0; }
-.omi-msg.assistant .bubble.rendered li  { margin: 2px 0; }
-.omi-msg.assistant .bubble.rendered hr  { border: none; border-top: 1px solid var(--omi-border); margin: 8px 0; }
-.omi-msg.assistant .bubble.rendered blockquote {
-  border-left: 3px solid var(--omi-border-strong); margin: 6px 0;
-  padding: 4px 12px; color: var(--omi-muted); font-style: italic;
-}
-.omi-msg.assistant .bubble.rendered code:not(pre code) {
-  background: rgba(146,125,92,0.15); padding: 1px 5px;
-  border-radius: 4px; font-family: var(--omi-font-mono); font-size: 12px;
-}
-.omi-msg.assistant .bubble.rendered table {
-  border-collapse: collapse; margin: 8px 0; font-size: 12px; width: 100%;
-}
-.omi-msg.assistant .bubble.rendered th,
-.omi-msg.assistant .bubble.rendered td {
-  border: 1px solid var(--omi-border); padding: 5px 10px; text-align: left;
-}
-.omi-msg.assistant .bubble.rendered th {
-  background: rgba(232,224,208,0.5); font-weight: 600;
-}
-.omi-msg.assistant .bubble.rendered strong { font-weight: 700; }
-.omi-msg.assistant .bubble.rendered em     { font-style: italic; }
-
-/* ── Chat bubble toolbar (copy + MD toggle) ── */
-.omi-msg.assistant .bubble { position: relative; }
-.bubble-toolbar {
-  position: absolute; top: 6px; right: 8px;
-  display: flex; gap: 4px; align-items: center;
-  opacity: 0; transition: opacity 0.15s;
-  pointer-events: none;
-}
-.omi-msg.assistant .bubble:hover .bubble-toolbar { opacity: 1; pointer-events: auto; }
-.bt-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  padding: 3px 6px;
-  background: rgba(255,250,241,0.92);
-  border: 1px solid var(--omi-border);
-  border-radius: 6px;
-  color: var(--omi-muted);
-  font-size: 10px; font-weight: 700; line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(74,59,42,0.10);
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
-}
-.bt-btn:hover { background: rgba(255,250,241,1); color: var(--omi-fg); border-color: var(--omi-border-strong); }
-.bt-btn.active { background: var(--omi-accent-ring); border-color: var(--omi-accent); color: var(--omi-accent-deep); }
-.bt-btn.copied { color: var(--omi-ok, #3a7a28); border-color: var(--omi-ok, #3a7a28); }
-/* Raw view: monospace, pre-wrap */
-.omi-msg.assistant .bubble.show-raw {
-  white-space: pre-wrap;
-  font-family: var(--omi-font-mono);
-  font-size: 12px;
-  color: var(--omi-fg-soft);
-}
-
-/* Read-only composer visual cue */
-.omi-chat-composer.readonly { border-top-color: var(--omi-accent); }
-.omi-chat-composer.readonly textarea {
-  background: rgba(249, 245, 237, 0.9);
-  border-color: rgba(var(--omi-accent-rgb,139,115,78), 0.35);
-}
 .omi-msg.user .bubble {
-  background: rgba(251, 254, 246, 0.92);
-  border: 1px solid rgba(214, 227, 200, 0.78);
-  color: #34402c;
+  background: rgb(var(--tw-accent) / 0.10);
+  border: 1px solid rgb(var(--tw-accent) / 0.28);
+  color: var(--omi-fg);
 }
 .omi-msg.assistant .bubble {
-  background: rgba(255, 250, 241, 0.92);
-  border: 1px solid rgba(222, 210, 189, 0.78);
-  color: #3f372b;
+  background: rgb(var(--omi-surface) / 0.92);
+  border: 1px solid var(--omi-border-strong);
+  color: var(--omi-fg);
 }
 .omi-msg .role {
   font-size: 10px; color: var(--omi-muted);
@@ -989,7 +1595,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 .omi-block {
   border: 1px solid var(--omi-border);
   border-radius: 10px;
-  background: rgba(255, 251, 244, 0.85);
+  background: rgb(var(--omi-surface) / 0.85);
   font-size: 12px;
   margin-top: 4px;
   overflow: hidden;
@@ -1012,7 +1618,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 .omi-block summary .label .name { font-weight: 600; color: var(--omi-fg); }
 .omi-block summary .label .arg { color: var(--omi-muted); margin-left: 6px; font-family: var(--omi-font-mono); font-size: 11px; }
 .omi-block summary .chev {
-  font-size: 16px; color: var(--omi-muted); flex-shrink: 0;
+  font-size: 10px; color: var(--omi-muted);
   transition: transform 0.15s ease;
 }
 .omi-block[open] summary .chev { transform: rotate(90deg); }
@@ -1024,16 +1630,16 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
-  background: rgba(255, 251, 244, 0.5);
+  background: rgb(var(--omi-surface) / 0.5);
   max-height: 320px;
   overflow-y: auto;
 }
-.omi-block.thinking summary .label .name { color: #6f5d3b; }
-.omi-block.thinking { border-color: rgba(180, 158, 122, 0.45); background: rgba(252, 247, 233, 0.85); }
+.omi-block.thinking summary .label .name { color: var(--omi-fg-soft); }
+.omi-block.thinking { border-color: rgb(var(--omi-warn-rgb) / 0.50); background: rgb(var(--omi-warn-rgb) / 0.12); }
 .omi-block.tool-use summary .label .name { color: var(--omi-accent-deeper); }
-.omi-block.tool-use { border-color: rgba(143, 188, 143, 0.55); background: rgba(232, 245, 219, 0.55); }
-.omi-block.tool-result { border-color: rgba(180, 158, 122, 0.4); background: rgba(245, 240, 228, 0.8); }
-.omi-block.tool-result.is-error { border-color: rgba(201, 122, 100, 0.55); background: rgba(252, 233, 226, 0.8); }
+.omi-block.tool-use { border-color: rgb(var(--omi-ok-rgb) / 0.55); background: rgb(var(--omi-ok-rgb) / 0.12); }
+.omi-block.tool-result { border-color: var(--omi-border-strong); background: rgb(var(--omi-surface-2) / 0.70); }
+.omi-block.tool-result.is-error { border-color: rgb(var(--omi-err-rgb) / 0.55); background: rgb(var(--omi-err-rgb) / 0.12); }
 .omi-block .body img { max-width: 100%; border-radius: 6px; margin-top: 6px; display: block; }
 
 /* Inline image (e.g. omi-edit produced a new variant) */
@@ -1047,13 +1653,13 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   cursor: zoom-in;
 }
 .omi-msg .inline-image img { width: 100%; display: block; }
-.omi-msg .inline-image .cap { padding: 4px 8px; font-size: 10px; color: var(--omi-muted); background: rgba(255,250,241,0.85); border-top: 1px solid var(--omi-border); font-family: var(--omi-font-mono); }
+.omi-msg .inline-image .cap { padding: 4px 8px; font-size: 10px; color: var(--omi-muted); background: rgb(var(--omi-surface) / 0.85); border-top: 1px solid var(--omi-border); font-family: var(--omi-font-mono); }
 
 /* Composer */
 .omi-chat-composer {
   border-top: 1px solid var(--omi-border);
   padding: 10px 12px;
-  background: rgba(255, 250, 241, 0.85);
+  background: rgb(var(--omi-surface) / 0.85);
   flex-shrink: 0;
 }
 .omi-chat-composer .row { display: flex; gap: 8px; align-items: flex-end; }
@@ -1062,49 +1668,19 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   min-height: 38px; max-height: 200px;
   resize: none;
   padding: 8px 12px;
-  border: 1px solid rgba(148, 128, 94, 0.30);
+  border: 1px solid var(--omi-border-strong);
   border-radius: 10px;
-  background: rgba(255, 251, 245, 0.9);
+  background: rgb(var(--omi-surface) / 0.9);
   color: var(--omi-fg);
   font: inherit; font-size: 13px; line-height: 1.45;
-  box-shadow: inset 0 2px 6px rgba(73, 61, 44, 0.06);
+  box-shadow: inset 0 2px 6px rgb(var(--omi-shadow-rgb) / 0.06);
 }
 .omi-chat-composer textarea:focus {
   outline: none; border-color: var(--omi-accent);
-  box-shadow: inset 0 2px 6px rgba(73, 61, 44, 0.04), 0 0 0 3px var(--omi-accent-ring);
+  box-shadow: inset 0 2px 6px rgb(var(--omi-shadow-rgb) / 0.04), 0 0 0 3px var(--omi-accent-ring);
 }
-.omi-chat-composer .hint {
-  font-size: 10px; color: var(--omi-muted); margin-top: 4px; padding-left: 4px;
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-}
+.omi-chat-composer .hint { font-size: 10px; color: var(--omi-muted); margin-top: 4px; padding-left: 4px; }
 .omi-chat-composer button.send { white-space: nowrap; }
-
-/* Chat mode toggle pill */
-.chat-mode-btn {
-  flex-shrink: 0;
-  display: inline-flex; align-items: center;
-  padding: 2px 8px;
-  border: 1px solid var(--omi-border);
-  border-radius: 20px;
-  background: transparent;
-  color: var(--omi-muted);
-  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
-  cursor: pointer; line-height: 1.6;
-  transition: background 0.14s, color 0.14s, border-color 0.14s;
-}
-.chat-mode-btn:hover { background: rgba(148,128,94,0.08); color: var(--omi-fg); }
-.chat-mode-btn.explain {
-  border-color: var(--omi-accent);
-  background: rgba(var(--omi-accent-rgb, 139,115,78), 0.10);
-  color: var(--omi-accent-deep);
-}
-
-/* Per-turn token/timing stats line */
-.turn-meta {
-  font-size: 10px; color: var(--omi-muted);
-  padding: 1px 4px; margin-top: 2px;
-  letter-spacing: 0.02em;
-}
 
 .omi-chat-empty {
   flex: 1;
@@ -1127,11 +1703,11 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 .omi-logs::-webkit-scrollbar { width: 8px; height: 8px; }
 .omi-panel-body::-webkit-scrollbar-thumb,
 .omi-logs::-webkit-scrollbar-thumb {
-  background: rgba(146, 125, 92, 0.3);
+  background: rgb(var(--tw-muted) / 0.3);
   border-radius: 4px;
 }
 .omi-panel-body::-webkit-scrollbar-thumb:hover,
-.omi-logs::-webkit-scrollbar-thumb:hover { background: rgba(146, 125, 92, 0.5); }
+.omi-logs::-webkit-scrollbar-thumb:hover { background: rgb(var(--tw-muted) / 0.5); }
 
 /* ─── Stylish list markers ─────────────────────────────────────────
    Replaces the browser defaults inside any markdown preview. Bullets
@@ -1186,69 +1762,9 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 .pv ol ol ol { counter-reset: omi-ol-3; }
 .pv ol ol ol > li { counter-increment: omi-ol-3; }
 .pv ol ol ol > li::before { content: counter(omi-ol-3, lower-roman) "."; }
-/* ─── GFM task-list items — themed checkbox ──────────────────────
-   Markdown: `- [ ] todo` / `- [x] done`. marked.js emits a disabled
-   <input type="checkbox"> inside the <li>. We hide our custom bullet
-   on those rows, replace the native checkbox with a custom rounded
-   square that fills with the accent on :checked, and strike-through
-   the label of completed items. */
+/* GFM task-list items: hide our custom bullet so the native checkbox sits flush. */
 .pv ul > li:has(> input[type="checkbox"])::before { display: none; }
-.pv ul > li:has(> input[type="checkbox"]) {
-  list-style: none;
-  padding: 2px 4px 2px 0;
-  margin-left: -4px;
-  border-radius: 4px;
-  transition: background 0.12s ease;
-}
-.pv ul > li:has(> input[type="checkbox"]):hover {
-  background: rgba(232, 224, 208, 0.45);
-}
-.pv ul > li > input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  position: relative;
-  display: inline-block;
-  width: 15px; height: 15px;
-  margin: 0 8px 0 -2px;
-  vertical-align: -3px;
-  border: 1.5px solid color-mix(in srgb, var(--omi-accent-deep) 35%, var(--omi-border));
-  border-radius: 4px;
-  background: rgba(255, 251, 244, 0.85);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.10s ease;
-}
-.pv ul > li > input[type="checkbox"]:hover {
-  border-color: var(--omi-accent-deep);
-  background: rgba(255, 251, 244, 1);
-  transform: scale(1.06);
-}
-.pv ul > li > input[type="checkbox"]:checked {
-  background: var(--omi-accent-deep);
-  border-color: var(--omi-accent-deep);
-}
-.pv ul > li > input[type="checkbox"]:checked::after {
-  content: '';
-  position: absolute;
-  left: 3px; top: 0px;
-  width: 4px; height: 9px;
-  border: solid #fbf8f0;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-.pv ul > li:has(> input[type="checkbox"]:checked) {
-  color: var(--omi-muted);
-}
-.pv ul > li:has(> input[type="checkbox"]:checked) > *:not(input) {
-  text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, var(--omi-muted) 60%, transparent);
-  opacity: 0.78;
-}
-/* Keep the marked.js `disabled` attribute (edits happen in the source
-   markdown), but still allow visual hover/checked styling. */
-.pv ul > li > input[type="checkbox"][disabled] {
-  cursor: default;
-  opacity: 1;   /* override UA agent gray-out */
-}
+.pv ul > li > input[type="checkbox"] { margin-right: 6px; transform: translateY(1px); }
 
 /* ─── Collapsible admonitions (<details> variant) ──────────────────
    Markdown: > [!NOTE+] (open) / > [!NOTE-] (collapsed). Reuses the
@@ -1261,8 +1777,8 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   border: 1px solid var(--omi-border);
   border-left: 3px solid var(--adm-accent);
   border-radius: 6px;
-  background: rgba(255, 251, 244, 0.85);
-  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.06);
+  background: rgb(var(--omi-surface) / 0.85);
+  box-shadow: 0 1px 3px rgb(var(--omi-shadow-rgb) / 0.06);
   overflow: hidden;
   color: var(--omi-fg);
 }
@@ -1310,15 +1826,15 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   margin: 12px 0;
   border: 1px solid var(--omi-border);
   border-radius: 6px;
-  background: rgba(255, 251, 244, 0.92);
-  box-shadow: 0 1px 2px rgba(86, 72, 53, 0.05);
+  background: rgb(var(--omi-surface) / 0.92);
+  box-shadow: 0 1px 2px rgb(var(--omi-shadow-rgb) / 0.05);
   overflow: hidden;
 }
 .pv details.md-collapse > summary {
   list-style: none;
   cursor: pointer;
   padding: 8px 14px 8px 32px;
-  background: linear-gradient(180deg, rgba(232, 224, 208, 0.55), rgba(232, 224, 208, 0.35));
+  background: linear-gradient(180deg, rgb(var(--omi-surface-3) / 0.55), rgb(var(--omi-surface-3) / 0.35));
   border-bottom: 1px solid var(--omi-border);
   font-weight: 600; font-size: 12.5px;
   color: var(--omi-fg);
@@ -1327,7 +1843,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   transition: background 0.12s ease;
 }
 .pv details.md-collapse > summary::-webkit-details-marker { display: none; }
-.pv details.md-collapse > summary:hover { background: rgba(232, 224, 208, 0.7); }
+.pv details.md-collapse > summary:hover { background: rgb(var(--omi-surface-3) / 0.7); }
 .pv details.md-collapse > summary::before {
   content: '▸';
   position: absolute; left: 12px; top: 50%;
@@ -1352,14 +1868,14 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   margin: 14px 0;
   border: 1px solid var(--omi-border);
   border-radius: 6px;
-  background: rgba(255, 251, 244, 0.92);
-  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.06);
+  background: rgb(var(--omi-surface) / 0.92);
+  box-shadow: 0 1px 3px rgb(var(--omi-shadow-rgb) / 0.06);
   overflow: hidden;
 }
 .pv .md-tab-bar {
   display: flex;
   gap: 0;
-  background: rgba(232, 224, 208, 0.55);
+  background: rgb(var(--omi-surface-3) / 0.55);
   border-bottom: 1px solid var(--omi-border);
   overflow-x: auto;
   scrollbar-width: thin;
@@ -1378,88 +1894,17 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   white-space: nowrap;
   transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
-.pv .md-tab-btn:hover { color: var(--omi-fg); background: rgba(255, 251, 244, 0.45); }
+.pv .md-tab-btn:hover { color: var(--omi-fg); background: rgb(var(--omi-surface) / 0.45); }
 .pv .md-tab-btn.active {
   color: var(--omi-accent-deep);
   border-bottom-color: var(--omi-accent-deep);
-  background: rgba(255, 251, 244, 0.85);
+  background: rgb(var(--omi-surface) / 0.85);
 }
 .pv .md-tab-panels { padding: 12px 16px; }
 .pv .md-tab-panel { display: none; }
 .pv .md-tab-panel.active { display: block; }
 .pv .md-tab-panel > *:first-child { margin-top: 0; }
 .pv .md-tab-panel > *:last-child { margin-bottom: 0; }
-
-/* ─── ::timeline block ─────────────────────────────────────────────
-   Source:
-     ::timeline
-         - 2024-01-15: Started project
-         - 2024-03-22: First commit — "alpha" tag
-   Renders as a vertical timeline: a spine on the left with dots at
-   each entry, date chip in accent colour, body indented to clear. */
-.pv .md-timeline {
-  list-style: none;
-  position: relative;
-  margin: 14px 0;
-  padding: 4px 0 4px 22px;
-  counter-reset: none;
-}
-.pv .md-timeline > .md-timeline__item::before { content: none; }
-.pv .md-timeline::before {
-  content: '';
-  position: absolute;
-  left: 7px; top: 8px; bottom: 8px;
-  width: 2px;
-  background: color-mix(in srgb, var(--omi-accent-deep) 40%, transparent);
-  border-radius: 1px;
-}
-.pv .md-timeline__item {
-  position: relative;
-  padding: 4px 0 4px 0;
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  counter-increment: none;
-}
-.pv .md-timeline__item + .md-timeline__item { margin-top: 4px; }
-.pv .md-timeline__dot {
-  position: absolute;
-  left: -22px; top: 0.65em;
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  background: var(--omi-accent-deep);
-  box-shadow: 0 0 0 3px rgba(255, 251, 244, 0.95);
-}
-.pv .md-timeline__item:hover .md-timeline__dot {
-  background: var(--omi-accent);
-  transform: scale(1.15);
-  transition: all 0.15s ease;
-}
-.pv .md-timeline__date {
-  flex-shrink: 0;
-  font-family: var(--omi-font-mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 1px 8px;
-  background: color-mix(in srgb, var(--omi-accent-deep) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--omi-accent-deep) 25%, transparent);
-  border-radius: 4px;
-  color: var(--omi-accent-deep);
-  white-space: nowrap;
-}
-.pv .md-timeline__body {
-  flex: 1;
-  min-width: 0;
-  line-height: 1.55;
-}
-.pv .md-timeline__body code {
-  background: rgba(146, 125, 92, 0.18);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 12.5px;
-}
 
 /* ─── Footnotes ────────────────────────────────────────────────────
    Inline ref: <sup class="md-fn-ref">[n]</sup>
@@ -1472,7 +1917,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   vertical-align: super;
   margin: 0 2px;
   padding: 1px 5px;
-  background: rgba(146, 125, 92, 0.14);
+  background: rgb(var(--tw-muted) / 0.14);
   border: 1px solid color-mix(in srgb, var(--omi-accent-deep) 25%, transparent);
   border-radius: 3px;
   color: var(--omi-accent-deep);
@@ -1484,7 +1929,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 }
 .pv .md-fn-ref:hover,
 .pv .md-fn-ref:focus {
-  background: rgba(146, 125, 92, 0.28);
+  background: rgb(var(--tw-muted) / 0.28);
   border-color: var(--omi-accent-deep);
   outline: none;
 }
@@ -1496,14 +1941,6 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   --md-fn-arrow-x: 50%;
   position: fixed;
   z-index: 9999;
-}
-/* When reparented into an open <dialog> (top-layer), switch to absolute
-   positioning so coordinates are interpreted relative to the dialog rather
-   than the viewport. JS sets dialog-relative top/left in this mode. */
-.md-fn-tooltip.in-dialog {
-  position: absolute;
-}
-.md-fn-tooltip {
   max-width: 380px;
   min-width: 160px;
   padding: 0;
@@ -1534,7 +1971,7 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 .md-fn-tooltip__inner p { margin: 0; }
 .md-fn-tooltip__inner p + p { margin-top: 6px; }
 .md-fn-tooltip__inner code {
-  background: rgba(255,255,255,0.10);
+  background: rgb(var(--omi-surface) / 0.10);
   padding: 1px 5px;
   border-radius: 3px;
   font-family: var(--omi-font-mono);
@@ -1554,191 +1991,6 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
   border-bottom: 1px solid #3b342c;
   bottom: -6px;
 }
-/* Wiki-link chip — [[Card Title]] rendered as a styled inline badge */
-.pv .md-wikilink {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 1px 7px 1px 6px;
-  margin: 0 1px;
-  background: rgba(146, 125, 92, 0.10);
-  border: 1px solid color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
-  border-radius: 10px;
-  color: var(--omi-accent-deep);
-  font-weight: 500;
-  font-size: 0.94em;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-}
-.pv .md-wikilink:hover,
-.pv .md-wikilink:focus {
-  background: rgba(146, 125, 92, 0.22);
-  border-color: var(--omi-accent-deep);
-  color: var(--omi-fg);
-  outline: none;
-}
-.pv .md-wikilink svg { flex-shrink: 0; opacity: 0.7; }
-.pv .md-wikilink:hover svg { opacity: 1; }
-.pv .md-wikilink-text {
-  border-bottom: 1px dashed transparent;
-  transition: border-color 0.12s ease;
-}
-.pv .md-wikilink:hover .md-wikilink-text { border-bottom-color: currentColor; }
-.pv .md-wikilink--missing {
-  background: rgba(177, 90, 88, 0.08);
-  border-color: rgba(177, 90, 88, 0.30);
-  border-style: dashed;
-  color: var(--omi-error-deep, #b15a58);
-  cursor: help;
-}
-.pv .md-wikilink--missing:hover {
-  background: rgba(177, 90, 88, 0.16);
-  border-color: rgba(177, 90, 88, 0.55);
-  color: #8a4644;
-}
-
-/* Minimal hover tooltip for wikilinks / external links. Reuses
-   .md-fn-tooltip's chrome; just shows a single line of content. */
-.md-fn-tooltip .md-link-tip__href {
-  font-family: var(--omi-font-mono);
-  font-size: 11.5px;
-  word-break: break-all;
-  color: #d4d0c2;
-}
-.md-fn-tooltip .md-link-tip__miss {
-  font-size: 12px;
-  color: #d4d0c2;
-}
-.md-fn-tooltip .md-link-tip__miss strong { color: #e6dcc7; }
-
-/* ─── Outline floating panel (Tree button replacement) ────────────
-   Reuses the .ref-window chrome but tightens the body for a flat
-   indented heading list. Active rows highlight on hover; clicking
-   scrolls + briefly flashes the target heading in the preview. */
-.ref-window.outline-win .ref-window-body { padding: 0; }
-.outline-list { display: flex; flex-direction: column; gap: 1px; }
-.outline-row {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 5px 10px;
-  font-size: 12.5px;
-  color: var(--omi-fg-soft);
-  text-decoration: none;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background 0.10s ease, color 0.10s ease;
-}
-.outline-row:hover {
-  background: rgba(232, 224, 208, 0.55);
-  color: var(--omi-fg);
-}
-.outline-row[data-level="1"] { font-weight: 700; color: var(--omi-accent-deep); }
-.outline-row[data-level="2"] { font-weight: 600; }
-.outline-row[data-level="3"] { font-weight: 500; }
-.outline-row[data-level="4"] { font-weight: 400; color: var(--omi-muted); }
-.outline-row .outline-mark {
-  flex-shrink: 0;
-  font-family: var(--omi-font-mono);
-  font-size: 10px;
-  color: var(--omi-muted);
-  opacity: 0.65;
-  letter-spacing: -0.04em;
-}
-.outline-row .outline-text {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.outline-empty {
-  padding: 14px;
-  color: var(--omi-muted);
-  font-size: 12px;
-  font-style: italic;
-  text-align: center;
-}
-
-/* Heading flash when an outline row is clicked. Subtle accent highlight
-   that fades out over ~1.4s — long enough to locate the heading,
-   short enough not to distract. */
-@keyframes outline-flash {
-  0%   { background: rgba(212, 160, 74, 0.30); }
-  100% { background: transparent; }
-}
-.pv .outline-flash {
-  animation: outline-flash 1.4s ease-out;
-  border-radius: 4px;
-  padding-left: 6px;
-  margin-left: -6px;
-}
-
-/* ─── Collapsible H1/H2 sections ───────────────────────────────────
-   Each top-level H1 and H2 produced by marked is wrapped in a
-   <details> whose <summary> contains the heading element itself.
-   Open by default; clicking the heading toggles the section. */
-.pv .md-h-section { margin: 0; }
-.pv .md-h-section > summary {
-  list-style: none;
-  cursor: pointer;
-  position: relative;
-  padding: 4px 8px 4px 36px;
-  user-select: none;
-  border-radius: 6px;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
-}
-.pv .md-h-section > summary::-webkit-details-marker { display: none; }
-/* The disclosure marker — a chevron drawn as an SVG mask so it can be
-   tinted with the accent color and rotate smoothly. Sits inside a soft
-   circular pill that lights up on hover. */
-.pv .md-h-section > summary::before {
-  content: '';
-  position: absolute;
-  left: 6px; top: 50%;
-  width: 22px; height: 22px;
-  margin-top: -11px;
-  border-radius: 50%;
-  background:
-    color-mix(in srgb, var(--omi-accent-deep) 14%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
-  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.pv .md-h-section > summary::after {
-  content: '';
-  position: absolute;
-  left: 6px; top: 50%;
-  width: 22px; height: 22px;
-  margin-top: -11px;
-  background-color: var(--omi-accent-deep);
-  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
-          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
-  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.18s ease;
-  transform-origin: 50% 50%;
-}
-.pv .md-h-section[open] > summary::after { transform: rotate(90deg); }
-.pv .md-h-section > summary:hover {
-  background: color-mix(in srgb, var(--omi-accent-deep) 6%, transparent);
-}
-.pv .md-h-section > summary:hover::before {
-  background: color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--omi-accent-deep) 38%, transparent);
-}
-.pv .md-h-section > summary:hover::after {
-  background-color: var(--omi-accent-deeper, var(--omi-accent-deep));
-}
-.pv .md-h-section > summary > h1,
-.pv .md-h-section > summary > h2 { margin: 0; display: inline-block; vertical-align: middle; }
-.pv .md-h-section--1 > summary { margin: 16px 0 8px; }
-.pv .md-h-section--2 > summary { margin: 18px 0 6px; }
-.pv .md-h-section[open] > summary { margin-bottom: 4px; }
-/* H1 gets a subtle accent rail down the left side when expanded — gives
-   the eye a vertical guide showing the scope of the section. */
-.pv .md-h-section--1[open] {
-  border-left: 2px solid color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
-  margin-left: -10px;
-  padding-left: 10px;
-}
-
 .md-fn-tooltip.below .md-fn-tooltip__arrow {
   bottom: auto;
   top: -6px;
@@ -1779,3 +2031,306 @@ hr.omi-hr { border: 0; border-top: 1px solid var(--omi-border); margin: 12px 0; 
 }
 .pv .md-footnotes .md-fn-text > p { margin: 0; }
 .pv .md-footnotes .md-fn-text > p + p { margin-top: 4px; }
+
+@media (max-width: 960px) {
+  .omi-topnav {
+    flex-wrap: wrap;
+  }
+  .omi-theme-picker {
+    width: 100%;
+    margin-left: 0;
+  }
+  .omi-theme-picker select {
+    flex: 1;
+  }
+  .omi-toolbar {
+    align-items: stretch;
+  }
+  .omi-toolbar-group,
+  .omi-toolbar-spacer {
+    width: 100%;
+  }
+  .omi-stat-grid {
+    grid-template-columns: 1fr;
+  }
+  .omi-toast-stack {
+    left: 12px;
+    right: 12px;
+    top: 12px;
+  }
+  .omi-toast {
+    width: 100%;
+  }
+  .omi-drawer {
+    width: 100vw;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Press feedback + copy-confirmation floater
+ *
+ * Used by nav.js's data-omi-copy auto-wire, but any button can opt in by
+ * toggling `.pressed` or `.confirmed` from your own JS. Keeps `position:
+ * relative` so the ::after floater anchors over the source element.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+.omi-btn, .omi-icon-btn { position: relative; }
+
+@keyframes omi-press-pulse {
+  0%   { transform: scale(1);    }
+  50%  { transform: scale(0.95); }
+  100% { transform: scale(1);    }
+}
+.omi-btn.pressed,
+.omi-icon-btn.pressed,
+[data-omi-copy].pressed { animation: omi-press-pulse 0.32s ease-out; }
+
+@keyframes omi-confirm-float {
+  0%   { opacity: 0; transform: translate(-50%, 4px); }
+  20%  { opacity: 1; transform: translate(-50%, 0); }
+  80%  { opacity: 1; transform: translate(-50%, -2px); }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+.omi-btn.confirmed::after,
+.omi-icon-btn.confirmed::after,
+[data-omi-copy].confirmed::after {
+  content: '✓ copied';
+  position: absolute; left: 50%; top: -22px;
+  background: var(--omi-accent-deeper); color: #fff;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 4px;
+  pointer-events: none; opacity: 0;
+  animation: omi-confirm-float 1.1s ease-out;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * .omi-theme-picker.compact — header-friendly variant of the theme picker
+ *
+ *   <label class="omi-theme-picker compact" title="Choose theme">
+ *     <span>theme</span>           <-- hidden in compact
+ *     <select data-omi-theme-switch></select>
+ *   </label>
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+.omi-theme-picker.compact > span { display: none; }
+.omi-theme-picker.compact { padding: 0; background: transparent; border: none; }
+.omi-theme-picker.compact select {
+  background: transparent;
+  border: 1px solid var(--omi-border);
+  color: var(--omi-fg);
+  border-radius: var(--omi-radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.omi-theme-picker.compact select:hover { border-color: var(--omi-border-strong); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * .omi-dropzone — paste / drag-drop / click-to-pick file ingestion zone
+ *
+ *   <div class="omi-dropzone" id="dz" tabindex="0" role="button">
+ *     <span class="omi-dropzone-icon"><svg>...</svg></span>
+ *     <div class="omi-dropzone-title">Paste an image with <kbd>Ctrl</kbd>+<kbd>V</kbd></div>
+ *     <div class="omi-dropzone-hint">drag &amp; drop a file<span class="sep">·</span>or click</div>
+ *     <input type="file" hidden>
+ *   </div>
+ *
+ * Add `.active` class on dragover for the highlight state.
+ * App owns the JS — toggle .active, wire paste/drop/click → uploadFile().
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+.omi-dropzone {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 22px 24px;
+  border: 2px dashed var(--omi-accent-deep);
+  border-radius: var(--omi-radius-lg);
+  background: linear-gradient(165deg, var(--omi-card-bg), var(--omi-card-bg-2));
+  box-shadow: 0 4px 14px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(255,255,255,0.5);
+  text-align: center; cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease, background 0.18s ease;
+}
+.omi-dropzone:hover,
+.omi-dropzone:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.12), 0 0 0 4px var(--omi-accent-ring);
+  outline: none;
+}
+.omi-dropzone.active {
+  transform: translateY(-2px) scale(1.005);
+  border-style: solid;
+  background: var(--omi-accent-ring);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.18), 0 0 0 6px var(--omi-accent-ring);
+}
+.omi-dropzone-icon {
+  color: var(--omi-accent-deep);
+  display: inline-flex;
+  margin-bottom: 4px;
+}
+.omi-dropzone-icon svg { width: 28px; height: 28px; }
+.omi-dropzone-title {
+  font-size: 15px; font-weight: 600; color: var(--omi-fg);
+  letter-spacing: -0.005em;
+}
+.omi-dropzone-hint {
+  font-size: 12px; color: var(--omi-fg-soft); font-weight: 500; margin-top: 2px;
+}
+.omi-dropzone-hint .sep { opacity: 0.4; margin: 0 6px; }
+.omi-dropzone kbd {
+  background: var(--omi-bg-1);
+  border: 1px solid var(--omi-border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px; padding: 2px 8px;
+  font-family: var(--omi-font-mono); font-size: 13px; font-weight: 600;
+  color: var(--omi-fg);
+  margin: 0 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * .omi-asset-card — thumbnail + filename + meta + action-row tile
+ *
+ *   <div class="omi-asset-grid">
+ *     <div class="omi-asset-card">
+ *       <img class="omi-asset-card-thumb" src="...">
+ *       <div class="omi-asset-card-meta">
+ *         <div class="omi-asset-card-name">filename.png</div>
+ *         <div class="omi-asset-card-submeta">
+ *           <span>77 KB</span><span class="sep">·</span><span>screenshots</span>
+ *         </div>
+ *       </div>
+ *       <div class="omi-asset-card-actions">
+ *         <button class="omi-icon-btn">…</button>
+ *         <button class="omi-icon-btn danger">…</button>
+ *       </div>
+ *       <div class="omi-asset-card-check">✓</div>  <!-- multi-select indicator -->
+ *     </div>
+ *   </div>
+ *
+ * Apply `.selected` to a card to mark it; apply `.selecting` to the grid
+ * to always-show the check overlay (multi-select mode).
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+.omi-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.omi-asset-card {
+  position: relative;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius);
+  overflow: hidden;
+  background: var(--omi-card-bg);
+  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.omi-asset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--omi-shadow);
+  border-color: var(--omi-border-strong);
+}
+.omi-asset-card.selected { outline: 2px solid var(--omi-accent-deep); }
+
+.omi-asset-card-thumb {
+  width: 100%; aspect-ratio: 1; object-fit: cover; cursor: zoom-in;
+  background: rgba(0,0,0,0.05); display: block;
+}
+.omi-asset-card-thumb-placeholder {
+  width: 100%; aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--omi-muted); background: rgba(0,0,0,0.04);
+}
+.omi-asset-card-meta { padding: 8px 10px 6px; font-size: 11px; color: var(--omi-muted); }
+.omi-asset-card-name {
+  color: var(--omi-fg); font-size: 12px; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.omi-asset-card-submeta {
+  margin-top: 2px; font-size: 10.5px; color: var(--omi-muted);
+  display: flex; gap: 6px;
+}
+.omi-asset-card-submeta .sep { opacity: 0.5; }
+
+.omi-asset-card-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--omi-border);
+  background: var(--omi-card-bg-2);
+}
+.omi-asset-card-actions .omi-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; padding: 0; border-radius: 7px;
+  background: transparent; color: var(--omi-muted);
+  border: 1px solid transparent; cursor: pointer;
+  transition: all 0.12s ease;
+  font-size: 11px; line-height: 1;
+}
+.omi-asset-card-actions .omi-icon-btn svg { width: 14px; height: 14px; }
+.omi-asset-card-actions .omi-icon-btn:hover {
+  background: var(--omi-card-bg-2);
+  color: var(--omi-fg);
+  border-color: var(--omi-border);
+}
+.omi-asset-card-actions .omi-icon-btn.danger:hover {
+  background: rgb(var(--omi-err-rgb, 177 90 88) / 0.12);
+  color: var(--omi-error-deep);
+  border-color: rgb(var(--omi-err-rgb, 177 90 88) / 0.35);
+}
+.omi-asset-card-actions .omi-icon-btn:disabled {
+  opacity: 0.35; cursor: not-allowed; background: transparent;
+  color: var(--omi-muted); border-color: transparent;
+}
+
+/* Selection checkbox: hidden until card hover or grid in multi-select mode. */
+.omi-asset-card-check {
+  position: absolute; top: 6px; left: 6px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5); border: 2px solid #fff;
+  cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px;
+}
+.omi-asset-card-check svg { width: 12px; height: 12px; }
+.omi-asset-card:hover .omi-asset-card-check,
+.omi-asset-card.selected .omi-asset-card-check,
+.omi-asset-grid.selecting .omi-asset-card-check { display: flex; }
+.omi-asset-card.selected .omi-asset-card-check { background: var(--omi-accent-deep); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * .omi-ai-badge — icon-only AI/service availability indicator
+ *
+ *   <span class="omi-ai-badge ok" title="Claude AI available"></span>
+ *   <span class="omi-ai-badge bad" title="AI not configured"></span>
+ *
+ * Plain span — colored dot with halo, tooltip carries detail. Renders
+ * inline-flex so it sits next to other header chips cleanly.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+.omi-ai-badge {
+  display: inline-flex; align-items: center;
+  padding: 4px;
+}
+.omi-ai-badge::before {
+  content: '';
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--omi-muted);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+.omi-ai-badge.ok::before {
+  background: rgb(34, 197, 94);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+.omi-ai-badge.bad::before {
+  background: var(--omi-error-deep);
+  box-shadow: 0 0 0 3px rgba(177, 90, 88, 0.18);
+}
+
+/* Hide the scrollbar chrome on opt-in containers (mouse / trackpad still
+ * scroll). Useful for the main content scroll area where the chrome
+ * scrollbar clashes with the warm-paper aesthetic. */
+.omi-scroll-clean { scrollbar-width: none; }
+.omi-scroll-clean::-webkit-scrollbar { width: 0; height: 0; display: none; }

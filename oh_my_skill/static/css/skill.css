@@ -1,0 +1,699 @@
+/* skill.css — oh-my-skill app components, layered ON TOP of @oh-my/ui's omi.css.
+ *
+ * Everything markdown-render + editor + chat specific lives here so that
+ * omi.css stays a clean, re-vendorable copy of @dennisl0731/oh-my-ui
+ * (see scripts/vendor-ui.sh / `just vendor-ui`). This file is loaded AFTER
+ * omi.css in the templates, so its rules win on any selector overlap.
+ *
+ * Sections: sprite icons · card grid · editor modal · code blocks · slash
+ * menu · admonitions · chat panel · session history · lists · tabs ·
+ * timeline · footnotes · outline · collapsible H1/H2.
+ */
+
+/* ─── Inline sprite icons (lucide via /omi/ui/icons.svg) ──────────────
+   Sized to the surrounding text so nav links / buttons get small icons,
+   matching oh-my-clipboard. Without this, <svg class="icon"><use…> renders
+   at the sprite's native (huge) size. */
+.icon { width: 1em; height: 1em; vertical-align: -0.15em; flex-shrink: 0; display: inline-block; }
+.icon.lg  { width: 1.25em; height: 1.25em; }
+.icon.xl  { width: 1.5em;  height: 1.5em;  }
+.icon.xxl { width: 2em;    height: 2em;    }
+.omi-btn .icon { margin-right: 4px; }
+.omi-nav a .icon { margin-right: 5px; }
+
+/* ─── Card grid + clickable tag chips ────────────────────────────── */
+
+/* ─── Editor modal (split-pane EDIT / PREVIEW) ───────────────────── */
+
+/* ─── Code block — header strip (lang + copy) + warm dark body ──────
+   Markup produced by renderMarkdown:
+     <div class="pv-code" data-lang="python">
+       <div class="pv-code-head">
+         <span class="pv-code-lang">python</span>
+         <button class="pv-code-copy">…</button>
+       </div>
+       <pre><code class="hljs language-python">…</code></pre>
+     </div>
+   Used by editor preview, ref-windows, and any .pv container. */
+
+/* ─── Collapsible code blocks (```lang+ / ```lang-) ────────────────
+   The fence's `+` or `-` suffix wraps the code card in a <details>.
+   Summary shows the title (or language name when no title given);
+   click toggles. */
+.pv details.pv-code-collapse {
+  margin: 12px 0;
+  border-radius: var(--omi-radius-sm);
+  border: 1px solid var(--omi-border);
+  background: rgba(255, 251, 244, 0.92);
+  box-shadow: 0 1px 3px rgba(86, 72, 53, 0.08);
+  overflow: hidden;
+}
+.pv details.pv-code-collapse > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 7px 12px 7px 32px;
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, rgba(232, 224, 208, 0.55), rgba(232, 224, 208, 0.30));
+  border-bottom: 1px solid var(--omi-border);
+  font-size: 12.5px; color: var(--omi-fg);
+  user-select: none;
+  transition: background 0.12s ease;
+}
+.pv details.pv-code-collapse > summary::-webkit-details-marker { display: none; }
+.pv details.pv-code-collapse > summary:hover { background: rgba(232, 224, 208, 0.7); }
+.pv details.pv-code-collapse > summary::before {
+  content: '';
+  position: absolute; left: 10px; top: 50%;
+  width: 14px; height: 14px;
+  margin-top: -7px;
+  background-color: var(--omi-accent-deep);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pv details.pv-code-collapse[open] > summary::before { transform: rotate(90deg); }
+.pv details.pv-code-collapse:not([open]) > summary { border-bottom-color: transparent; }
+.pv-code-collapse-title {
+  flex: 1; min-width: 0; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pv-code-collapse-lang {
+  font-family: var(--omi-font-mono);
+  font-size: 10px; color: var(--omi-muted);
+  padding: 2px 7px; border-radius: 4px;
+  background: rgba(86, 72, 53, 0.08);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  flex-shrink: 0;
+}
+/* The inner .pv-code already has its own border/radius; flatten it so the
+   outer <details> shell owns the visual frame. */
+.pv details.pv-code-collapse > .pv-code {
+  margin: 0; border: none; border-radius: 0; box-shadow: none;
+}
+
+/* ─── Slash command menu (typed `/` at line start in the editor) ──── */
+.md-slash-menu {
+  position: fixed;
+  display: none;
+  min-width: 260px; max-width: 320px;
+  max-height: 280px; overflow-y: auto;
+  background: var(--omi-bg, #fffbf3);
+  border: 1px solid var(--omi-border);
+  border-radius: var(--omi-radius-md, 8px);
+  box-shadow: 0 12px 36px rgba(86, 72, 53, 0.18), 0 0 0 1px rgba(86, 72, 53, 0.05);
+  z-index: 9999;
+  font-size: 13px;
+  padding: 4px;
+}
+.md-slash-menu.show { display: block; }
+.md-slash-item {
+  display: flex; flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.08s ease;
+}
+.md-slash-item:hover { background: rgba(232, 224, 208, 0.45); }
+.md-slash-item.active {
+  background: color-mix(in srgb, var(--omi-accent-deep) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--omi-accent-deep) 28%, transparent);
+}
+.md-slash-label {
+  font-weight: 600; color: var(--omi-fg); font-size: 12.5px;
+}
+.md-slash-desc {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--omi-muted); font-size: 10.5px;
+  margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ─── Admonitions (callouts) — MkDocs Material / Docusaurus inspired ──
+   Markdown:  > [!NOTE] / TIP / IMPORTANT / WARNING / CAUTION
+   The markdown step rebuilds these as:
+     <blockquote class="adm adm-note">
+       <div class="adm-title"><span class="adm-icon">…</span><span class="adm-label">Note</span></div>
+       <div class="adm-body"><p>…</p></div>
+     </blockquote>
+   Colored title strip on top, paper-white body, soft shadow, rounded
+   corners. Per-type accent threaded through left border + title bar
+   tint + icon color, all kept light enough to stay friendly on the
+   warm-paper background. Selectors target .pv so it works in the main
+   editor preview AND inside floating reference windows. */
+
+/* ─── Manus/oh-my-ppt-style chat panel ───────────────────────────── */
+
+.chat-ctx-left {
+  display: flex; align-items: center; gap: 5px;
+  min-width: 0; overflow: hidden;
+}
+.chat-ctx-title {
+  font-weight: 700; color: var(--omi-fg);
+  white-space: nowrap;
+}
+.chat-ctx-sep { color: var(--omi-muted); opacity: 0.5; }
+.chat-ctx-sub {
+  color: var(--omi-muted); font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chat-ctx-center {
+  display: flex; align-items: center; gap: 5px;
+  margin-left: auto; flex-shrink: 0;
+}
+.chat-mini-select {
+  height: 22px;
+  padding: 1px 20px 1px 7px;
+  border: 1px solid rgba(148, 128, 94, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 251, 245, 0.96);
+  color: var(--omi-fg-soft);
+  font: inherit; font-size: 10.5px; font-weight: 600;
+  line-height: 1; max-width: 120px; cursor: pointer;
+}
+.chat-mini-select:focus {
+  outline: none;
+  border-color: var(--omi-accent);
+  box-shadow: 0 0 0 2px var(--omi-accent-ring);
+}
+.chat-ctx-actions {
+  display: flex; gap: 2px; align-items: center; flex-shrink: 0;
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid var(--omi-border);
+}
+.chat-ctx-act-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; color: var(--omi-muted);
+  white-space: nowrap;
+}
+.chat-ctx-act-btn:hover { color: var(--omi-fg); background: rgba(148,128,94,0.10); }
+.chat-ctx-stop { color: var(--omi-error); }
+.chat-ctx-stop:hover { color: var(--omi-error-deep); background: rgba(201,122,100,0.10); }
+
+/* ── Session history panel ── */
+.chat-session-panel {
+  border-bottom: 1px solid var(--omi-border);
+  background: rgba(255, 250, 241, 0.97);
+  flex-shrink: 0; max-height: 260px; overflow-y: auto;
+}
+.chat-session-panel .csp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 14px 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--omi-muted);
+  border-bottom: 1px solid var(--omi-border);
+  position: sticky; top: 0; background: rgba(255,250,241,0.97); z-index: 1;
+}
+.csp-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px;
+  cursor: pointer; border-bottom: 1px solid rgba(var(--omi-border-rgb,180,160,130),0.4);
+  transition: background 0.1s;
+}
+.csp-row:hover { background: rgba(148,128,94,0.07); }
+.csp-row.is-current { background: rgba(148,128,94,0.11); }
+.csp-info { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.csp-age { font-size: 10px; color: var(--omi-muted); white-space: nowrap; }
+.csp-msgs { font-size: 10px; color: var(--omi-muted); }
+.csp-preview { flex: 1; font-size: 12px; color: var(--omi-fg-soft); min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.csp-btns { flex-shrink: 0; }
+.csp-del { background: none; border: none; cursor: pointer; font-size: 13px;
+  color: var(--omi-muted); padding: 2px 4px; border-radius: 4px; line-height: 1;
+  opacity: 0.5; transition: opacity 0.15s; }
+.csp-del:hover { opacity: 1; color: var(--omi-error-deep); }
+.csp-badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: 0.05em; }
+.csp-badge.active { background: rgba(var(--omi-ok-rgb,90,140,70),0.15); color: var(--omi-ok, #3a7a28); }
+.csp-badge.closed { background: rgba(148,128,94,0.15); color: var(--omi-muted); }
+.csp-empty { padding: 18px 14px; font-size: 12px; color: var(--omi-muted); text-align: center; }
+
+/* Rendered markdown in assistant bubbles */
+.omi-msg.assistant .bubble.rendered {
+  white-space: normal;
+  padding: 10px 16px;
+}
+.omi-msg.assistant .bubble.rendered p  { margin: 5px 0; }
+.omi-msg.assistant .bubble.rendered p:first-child { margin-top: 0; }
+.omi-msg.assistant .bubble.rendered p:last-child  { margin-bottom: 0; }
+.omi-msg.assistant .bubble.rendered h1 { font-size: 16px; font-weight: 700; margin: 10px 0 5px; color: var(--omi-accent-deep); border-bottom: 1px solid var(--omi-border); padding-bottom: 4px; }
+.omi-msg.assistant .bubble.rendered h2 { font-size: 14px; font-weight: 700; margin: 10px 0 4px; color: var(--omi-accent-deep); }
+.omi-msg.assistant .bubble.rendered h3 { font-size: 13px; font-weight: 600; margin: 8px 0 3px; color: var(--omi-fg-soft); }
+.omi-msg.assistant .bubble.rendered ul,
+.omi-msg.assistant .bubble.rendered ol { padding-left: 20px; margin: 5px 0; }
+.omi-msg.assistant .bubble.rendered li  { margin: 2px 0; }
+.omi-msg.assistant .bubble.rendered hr  { border: none; border-top: 1px solid var(--omi-border); margin: 8px 0; }
+.omi-msg.assistant .bubble.rendered blockquote {
+  border-left: 3px solid var(--omi-border-strong); margin: 6px 0;
+  padding: 4px 12px; color: var(--omi-muted); font-style: italic;
+}
+.omi-msg.assistant .bubble.rendered code:not(pre code) {
+  background: rgba(146,125,92,0.15); padding: 1px 5px;
+  border-radius: 4px; font-family: var(--omi-font-mono); font-size: 12px;
+}
+.omi-msg.assistant .bubble.rendered table {
+  border-collapse: collapse; margin: 8px 0; font-size: 12px; width: 100%;
+}
+.omi-msg.assistant .bubble.rendered th,
+.omi-msg.assistant .bubble.rendered td {
+  border: 1px solid var(--omi-border); padding: 5px 10px; text-align: left;
+}
+.omi-msg.assistant .bubble.rendered th {
+  background: rgba(232,224,208,0.5); font-weight: 600;
+}
+.omi-msg.assistant .bubble.rendered strong { font-weight: 700; }
+.omi-msg.assistant .bubble.rendered em     { font-style: italic; }
+
+/* ── Chat bubble toolbar (copy + MD toggle) ── */
+
+.bubble-toolbar {
+  position: absolute; top: 6px; right: 8px;
+  display: flex; gap: 4px; align-items: center;
+  opacity: 0; transition: opacity 0.15s;
+  pointer-events: none;
+}
+.omi-msg.assistant .bubble:hover .bubble-toolbar { opacity: 1; pointer-events: auto; }
+.bt-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 3px 6px;
+  background: rgba(255,250,241,0.92);
+  border: 1px solid var(--omi-border);
+  border-radius: 6px;
+  color: var(--omi-muted);
+  font-size: 10px; font-weight: 700; line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(74,59,42,0.10);
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.bt-btn:hover { background: rgba(255,250,241,1); color: var(--omi-fg); border-color: var(--omi-border-strong); }
+.bt-btn.active { background: var(--omi-accent-ring); border-color: var(--omi-accent); color: var(--omi-accent-deep); }
+.bt-btn.copied { color: var(--omi-ok, #3a7a28); border-color: var(--omi-ok, #3a7a28); }
+/* Raw view: monospace, pre-wrap */
+.omi-msg.assistant .bubble.show-raw {
+  white-space: pre-wrap;
+  font-family: var(--omi-font-mono);
+  font-size: 12px;
+  color: var(--omi-fg-soft);
+}
+
+/* Read-only composer visual cue */
+.omi-chat-composer.readonly { border-top-color: var(--omi-accent); }
+.omi-chat-composer.readonly textarea {
+  background: rgba(249, 245, 237, 0.9);
+  border-color: rgba(var(--omi-accent-rgb,139,115,78), 0.35);
+}
+
+/* Tool-use & thinking blocks (collapsible) */
+
+/* Inline image (e.g. omi-edit produced a new variant) */
+
+/* Composer */
+
+/* Chat mode toggle pill */
+.chat-mode-btn {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--omi-border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--omi-muted);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  cursor: pointer; line-height: 1.6;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.chat-mode-btn:hover { background: rgba(148,128,94,0.08); color: var(--omi-fg); }
+.chat-mode-btn.explain {
+  border-color: var(--omi-accent);
+  background: rgba(var(--omi-accent-rgb, 139,115,78), 0.10);
+  color: var(--omi-accent-deep);
+}
+
+/* Per-turn token/timing stats line */
+.turn-meta {
+  font-size: 10px; color: var(--omi-muted);
+  padding: 1px 4px; margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+
+/* Pulse animation reusable */
+
+@keyframes omi-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(143, 188, 143, 0.55); }
+  70%  { box-shadow: 0 0 0 10px rgba(143, 188, 143, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(143, 188, 143, 0); }
+}
+
+/* Scrollbar styling (subtle) */
+
+/* ─── Stylish list markers ─────────────────────────────────────────
+   Replaces the browser defaults inside any markdown preview. Bullets
+   become a small accent-coloured square; ordered markers are bolded
+   and tinted with the deep accent. Nested lists step the bullet shape
+   (square → disc → ring) to make depth scannable. */
+
+/* ─── GFM task-list items — themed checkbox ──────────────────────
+   Markdown: `- [ ] todo` / `- [x] done`. marked.js emits a disabled
+   <input type="checkbox"> inside the <li>. We hide our custom bullet
+   on those rows, replace the native checkbox with a custom rounded
+   square that fills with the accent on :checked, and strike-through
+   the label of completed items. */
+
+.pv ul > li:has(> input[type="checkbox"]) {
+  list-style: none;
+  padding: 2px 4px 2px 0;
+  margin-left: -4px;
+  border-radius: 4px;
+  transition: background 0.12s ease;
+}
+.pv ul > li:has(> input[type="checkbox"]):hover {
+  background: rgba(232, 224, 208, 0.45);
+}
+
+.pv ul > li > input[type="checkbox"]:hover {
+  border-color: var(--omi-accent-deep);
+  background: rgba(255, 251, 244, 1);
+  transform: scale(1.06);
+}
+.pv ul > li > input[type="checkbox"]:checked {
+  background: var(--omi-accent-deep);
+  border-color: var(--omi-accent-deep);
+}
+.pv ul > li > input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px; top: 0px;
+  width: 4px; height: 9px;
+  border: solid #fbf8f0;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.pv ul > li:has(> input[type="checkbox"]:checked) {
+  color: var(--omi-muted);
+}
+.pv ul > li:has(> input[type="checkbox"]:checked) > *:not(input) {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--omi-muted) 60%, transparent);
+  opacity: 0.78;
+}
+/* Keep the marked.js `disabled` attribute (edits happen in the source
+   markdown), but still allow visual hover/checked styling. */
+.pv ul > li > input[type="checkbox"][disabled] {
+  cursor: default;
+  opacity: 1;   /* override UA agent gray-out */
+}
+
+/* ─── Collapsible admonitions (<details> variant) ──────────────────
+   Markdown: > [!NOTE+] (open) / > [!NOTE-] (collapsed). Reuses the
+   same per-type accent + tint variables defined on .pv blockquote.adm. */
+
+/* ─── Generic collapse block (Material-style ??? / ???+) ───────────
+   Markdown:  ??? "Title"     (collapsed)
+              ???+ "Title"    (open by default)
+                  indented body */
+
+/* ─── Content tabs (MkDocs Material syntax) ────────────────────────
+   Markdown:  === "Python"
+                  print("hi")
+              === "JavaScript"
+                  console.log("hi")
+   Consecutive === blocks are grouped into one tab strip. */
+
+/* ─── ::timeline block ─────────────────────────────────────────────
+   Source:
+     ::timeline
+         - 2024-01-15: Started project
+         - 2024-03-22: First commit — "alpha" tag
+   Renders as a vertical timeline: a spine on the left with dots at
+   each entry, date chip in accent colour, body indented to clear. */
+.pv .md-timeline {
+  list-style: none;
+  position: relative;
+  margin: 14px 0;
+  padding: 4px 0 4px 22px;
+  counter-reset: none;
+}
+.pv .md-timeline > .md-timeline__item::before { content: none; }
+.pv .md-timeline::before {
+  content: '';
+  position: absolute;
+  left: 7px; top: 8px; bottom: 8px;
+  width: 2px;
+  background: color-mix(in srgb, var(--omi-accent-deep) 40%, transparent);
+  border-radius: 1px;
+}
+.pv .md-timeline__item {
+  position: relative;
+  padding: 4px 0 4px 0;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  counter-increment: none;
+}
+.pv .md-timeline__item + .md-timeline__item { margin-top: 4px; }
+.pv .md-timeline__dot {
+  position: absolute;
+  left: -22px; top: 0.65em;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--omi-accent-deep);
+  box-shadow: 0 0 0 3px rgba(255, 251, 244, 0.95);
+}
+.pv .md-timeline__item:hover .md-timeline__dot {
+  background: var(--omi-accent);
+  transform: scale(1.15);
+  transition: all 0.15s ease;
+}
+.pv .md-timeline__date {
+  flex-shrink: 0;
+  font-family: var(--omi-font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1px 8px;
+  background: color-mix(in srgb, var(--omi-accent-deep) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--omi-accent-deep) 25%, transparent);
+  border-radius: 4px;
+  color: var(--omi-accent-deep);
+  white-space: nowrap;
+}
+.pv .md-timeline__body {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.55;
+}
+.pv .md-timeline__body code {
+  background: rgba(146, 125, 92, 0.18);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12.5px;
+}
+
+/* ─── Footnotes ────────────────────────────────────────────────────
+   Inline ref: <sup class="md-fn-ref">[n]</sup>
+   Floating tooltip: a single .md-fn-tooltip element appended to <body>
+   is positioned on hover by JS. Footer section listed at the end. */
+
+/* MkDocs-Material inspired tooltip:
+   - dark card with rendered HTML body
+   - small triangular arrow pointing back at the host chip (above or below)
+   - hover-pinnable: pointer-events become active so users can click links */
+
+/* When reparented into an open <dialog> (top-layer), switch to absolute
+   positioning so coordinates are interpreted relative to the dialog rather
+   than the viewport. JS sets dialog-relative top/left in this mode. */
+.md-fn-tooltip.in-dialog {
+  position: absolute;
+}
+
+/* Arrow caret — flips when tooltip is positioned below its host */
+
+/* Wiki-link chip — [[Card Title]] rendered as a styled inline badge */
+.pv .md-wikilink {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 7px 1px 6px;
+  margin: 0 1px;
+  background: rgba(146, 125, 92, 0.10);
+  border: 1px solid color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
+  border-radius: 10px;
+  color: var(--omi-accent-deep);
+  font-weight: 500;
+  font-size: 0.94em;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.pv .md-wikilink:hover,
+.pv .md-wikilink:focus {
+  background: rgba(146, 125, 92, 0.22);
+  border-color: var(--omi-accent-deep);
+  color: var(--omi-fg);
+  outline: none;
+}
+.pv .md-wikilink svg { flex-shrink: 0; opacity: 0.7; }
+.pv .md-wikilink:hover svg { opacity: 1; }
+.pv .md-wikilink-text {
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.12s ease;
+}
+.pv .md-wikilink:hover .md-wikilink-text { border-bottom-color: currentColor; }
+.pv .md-wikilink--missing {
+  background: rgba(177, 90, 88, 0.08);
+  border-color: rgba(177, 90, 88, 0.30);
+  border-style: dashed;
+  color: var(--omi-error-deep, #b15a58);
+  cursor: help;
+}
+.pv .md-wikilink--missing:hover {
+  background: rgba(177, 90, 88, 0.16);
+  border-color: rgba(177, 90, 88, 0.55);
+  color: #8a4644;
+}
+
+/* Minimal hover tooltip for wikilinks / external links. Reuses
+   .md-fn-tooltip's chrome; just shows a single line of content. */
+.md-fn-tooltip .md-link-tip__href {
+  font-family: var(--omi-font-mono);
+  font-size: 11.5px;
+  word-break: break-all;
+  color: #d4d0c2;
+}
+.md-fn-tooltip .md-link-tip__miss {
+  font-size: 12px;
+  color: #d4d0c2;
+}
+.md-fn-tooltip .md-link-tip__miss strong { color: #e6dcc7; }
+
+/* ─── Outline floating panel (Tree button replacement) ────────────
+   Reuses the .ref-window chrome but tightens the body for a flat
+   indented heading list. Active rows highlight on hover; clicking
+   scrolls + briefly flashes the target heading in the preview. */
+.ref-window.outline-win .ref-window-body { padding: 0; }
+.outline-list { display: flex; flex-direction: column; gap: 1px; }
+.outline-row {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  color: var(--omi-fg-soft);
+  text-decoration: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.10s ease, color 0.10s ease;
+}
+.outline-row:hover {
+  background: rgba(232, 224, 208, 0.55);
+  color: var(--omi-fg);
+}
+.outline-row[data-level="1"] { font-weight: 700; color: var(--omi-accent-deep); }
+.outline-row[data-level="2"] { font-weight: 600; }
+.outline-row[data-level="3"] { font-weight: 500; }
+.outline-row[data-level="4"] { font-weight: 400; color: var(--omi-muted); }
+.outline-row .outline-mark {
+  flex-shrink: 0;
+  font-family: var(--omi-font-mono);
+  font-size: 10px;
+  color: var(--omi-muted);
+  opacity: 0.65;
+  letter-spacing: -0.04em;
+}
+.outline-row .outline-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.outline-empty {
+  padding: 14px;
+  color: var(--omi-muted);
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Heading flash when an outline row is clicked. Subtle accent highlight
+   that fades out over ~1.4s — long enough to locate the heading,
+   short enough not to distract. */
+@keyframes outline-flash {
+  0%   { background: rgba(212, 160, 74, 0.30); }
+  100% { background: transparent; }
+}
+.pv .outline-flash {
+  animation: outline-flash 1.4s ease-out;
+  border-radius: 4px;
+  padding-left: 6px;
+  margin-left: -6px;
+}
+
+/* ─── Collapsible H1/H2 sections ───────────────────────────────────
+   Each top-level H1 and H2 produced by marked is wrapped in a
+   <details> whose <summary> contains the heading element itself.
+   Open by default; clicking the heading toggles the section. */
+.pv .md-h-section { margin: 0; }
+.pv .md-h-section > summary {
+  list-style: none;
+  cursor: pointer;
+  position: relative;
+  padding: 4px 8px 4px 36px;
+  user-select: none;
+  border-radius: 6px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.pv .md-h-section > summary::-webkit-details-marker { display: none; }
+/* The disclosure marker — a chevron drawn as an SVG mask so it can be
+   tinted with the accent color and rotate smoothly. Sits inside a soft
+   circular pill that lights up on hover. */
+.pv .md-h-section > summary::before {
+  content: '';
+  position: absolute;
+  left: 6px; top: 50%;
+  width: 22px; height: 22px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background:
+    color-mix(in srgb, var(--omi-accent-deep) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pv .md-h-section > summary::after {
+  content: '';
+  position: absolute;
+  left: 6px; top: 50%;
+  width: 22px; height: 22px;
+  margin-top: -11px;
+  background-color: var(--omi-accent-deep);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.18s ease;
+  transform-origin: 50% 50%;
+}
+.pv .md-h-section[open] > summary::after { transform: rotate(90deg); }
+.pv .md-h-section > summary:hover {
+  background: color-mix(in srgb, var(--omi-accent-deep) 6%, transparent);
+}
+.pv .md-h-section > summary:hover::before {
+  background: color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--omi-accent-deep) 38%, transparent);
+}
+.pv .md-h-section > summary:hover::after {
+  background-color: var(--omi-accent-deeper, var(--omi-accent-deep));
+}
+.pv .md-h-section > summary > h1,
+.pv .md-h-section > summary > h2 { margin: 0; display: inline-block; vertical-align: middle; }
+.pv .md-h-section--1 > summary { margin: 16px 0 8px; }
+.pv .md-h-section--2 > summary { margin: 18px 0 6px; }
+.pv .md-h-section[open] > summary { margin-bottom: 4px; }
+/* H1 gets a subtle accent rail down the left side when expanded — gives
+   the eye a vertical guide showing the scope of the section. */
+.pv .md-h-section--1[open] {
+  border-left: 2px solid color-mix(in srgb, var(--omi-accent-deep) 22%, transparent);
+  margin-left: -10px;
+  padding-left: 10px;
+}
+
