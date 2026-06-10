@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>oh-my-skill</title>
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260602b">
-<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260602b">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260610a">
+<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260610a">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -31,6 +31,32 @@
   }
   .search-bar input:focus { outline:none; border-color: var(--omi-accent); box-shadow: 0 0 0 3px var(--omi-accent-ring), var(--omi-shadow-sm); }
   .search-bar .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--omi-muted); }
+  /* Themed search suggestions (replaces the browser's native autocomplete). */
+  .search-suggest {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 5px);
+    z-index: 50; padding: 4px;
+    background: rgb(var(--omi-surface));
+    border: 1px solid var(--omi-border);
+    border-radius: var(--omi-radius);
+    box-shadow: 0 12px 32px rgba(86, 72, 53, 0.18), var(--omi-shadow-sm);
+  }
+  .search-suggest.show { display: block; }
+  .search-suggest .ss-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 10px; border-radius: var(--omi-radius-sm);
+    cursor: pointer; font-size: 13px; color: var(--omi-fg);
+  }
+  .search-suggest .ss-item:hover,
+  .search-suggest .ss-item.active { background: rgba(212, 228, 193, 0.50); }
+  .search-suggest .ss-ic { display: inline-flex; flex-shrink: 0; color: var(--omi-muted); }
+  .search-suggest .ss-item.active .ss-ic { color: var(--omi-accent-deep); }
+  .search-suggest .ss-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-suggest .ss-label b { color: var(--omi-accent-deep); font-weight: 700; }
+  .search-suggest .ss-kind {
+    flex-shrink: 0; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--omi-muted); background: rgba(146, 125, 92, 0.10);
+    padding: 1px 6px; border-radius: 999px;
+  }
   /* Tag row is hidden behind a small dashed-bordered placeholder by default.
      Mousing over the placeholder (or pinning a filter with .is-active) swaps
      the placeholder for the full tag cloud. The wrapper has a min-height so
@@ -258,8 +284,22 @@
   /* When body.modal-open hides the right aside, also hide the resizer next to it */
   body.modal-open #resizerMain { display: none; }
   /* Edit/Preview split inside modal: 3-track grid (edit | resizer | preview).
-     Override the 2-fr default and edit-only/preview-only states. */
+     Override @oh-my/ui's 2-pane default. Each pane is pinned to an explicit
+     grid column so that hiding the resizer (display:none in single-pane
+     modes) can't make grid auto-placement shift the preview into a
+     collapsed 0-width track (which blanked the preview). */
   .editor-modal .em-body { grid-template-columns: 1fr 3px 1fr; }
+  /* Editor stacking: the toolbar rides above the floating windows (z:1550 >
+     ref-layer 1500) so it's always reachable. The body is position:relative
+     with NO numeric z, so it participates in DOM-order paint: the lineage map
+     (prepended first child) sits BEHIND it when "un-focused" (z auto) and in
+     FRONT when clicked (z 1300) — without burying the cascade/find popovers. */
+  .editor-modal .em-header { position: relative; z-index: 1550; }
+  .editor-modal .em-body { position: relative; }
+  .lmap-win { position: fixed; }
+  .editor-modal .em-pane-edit    { grid-column: 1; }
+  .editor-modal #resizerEditor   { grid-column: 2; }
+  .editor-modal .em-pane-preview { grid-column: 3; }
   .editor-modal .em-body.edit-only    { grid-template-columns: 1fr 0 0 !important; }
   .editor-modal .em-body.preview-only { grid-template-columns: 0 0 1fr !important; }
   .editor-modal .em-body.edit-only    #resizerEditor,
@@ -381,13 +421,16 @@
   .casc-title { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
   .casc-meta { color: var(--omi-muted); font-size: 11px; }
   .casc-grow { flex: 1; }
+  /* Header buttons share one square footprint so maximize + close match. */
   .casc-hbtn {
-    padding: 2px 8px; font-size: 11px; border-radius: 5px;
+    width: 26px; height: 26px; padding: 0; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 15px; line-height: 1;
     background: transparent; color: var(--omi-muted);
     border: 1px solid var(--omi-border); cursor: pointer;
   }
   .casc-hbtn:hover { background: rgba(232,224,208,0.6); color: var(--omi-fg); }
-  .casc-closer { font-size: 15px; padding: 0 6px; }
+  .casc-hbtn svg { width: 15px; height: 15px; }
   .casc-body { display: flex; flex: 1; min-height: 0; }
   .casc-l0 {
     width: 200px; flex: 0 0 200px;
@@ -630,22 +673,23 @@
     border-bottom: 1px solid var(--omi-border);
     cursor: move; user-select: none; flex-shrink: 0;
   }
-  /* Allow the user to highlight/copy the title and the ID/updated/tags
-     in the meta line. The drag handler skips mousedowns on this block. */
+  /* The title acts as the drag handle (big target); only the meta line
+     (ID / updated / tags) stays text-selectable so the ID can be copied. */
   .ref-window-header .ref-title-block {
     flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;
-    user-select: text; cursor: text;
   }
-  .ref-window-header .ref-title-block * { user-select: text; }
   .ref-window-header .ref-title {
     font-size: 12px; font-weight: 600; color: var(--omi-fg);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    user-select: none; cursor: move;
   }
   .ref-window-header .ref-meta {
     display: flex; align-items: center; gap: 8px; min-width: 0;
     font-size: 10.5px; color: var(--omi-muted); font-weight: 400;
     overflow: hidden; white-space: nowrap;
+    user-select: text; cursor: text;
   }
+  .ref-window-header .ref-meta * { user-select: text; }
   .ref-window-header .ref-id {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 10px; color: var(--omi-fg-soft);
@@ -668,6 +712,7 @@
   }
   .ref-window-header button:hover { background: rgba(232, 224, 208, 0.6); color: var(--omi-fg); border-color: var(--omi-border); }
   .ref-window-header button.danger:hover { background: rgba(177, 90, 88, 0.12); color: var(--omi-error-deep); border-color: rgba(177, 90, 88, 0.35); }
+  .ref-window-header button svg { width: 14px; height: 14px; }
   .ref-window-body {
     flex: 1; min-height: 0; overflow: auto;
     padding: 14px 18px 18px;
@@ -825,7 +870,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
     Logs
   </button>
-  <a class="omi-btn ghost icon-btn" href="/lineage" title="Organize cards into Topics → Subtopics">
+  <a class="omi-btn ghost icon-btn" id="openLineage" href="/lineage" title="Organize cards into Topics → Subtopics">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h6v6H3z"/><path d="M15 5h6v6h-6z"/><path d="M9 13h6v6H9z"/><path d="M9 8h6"/><path d="M12 11v2"/></svg>
     Lineage
   </a>
@@ -836,6 +881,10 @@
   <button class="omi-btn ghost icon-btn" id="openImport" title="Import from a folder/zip you cloned manually">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
     Import
+  </button>
+  <button class="omi-btn ghost icon-btn" id="openGuide" title="How oh-my-skill works">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    Guide
   </button>
   <button class="omi-btn ghost icon-btn" id="openSettings" title="Settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -864,7 +913,8 @@
         <span class="icon">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </span>
-        <input id="searchInput" placeholder="Search cards by title, content, or tag…">
+        <input id="searchInput" placeholder="Search cards by title, content, or tag…" autocomplete="off" spellcheck="false">
+        <div class="search-suggest" id="searchSuggest"></div>
       </div>
       <div class="tag-row" id="tagRow"></div>
     </div>
@@ -1012,9 +1062,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       <span id="emPreviewLabel">Split</span>
     </button>
-    <button class="omi-btn ghost sm icon-btn" id="emRefOpen" title="Open another card as a floating reference window">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-      Reference
+    <button class="omi-btn ghost sm icon-btn" id="emRefOpen" title="Toggle the lineage map (topic → subtopic → card) — hover to trace a path, click a card to open it">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      Card tree
     </button>
     <button class="omi-btn ghost sm icon-btn" id="emOutlineBtn" title="Show section outline (H1–H4)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -1146,9 +1196,12 @@
     <span class="casc-title">Lineage</span>
     <span class="casc-meta" id="cascMeta"></span>
     <span class="casc-grow"></span>
-    <button class="casc-hbtn" onclick="window.open('/lineage/linear','_blank')">Linear</button>
-    <button class="casc-hbtn" id="cascTreeBtn">Tree</button>
-    <button class="casc-hbtn casc-closer" id="cascClose" title="Close (Esc)">×</button>
+    <button class="casc-hbtn" id="cascMaxBtn" title="Open the full Lineage board">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+    </button>
+    <button class="casc-hbtn" id="cascClose" title="Close (Esc)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
   <div class="casc-body">
     <aside class="casc-l0">
@@ -1179,6 +1232,28 @@
   <pre id="logInspectBody" style="font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;background:rgba(0,0,0,0.03);padding:12px;border-radius:6px;max-height:60vh;overflow-y:auto"></pre>
   <div style="margin-top:12px;text-align:right"><button class="omi-btn ghost" onclick="$('#logInspectDlg').close()">Close</button></div>
 </dialog>
+
+<!-- ─── In-app guide (ported from oh-my-plugins docs-modal) ─────── -->
+<div class="docs-overlay" id="docsOverlay" role="dialog" aria-modal="true" aria-label="oh-my-skill guide">
+  <button type="button" class="docs-backdrop" id="docsBackdrop" aria-label="Close guide"></button>
+  <div class="docs-modal">
+    <header class="docs-topbar">
+      <div class="docs-brand">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        oh<span class="dot">·</span>my<span class="dot">·</span>skill guide
+      </div>
+      <label class="docs-search">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="docsSearch" placeholder="Search the guide…" autocomplete="off" spellcheck="false">
+      </label>
+      <button type="button" class="omi-btn ghost sm" id="docsClose" aria-label="Close">✕</button>
+    </header>
+    <div class="docs-body">
+      <nav class="docs-sidebar" id="docsSidebar"></nav>
+      <article class="docs-content" id="docsContent"></article>
+    </div>
+  </div>
+</div>
 
 <!-- ─── Sync Center dialog ────────────────────────────────────── -->
 <dialog id="syncDlg" class="omi-dialog sync-modal">
@@ -1334,7 +1409,7 @@
   // links from window.__OMI_NAV__: {id, label (HTML), href}. Labels embed
   // lucide sprite icons from /omi/ui/icons.svg. `data-service="skill"` on the
   // nav.js tag marks the skill entry active.
-  const _ico = (name) => `<svg class="icon" aria-hidden="true"><use href="/omi/ui/icons.svg?v=20260602b#i-${name}"/></svg>`;
+  const _ico = (name) => `<svg class="icon" aria-hidden="true"><use href="/omi/ui/icons.svg?v=20260610a#i-${name}"/></svg>`;
   window.__OMI_NAV__ = [
     { id: 'image',     label: `${_ico('image')} image`,         href: `${location.protocol}//${location.hostname}:5006/` },
     { id: 'clipboard', label: `${_ico('clipboard')} clipboard`, href: `${location.protocol}//${location.hostname}:5007/` },
@@ -1352,7 +1427,7 @@
     }
   });
 </script>
-<script src="/omi/ui/js/nav.js?v=20260602b" data-service="skill"></script>
+<script src="/omi/ui/js/nav.js?v=20260610a" data-service="skill"></script>
 <script>
 const $ = s => document.querySelector(s);
 const escapeHtml = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1858,7 +1933,18 @@ function _renderInner(body) {
   const {text: t1b, links: wikiLinks} = _extractWikiLinks(t1);
   const {text: t2, defs: fnDefs, refOrder: fnOrder, refNum: fnNum} = _extractFootnotes(t1b);
   const {text: bodySafe, chunks: katexChunks} = _protectKatex(t2);
-  let html = marked.parse(bodySafe);
+  // ── Custom inline/block syntax (pre-marked so the tags survive) ──
+  // <Ctrl+Shift+P> → <kbd>Ctrl+Shift+P</kbd>   (keyboard keys)
+  //   Runs on already-code-protected text, so `<x>` inside `code`/```fences```
+  //   is untouched. A denylist skips real inline HTML tags & autolinks.
+  // >summary line<  (a WHOLE line) → <ept>summary line</ept>  (card excerpt)
+  //   Block-level only, so prose comparisons like "a > b < c" never match.
+  const KBD_DENY = new Set(['br','hr','wbr','sub','sup','kbd','mark','u','b','i','em','strong','code','pre','a','img','p','div','span','details','summary','table','thead','tbody','tr','td','th','ul','ol','li','dl','dt','dd','blockquote','h1','h2','h3','h4','h5','h6','ept','small','del','ins','s','abbr','q','figure','figcaption','section','article','aside','header','footer','nav','main','button','input','label','svg','path']);
+  const bodyCustom = bodySafe
+    .replace(/<([A-Za-z0-9][A-Za-z0-9 +\-.,↑↓←→⌘⌥⇧⌃]*?)>/g,
+      (m, inner) => KBD_DENY.has(inner.trim().toLowerCase()) ? m : `<kbd>${inner}</kbd>`)
+    .replace(/^[ \t]*>[ \t]*(\S(?:[^<>\n]*\S)?)[ \t]*<[ \t]*$/gm, '<ept>$1</ept>');
+  let html = marked.parse(bodyCustom);
   if (tableInfo.length) {
     let tIdx = 0;
     html = html.replace(/<table>([\s\S]*?)<\/table>/g, (match, inner) => {
@@ -2268,10 +2354,18 @@ async function bootstrap() {
   AI_OK = !!ai.configured;
   applyAIDegradation(ai);
   await loadCards();
+  // Deep-link: /?card=<id> (used by the fullscreen mindmap) opens that card's
+  // editor straight away once cards are loaded.
+  const _deep = new URLSearchParams(location.search).get('card');
+  if (_deep && CARDS.some(c => c.id === _deep)) {
+    setTimeout(() => window.openCard(_deep), 60);
+  }
 }
 function applyAIDegradation(ai) {
   const chat = ai.chat || {};
   const extract = ai.extract || {};
+  // When chat AI is unavailable, strip the top-nav down to Guide + Settings.
+  document.querySelector('.omi-topnav')?.classList.toggle('ai-off', !chat.configured);
   const dim = (sel, title) => {
     const el = $(sel); if (!el) return;
     el.disabled = true;
@@ -2372,6 +2466,9 @@ function _setTabTitle(card) {
 window.openCard = function (id) {
   const card = CARDS.find(c => c.id === id);
   if (!card) return;
+  // Opening/switching a card → close any lingering lineage map / outline so
+  // they don't overlap the new card (e.g. promoting a ref card into the editor).
+  if (typeof window._resetCardPanels === 'function') window._resetCardPanels();
   CURRENT = card;
   ORIGINAL = JSON.parse(JSON.stringify(card));
   $('#emTitle').value = card.title;
@@ -2830,6 +2927,273 @@ $('#searchInput').oninput = () => {
   clearTimeout(window._st);
   window._st = setTimeout(applyFilter, 150);
 };
+
+// ── Themed search autocomplete (tags + card titles) ────────────────
+(function () {
+  const inp = $('#searchInput'), box = $('#searchSuggest');
+  let items = [], active = -1;
+  const close = () => { box.classList.remove('show'); box.innerHTML = ''; items = []; active = -1; };
+  const mark = () => box.querySelectorAll('.ss-item').forEach((el, i) => el.classList.toggle('active', i === active));
+  const hl = (s, q) => { const i = s.toLowerCase().indexOf(q); return i < 0 ? escapeHtml(s)
+    : escapeHtml(s.slice(0, i)) + '<b>' + escapeHtml(s.slice(i, i + q.length)) + '</b>' + escapeHtml(s.slice(i + q.length)); };
+
+  function build() {
+    const q = inp.value.trim().toLowerCase();
+    if (!q) return close();
+    const tags = new Set(), titles = [];
+    for (const c of (CARDS || [])) { (c.tags || []).forEach(t => tags.add(t)); if (c.title) titles.push(c.title); }
+    const rank = s => { const l = s.toLowerCase(); return !l.includes(q) ? -1 : (l.startsWith(q) ? 0 : 1); };
+    const pick = (arr, kind, n) => [...new Set(arr)].map(s => [s, rank(s)]).filter(x => x[1] >= 0)
+      .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).slice(0, n).map(([label]) => ({ kind, label }));
+    const seen = new Set(); items = [];
+    for (const it of [...pick([...tags], 'tag', 6), ...pick(titles, 'card', 5)]) {
+      const k = it.kind + ':' + it.label.toLowerCase();
+      if (!seen.has(k)) { seen.add(k); items.push(it); }
+    }
+    items = items.slice(0, 8);
+    if (!items.length) return close();
+    active = -1;
+    const TAG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+    const CARD = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    box.innerHTML = items.map((it, i) =>
+      `<div class="ss-item" data-i="${i}"><span class="ss-ic">${it.kind === 'tag' ? TAG : CARD}</span>` +
+      `<span class="ss-label">${hl(it.label, q)}</span><span class="ss-kind">${it.kind}</span></div>`).join('');
+    box.querySelectorAll('.ss-item').forEach(el => {
+      el.onmousedown = (e) => { e.preventDefault(); choose(+el.dataset.i); };
+      el.onmouseenter = () => { active = +el.dataset.i; mark(); };
+    });
+    box.classList.add('show');
+  }
+  function choose(i) { const it = items[i]; if (!it) return; inp.value = it.label; close(); applyFilter(); }
+
+  inp.addEventListener('input', build);
+  inp.addEventListener('keydown', (e) => {
+    if (!box.classList.contains('show') || !items.length) return;
+    if (e.key === 'ArrowDown') { active = (active + 1) % items.length; mark(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { active = (active - 1 + items.length) % items.length; mark(); e.preventDefault(); }
+    else if (e.key === 'Enter') { if (active >= 0) { choose(active); e.preventDefault(); } }
+    else if (e.key === 'Escape') { close(); }
+  });
+  inp.addEventListener('blur', () => setTimeout(close, 120));
+})();
+
+// ── In-app guide (docs-modal) ──────────────────────────────────────
+(function () {
+  // Ready-to-paste prompt for ANOTHER ai session (textContent, so no escaping).
+  const AGENT_PROMPT = [
+    'You are working with "skill cards" in an oh-my-skill instance — focused',
+    'markdown documents (title + markdown body + tags) stored in SQLite.',
+    'The server base URL is __BASE__ . Read and edit cards two ways:',
+    '',
+    '═ Option A — the oms CLI (zero-dependency Python, recommended) ═',
+    '  curl -s __BASE__/oms.py -o oms && chmod +x oms     # fetch once',
+    '  export OMI_API_BASE=__BASE__                        # point it at the server',
+    '  ./oms list                       # all cards: id · title · tags',
+    '  ./oms show <id>                  # print a card as markdown',
+    '  ./oms add  --title "Title" --tags a,b --file body.md      # create',
+    '  ./oms edit <id> --title "New" --add-tag x --rm-tag y --file body.md   # update',
+    '  ./oms rm   <id> --yes            # delete',
+    '  ./oms guide | head -250          # markdown syntax reference — READ before writing',
+    '  (content may be piped via stdin instead of --file)',
+    '  Never hand-escape JSON for content; always pass --file or pipe stdin.',
+    '',
+    '═ Option B — the HTTP API (JSON) ═',
+    '  GET    __BASE__/skill-cards/api/cards          -> [{id,title,content,tags,updated_at}, ...]',
+    '  POST   __BASE__/skill-cards/api/cards          {title, content, tags:[...]}   -> create',
+    '  PUT    __BASE__/skill-cards/api/cards/<id>     {title, content, tags:[...]}   -> replace (title required)',
+    '  DELETE __BASE__/skill-cards/api/cards/<id>     -> delete',
+    '',
+    '═ Card content (markdown) ═',
+    '  GFM plus: callouts  > [!NOTE] / [!TIP+] ,  collapsible code  ```lang+ Title ,',
+    '  tabs  === "x" ,  timeline  :::timeline ,  wiki-links  [[Card Title]] ,',
+    '  key caps  <Ctrl+S> ,  excerpt  >summary line< ,  and  $math$ / $$display$$ .',
+    '  H1 and H2 render as collapsible sections.',
+    '',
+    '═ Rules ═',
+    '  • Read a card before editing; preserve its H1 unless asked to rename.',
+    '  • Keep cards concise, scannable, table-heavy; fence multi-line code.',
+    '  • Changes appear live in the web UI.',
+  ].join('\n');
+
+  const DOCS = [
+    { id: 'overview', group: 'Getting started', label: 'What is a skill card',
+      blurb: 'Focused markdown documents you keep, search, and refine.',
+      keywords: ['card', 'markdown', 'sqlite', 'store', 'home', 'grid'],
+      body:
+        `<p>oh-my-skill is a manager for <strong>skill cards</strong> — focused markdown documents (a title, a markdown body, and tags). Think of each card as one reusable note, reference, or skill you want an agent or yourself to reach for later.</p>
+         <p>Cards live in <strong>SQLite</strong> (the canonical store). The on-disk copy you may see during a chat is only scratch — the database is the source of truth, and the web UI reflects it live.</p>
+         <h3>The home screen</h3>
+         <table class="doc-table"><thead><tr><th>Area</th><th>What it does</th></tr></thead><tbody>
+           <tr><td><strong>Search</strong></td><td>Filters the grid by title, body, or tag. Press <kbd>/</kbd> to jump to it; it suggests matching tags &amp; card titles as you type.</td></tr>
+           <tr><td><strong>Tag row</strong></td><td>Hover the 🏷 chip to expand; click a tag to filter to it, click again to clear.</td></tr>
+           <tr><td><strong>Card grid</strong></td><td>Every card as a tile (heading, snippet, tags, field count). Click to open the editor.</td></tr>
+           <tr><td><strong>+ New Card</strong></td><td>Starts a blank draft.</td></tr>
+         </tbody></table>
+         <div class="doc-callout">Everything works without AI configured — create, edit, search, organize, and sync are all manual-friendly. AI just adds chat &amp; extraction on top.</div>` },
+    { id: 'create', group: 'Getting started', label: 'Create, edit & save',
+      blurb: 'The editor modal — layout modes, saving, undo, tags.',
+      keywords: ['new', 'edit', 'save', 'preview', 'split', 'undo', 'draft', 'delete', 'title'],
+      body:
+        `<p>Clicking a card (or <strong>+ New Card</strong>) opens the <strong>editor modal</strong>: a markdown textarea on the left, a live rendered <strong>preview</strong> on the right.</p>
+         <h3>Layout &amp; sizing</h3>
+         <ul class="doc-list">
+           <li><strong>Split / Edit / Preview</strong> cycles between two-pane, editor-only, and preview-only.</li>
+           <li><strong>Default / Wide / Fullscreen</strong> (or <kbd>F11</kbd>) resizes the modal. The split divider is draggable.</li>
+           <li>Edit ↔ preview scrolling is proportionally synced, so both panes show the same part of the doc.</li>
+         </ul>
+         <h3>Saving &amp; editing</h3>
+         <ul class="doc-list">
+           <li><kbd>Ctrl+S</kbd> saves. The title comes from the title field (kept in sync with the first H1).</li>
+           <li><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Shift+Z</kbd> undo / redo; <kbd>Tab</kbd> / <kbd>Shift+Tab</kbd> indent / outdent.</li>
+           <li>Manage <strong>tags</strong> in the header; tags drive grid filtering and the 🏷-by-tag relations.</li>
+         </ul>` },
+    { id: 'markdown', group: 'Editing', label: 'Markdown & custom syntax',
+      blurb: 'GFM plus callouts, tabs, timeline, kbd, excerpt, math.',
+      keywords: ['syntax', 'callout', 'kbd', 'ept', 'excerpt', 'tabs', 'timeline', 'math', 'katex', 'table', 'code', 'highlight', 'wiki'],
+      body:
+        `<p>Cards render <strong>GitHub-flavored markdown</strong> plus oh-my-skill extras. Two built-in cards document it in depth: <strong>MD Cheatsheet</strong> (one-line index) and <strong>Markdown Editor Reference</strong> (live examples).</p>
+         <h3>Inline</h3>
+         <table class="doc-table"><thead><tr><th>Type this</th><th>Get</th></tr></thead><tbody>
+           <tr><td><code>**bold**</code> · <code>*italic*</code> · <code>~~strike~~</code></td><td>standard emphasis</td></tr>
+           <tr><td><code>==highlight==</code></td><td>highlighted text</td></tr>
+           <tr><td><code>&lt;Ctrl+Shift+P&gt;</code></td><td>a <kbd>Ctrl+Shift+P</kbd> key cap</td></tr>
+           <tr><td><code>[[Card Title]]</code></td><td>a wiki-link to another card</td></tr>
+           <tr><td><code>$x^2$</code> / <code>$$…$$</code></td><td>inline / block KaTeX math</td></tr>
+         </tbody></table>
+         <h3>Blocks</h3>
+         <table class="doc-table"><thead><tr><th>Type this</th><th>Get</th></tr></thead><tbody>
+           <tr><td><code>&gt;summary line&lt;</code> (a whole line)</td><td>a TL;DR excerpt box</td></tr>
+           <tr><td><code>&gt; [!NOTE]</code> / <code>[!TIP+]</code></td><td>callouts — 5 types, <code>+</code>/<code>-</code> makes them collapsible</td></tr>
+           <tr><td><code>\`\`\`lang+ Title</code></td><td>a collapsible code block (open); <code>-</code> = closed</td></tr>
+           <tr><td><code>=== "Tab"</code></td><td>content tabs (consecutive blocks merge)</td></tr>
+           <tr><td><code>??? "Title"</code></td><td>a collapse block</td></tr>
+           <tr><td><code>:::timeline</code></td><td>a dated timeline</td></tr>
+         </tbody></table>
+         <p><strong>H1 and H2</strong> headings render as collapsible sections. Indent nested bodies (tabs / <code>???</code> / timeline) by <strong>4 spaces</strong>. Code blocks even work inside callouts (prefix each line with <code>&gt; </code>).</p>` },
+    { id: 'tools', group: 'Editing', label: 'Editor tools',
+      blurb: 'Outline, card-tree map, references, find, slash menu, images.',
+      keywords: ['outline', 'find', 'replace', 'slash', 'image', 'reference', 'map', 'scroll'],
+      body:
+        `<p>The editor header packs several panels — all themed and dismissable with <kbd>Esc</kbd>.</p>
+         <table class="doc-table"><thead><tr><th>Tool</th><th>What it does</th></tr></thead><tbody>
+           <tr><td><strong>Outline</strong></td><td>Live H1–H4 navigator with scroll-spy (the current section highlights). Click to jump, collapse a section, copy a heading, or filter.</td></tr>
+           <tr><td><strong>Card tree</strong></td><td>Toggles the interactive Topic → Subtopic → Card <em>lineage map</em>. Hover any node to trace its full path; click a card to open it as a preview. Clicking the editor drops the map behind it.</td></tr>
+           <tr><td><strong>Reference</strong></td><td><kbd>Ctrl+Shift+P</kbd> — pin any other card as a floating, resizable preview window. Its ↗ promotes it into the editor.</td></tr>
+           <tr><td><strong>Find / Replace</strong></td><td><kbd>Ctrl+F</kbd> — with case / whole-word / regex toggles.</td></tr>
+           <tr><td><strong>Slash menu</strong></td><td>Type <kbd>/</kbd> at the start of a line to insert any block (headings, lists, callouts, code, tabs, timeline, table, math…).</td></tr>
+           <tr><td><strong>Images</strong></td><td>Paste or drag-drop image files onto the textarea to upload &amp; insert. Save the card first (the id namespaces the upload).</td></tr>
+         </tbody></table>
+         <div class="doc-callout">Opening or switching cards resets the outline and lineage map, so they never linger over the new card.</div>` },
+    { id: 'lineage', group: 'Organizing', label: 'Lineage & the map',
+      blurb: 'A drag board that groups cards into Topics → Subtopics.',
+      keywords: ['lineage', 'topic', 'subtopic', 'board', 'drag', 'mindmap', 'map', 'inspector'],
+      body:
+        `<p>The <strong>Lineage</strong> page (top-nav) is a Pinterest-style drag board for organizing cards into <strong>Topics</strong> and, optionally, <strong>Subtopics</strong>.</p>
+         <ul class="doc-list">
+           <li>Drag a candidate from the left list into a topic — drop on the topic, between cards, or onto <strong>“New topic”</strong>.</li>
+           <li>Click a card or topic to <strong>focus</strong> it; the right <strong>inspector</strong> shows its metadata, where it is used, and an excerpt.</li>
+           <li>The left filter and right inspector are both drag-resizable (widths persist).</li>
+           <li>The same lineage shows as an interactive left→right <strong>map</strong> via the editor’s <strong>Card tree</strong> button — and one card can fan in from several topics.</li>
+         </ul>` },
+    { id: 'refs', group: 'Organizing', label: 'References & wiki-links',
+      blurb: 'Three ways to relate cards: hierarchy, links, tags.',
+      keywords: ['wiki', 'link', 'reference', 'related', 'parent', 'children', 'tags', 'dag'],
+      body:
+        `<p>Cards connect to each other three complementary ways:</p>
+         <table class="doc-table"><thead><tr><th>Relation</th><th>How you set it</th><th>Shown as</th></tr></thead><tbody>
+           <tr><td><strong>Hierarchy</strong></td><td>parent / children, on the lineage board</td><td>Topic → Subtopic → Card</td></tr>
+           <tr><td><strong>DAG links</strong></td><td><code>[[wiki-links]]</code> or <code>metadata.links</code></td><td>↔ related</td></tr>
+           <tr><td><strong>Implicit</strong></td><td>shared tags</td><td>🏷 by tag</td></tr>
+         </tbody></table>
+         <p>Type <code>[[Card Title]]</code> (or <code>[[Title|alias]]</code>) to link; click a chip to open the card, hover for a title + tags preview. Unmatched links render as a “broken” chip so you can spot typos.</p>` },
+    { id: 'ai', group: 'AI & sync', label: 'AI chat & extract',
+      blurb: 'Per-card chat and AI extraction, when a provider is configured.',
+      keywords: ['ai', 'chat', 'claude', 'codex', 'extract', 'pull', 'provider'],
+      body:
+        `<p>With an AI provider configured (Settings), oh-my-skill adds two capabilities:</p>
+         <ul class="doc-list">
+           <li><strong>Chat</strong> — a conversation scoped to one card. The agent can read it, propose edits, and save a new version; <strong>Pull</strong> fetches the latest version it saved.</li>
+           <li><strong>Extract</strong> — turn raw input into a structured card.</li>
+         </ul>
+         <div class="doc-callout">If AI isn’t configured, the top-nav trims to <strong>Guide</strong> + <strong>Settings</strong>. Everything else (create, edit, search, lineage, sync) still works — and you can drive edits from your own agent (see <em>Drive it from an agent</em>).</div>` },
+    { id: 'sync', group: 'AI & sync', label: 'GitHub sync & import',
+      blurb: 'Push / pull your cards to a repo, or import a folder / zip.',
+      keywords: ['sync', 'github', 'git', 'import', 'backup', 'remote'],
+      body:
+        `<p><strong>Sync</strong> (top-nav) opens the Sync Center: connect your cards to a GitHub repo and push / pull to back them up or share them across machines. It shows status and lets you re-fetch the remote.</p>
+         <p><strong>Import</strong> pulls in a folder or zip of markdown you cloned or exported manually — handy for seeding a fresh instance.</p>` },
+    { id: 'oms', group: 'AI & sync', label: 'The oms CLI',
+      blurb: 'A zero-dependency CLI to manage cards from a shell.',
+      keywords: ['oms', 'cli', 'command', 'terminal', 'api', 'curl', 'base'],
+      body:
+        `<p><code>oms</code> is a stdlib-only Python CLI that talks to the same HTTP API the web UI uses — so you (or an agent) can manage cards from any shell. Download it from <code>__BASE__/oms.py</code> and point it at the server with <code>OMI_API_BASE</code> (or the global <code>--base</code> flag).</p>
+         <table class="doc-table"><thead><tr><th>Command</th><th>Does</th></tr></thead><tbody>
+           <tr><td><code>oms list</code></td><td>list every card (id · title · tags)</td></tr>
+           <tr><td><code>oms show &lt;id&gt;</code></td><td>print a card’s markdown</td></tr>
+           <tr><td><code>oms add --title T [--tags a,b] --file F</code></td><td>create (content via <code>--file</code>/<code>--content</code>/stdin)</td></tr>
+           <tr><td><code>oms edit &lt;id&gt; [--title T] [--add-tag t] [--rm-tag t] --file F</code></td><td>update</td></tr>
+           <tr><td><code>oms rm &lt;id&gt; --yes</code></td><td>delete</td></tr>
+           <tr><td><code>oms tag / untag &lt;tag&gt;</code> · <code>oms guide</code></td><td>tag helpers · print the syntax reference</td></tr>
+         </tbody></table>
+         <p>Inside a per-card chat workspace the <code>oms-*</code> shell wrappers (<code>oms-save</code>, <code>oms-show</code>, <code>oms-refine</code>…) act on <code>$OMI_CARD_ID</code>. Never hand-escape JSON — pass <code>--file</code> or pipe stdin.</p>` },
+    { id: 'agent', group: 'AI & sync', label: 'Drive it from an agent',
+      blurb: 'A ready-to-paste prompt that teaches any AI session to edit cards.',
+      keywords: ['agent', 'prompt', 'llm', 'automation', 'api', 'cli', 'copy'],
+      body:
+        `<p>Paste the prompt below into <strong>another AI session</strong> (Claude, Codex, ChatGPT, a coding agent…) and it will know how to read and edit your skill cards through the <code>oms</code> CLI or the HTTP API. The base URL is filled in with this instance.</p>
+         <button type="button" class="omi-btn ghost sm doc-copy-prompt">⧉ Copy prompt</button>
+         <pre class="doc-prompt" id="agentPrompt"></pre>
+         <div class="doc-callout">Give the agent network access to <code>__BASE__</code>. For a remote box, replace it with the address others can reach (e.g. <code>http://HOST:5009</code>).</div>` },
+  ];
+
+  const overlay = $('#docsOverlay'), sidebar = $('#docsSidebar'), content = $('#docsContent'),
+        search = $('#docsSearch');
+  let activeId = DOCS[0].id;
+
+  function matches(d, q) {
+    if (!q) return true;
+    const hay = (d.label + ' ' + d.blurb + ' ' + d.group + ' ' + (d.keywords || []).join(' ')).toLowerCase();
+    return hay.includes(q);
+  }
+  function renderSidebar() {
+    const q = search.value.trim().toLowerCase();
+    const shown = DOCS.filter(d => matches(d, q));
+    if (!shown.length) { sidebar.innerHTML = `<div class="docs-nav-empty">No topics match “${escapeHtml(search.value)}”.</div>`; return; }
+    if (!shown.some(d => d.id === activeId)) activeId = shown[0].id;
+    const groups = [];
+    for (const d of shown) { let g = groups.find(x => x.group === d.group); if (!g) { g = { group: d.group, items: [] }; groups.push(g); } g.items.push(d); }
+    sidebar.innerHTML = groups.map(g =>
+      `<div class="docs-nav-group"><div class="docs-nav-kicker">${escapeHtml(g.group)}</div>` +
+      g.items.map(d => `<button type="button" class="docs-nav-item${d.id === activeId ? ' active' : ''}" data-id="${d.id}">${escapeHtml(d.label)}</button>`).join('') +
+      `</div>`).join('');
+    sidebar.querySelectorAll('.docs-nav-item').forEach(b => b.onclick = () => { activeId = b.dataset.id; renderSidebar(); renderContent(); });
+  }
+  function renderContent() {
+    const d = DOCS.find(x => x.id === activeId); if (!d) { content.innerHTML = ''; return; }
+    const base = location.origin;
+    const bodyHtml = d.body.replace(/__BASE__/g, escapeHtml(base));
+    content.innerHTML =
+      `<div class="docs-prose pv"><div class="docs-content-kicker">${escapeHtml(d.group)}</div>` +
+      `<h2>${escapeHtml(d.label)}</h2><p class="docs-content-blurb">${escapeHtml(d.blurb)}</p>` +
+      `<div class="docs-divider"></div>${bodyHtml}</div>`;
+    // Agent-prompt page: fill the <pre> via textContent (no HTML escaping needed).
+    const pre = content.querySelector('#agentPrompt');
+    if (pre) pre.textContent = AGENT_PROMPT.replace(/__BASE__/g, base);
+    const copyBtn = content.querySelector('.doc-copy-prompt');
+    if (copyBtn) copyBtn.onclick = async () => {
+      try { await navigator.clipboard.writeText(pre ? pre.textContent : ''); copyBtn.textContent = '✓ Copied'; setTimeout(() => { copyBtn.textContent = '⧉ Copy prompt'; }, 1200); } catch {}
+    };
+    content.scrollTop = 0;
+  }
+  function openDocs() { overlay.classList.add('show'); renderSidebar(); renderContent(); setTimeout(() => search.focus(), 0); }
+  function closeDocs() { overlay.classList.remove('show'); }
+
+  $('#openGuide').addEventListener('click', openDocs);
+  $('#docsClose').addEventListener('click', closeDocs);
+  $('#docsBackdrop').addEventListener('click', closeDocs);
+  search.addEventListener('input', renderSidebar);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('show')) closeDocs(); });
+})();
 
 // ── Right panel toggles + resizable widths ────────────────────────
 const main = $('#main');
@@ -4043,7 +4407,8 @@ document.addEventListener('keydown', (e) => {
     document.getElementById('cascadePop')?.classList.contains('show') ||
     document.getElementById('findWidget')?.classList.contains('show') ||
     document.getElementById('refPickerOverlay')?.classList.contains('show') ||
-    document.querySelector('.ref-window.find-on')
+    document.querySelector('.ref-window.find-on') ||
+    document.querySelector('.lmap-win')        // lineage map handles its own Esc
   );
   if (innerOpen) return;
   // Swallow before the browser routes ESC to the dialog's cancel handler
@@ -4400,7 +4765,8 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter')     { if (pickerActive >= 0 && filtered[pickerActive]) { spawnWindow(filtered[pickerActive]); closePicker(); } e.preventDefault(); }
   });
   ovr.addEventListener('click', (e) => { if (e.target === ovr) closePicker(); });
-  document.getElementById('emRefOpen').onclick = openPicker;
+  // #emRefOpen now opens the Card-tree window (wired in the cascade IIFE);
+  // the flat picker stays available via the Ctrl+Shift+P power hotkey.
   // Global hotkey while editor open: Ctrl+Shift+P
   document.addEventListener('keydown', (e) => {
     const dlg = document.getElementById('editorModal');
@@ -4439,11 +4805,14 @@ document.addEventListener('keydown', (e) => {
           <span class="ref-meta">${metaHTML}</span>
         </div>
         <button class="ref-find-btn" title="Find in this card (Ctrl+F)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
-        <button class="ref-min" title="Minimize">−</button>
-        <button class="ref-pop" title="Open this card in editor">↗</button>
-        <button class="ref-x danger" title="Close">×</button>
+        <button class="ref-pop" title="Open this card in the editor">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+        </button>
+        <button class="ref-x danger" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div class="ref-find-bar">
         <input type="text" class="rfb-input" placeholder="Find" autocomplete="off" spellcheck="false">
@@ -4485,9 +4854,9 @@ document.addEventListener('keydown', (e) => {
     const header = w.querySelector('.ref-window-header');
     header.addEventListener('mousedown', (e) => {
       if (e.target.closest('button')) return;
-      // Title / ID / updated / tags are selectable — don't start a drag
-      // from a mousedown on that text.
-      if (e.target.closest('.ref-title-block')) return;
+      // The whole header (incl. the title) is a drag handle; only the meta
+      // line (id / updated / tags) stays text-selectable so it can be copied.
+      if (e.target.closest('.ref-meta')) return;
       if (w.classList.contains('minimized')) return;
       focusWin(winState);
       const r = w.getBoundingClientRect();
@@ -4540,27 +4909,12 @@ document.addEventListener('keydown', (e) => {
     });
 
     // Buttons
-    w.querySelector('.ref-min').onclick = () => {
-      if (w.classList.contains('minimized')) {
-        // Restore — bring back to last position
-        w.classList.remove('minimized');
-        layer.appendChild(w);
-        focusWin(winState);
-        return;
-      }
-      w.classList.add('minimized');
-      // Expand click target to whole header to restore
-      w.querySelector('.ref-window-header').onclick = (ev) => {
-        if (ev.target.closest('button.ref-x')) return;
-        w.classList.remove('minimized');
-        layer.appendChild(w);
-        focusWin(winState);
-      };
-      dock.appendChild(w);
-    };
     w.querySelector('.ref-pop').onclick = () => {
-      // Promote this reference into the main editor.
+      // Promote this reference into the main editor, then dismiss the
+      // preview window — it has served its purpose.
       if (typeof window.openCard === 'function') window.openCard(card.id);
+      w.remove();
+      openWins = openWins.filter(x => x !== winState);
     };
     w.querySelector('.ref-x').onclick = () => {
       w.remove();
@@ -4678,6 +5032,10 @@ document.addEventListener('keydown', (e) => {
     ws.el.classList.add('focused');
     ws.el.style.zIndex = ++topZ;
   }
+
+  // Exposed so the Card-tree window (cascade IIFE) can pop a card open as a
+  // floating reference preview. Accepts a full card object.
+  window._spawnRefWindow = spawnWindow;
 })();
 
 // ─── Cascade — mini lineage editor ──────────────────────────────────
@@ -5117,56 +5475,225 @@ document.addEventListener('keydown', (e) => {
 
   function close() { pop.classList.remove('show'); CASC_DRAG = {}; }
 
-  // ── Full tree floating window (original behaviour) ─────────────
-  function rootCards() {
-    return (CARDS || []).filter(c => !parentOf(c) || !byId(parentOf(c)))
-                        .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+  // ── Interactive lineage map (topic → subtopic → card) ──────────────
+  // Toggle-able singleton. Reuses the .ref-window chrome (draggable) but the
+  // body is a left→right tree with SVG connectors. Hovering any node traces
+  // its path: a Topic lights all descendants, a Subtopic lights Topic→Sub→its
+  // cards, a Card lights only its Topic→Subtopic→Card ancestry — everything
+  // else dims. Nodes + connectors highlight together; opacity/colour only, so
+  // there is no layout shift. Data: /lineage/api/state. Click a card to open
+  // it as a floating reference preview.
+  let _lineageMapWin = null;
+  function _closeLineageMap() {
+    if (_lineageMapWin) { _lineageMapWin.remove(); _lineageMapWin = null; }
+    document.removeEventListener('keydown', _lmapKey, true);
   }
-  function openFullTree() {
-    const layer = document.getElementById('refLayer');
-    if (dlgEd.open && layer.parentElement !== dlgEd) dlgEd.appendChild(layer);
+  function _lmapKey(e) { if (e.key === 'Escape' && _lineageMapWin) { e.stopPropagation(); _closeLineageMap(); } }
+
+  async function openLineageMap() {
+    try { await loadLineage(); } catch (e) {}
     const w = document.createElement('div');
-    w.className = 'ref-window';
-    const baseW = Math.min(560, Math.round(window.innerWidth * 0.45));
-    const baseH = Math.min(720, Math.round(window.innerHeight * 0.7));
-    w.style.cssText = `right:28px; top:80px; width:${baseW}px; height:${baseH}px; z-index:1700;`;
+    _lineageMapWin = w;
+    w.className = 'ref-window lmap-win';
+    const baseW = Math.min(940, Math.round(window.innerWidth * 0.62));
+    const baseH = Math.min(700, Math.round(window.innerHeight * 0.70));
+    // Window-focus model: the map opens in front (z 1300) but clicking the
+    // editor drops it BEHIND the editor body (see the dlgEd mousedown handler),
+    // so the editor stays visible when they overlap; clicking the map raises it
+    // again. It's prepended as the dialog's first child so the "behind" state
+    // (z auto) falls below the position:relative em-body in paint order.
+    w.style.cssText = `right:28px; top:124px; width:${baseW}px; height:${baseH}px; z-index:1300;`;
     w.innerHTML = `
       <div class="ref-window-header">
-        <span class="ref-title">🌲 Card tree</span>
-        <button class="treex" title="Close">×</button>
+        <span class="ref-title">🗺 Lineage map</span>
+        <span class="lmap-hint">hover to trace a path · click a card to open it</span>
+        <button class="lmap-x" title="Close (Esc)" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
-      <div class="ref-window-body" tabindex="0">
-        <div class="tree-render" style="font-size:12.5px"></div>
+      <div class="ref-window-body lmap-scroll" tabindex="0">
+        <div class="lmap"><svg class="lmap-edges" aria-hidden="true"></svg><div class="lmap-tree"></div></div>
       </div>`;
-    layer.appendChild(w);
-    function renderTree() {
+    if (dlgEd.open) dlgEd.insertBefore(w, dlgEd.firstChild);
+    else document.body.appendChild(w);
+    // Interacting with the map brings it to the front (above the editor body).
+    w.addEventListener('mousedown', () => { w.style.zIndex = '1300'; }, true);
+
+    const tree = w.querySelector('.lmap-tree');
+    const svg  = w.querySelector('.lmap-edges');
+    const cont = w.querySelector('.lmap');
+    const rawTopics = LINEAGE.topics || [];
+    const nodeByKey = (key) => tree.querySelector('[data-node="' + key + '"]');
+
+    if (!rawTopics.length) {
+      tree.innerHTML = `<div class="lmap-empty">No topics in the lineage yet.<br>` +
+        `<span>Open the Lineage board to organize cards into topics &amp; subtopics.</span></div>`;
+    } else {
+      // ── Three fixed, left-aligned columns: Topic | Subtopic | Card.
+      // Cards are de-duplicated to ONE node each, so a card placed under
+      // several topics/subtopics fans in from all of them. The subtopic
+      // column is always reserved — a card with no subtopic just gets a
+      // longer Topic→Card connector across the empty middle column. ────────
+      const TOPIC_X = 0, TOPIC_W = 186, SUB_X = 232, SUB_W = 168, CARD_X = 448;
+      const ROW_H = 54, PAD = 20;
+      const topicById = new Map(), subById = new Map(), cardById = new Map();
+      const cardOrder = [];
+      for (const t of rawTopics) {
+        topicById.set(String(t.id), { id: t.id, title: t.title || '(untitled)',
+          count: (t.items || []).filter(i => i.kind === 'card').length, y: 0 });
+        let curSub = null;
+        for (const it of (t.items || [])) {
+          if (it.kind === 'subtopic') {
+            curSub = { id: it.id, topicId: t.id, label: it.label || '(subtopic)', y: null };
+            subById.set(String(it.id), curSub);
+          } else {
+            const cid = it.card_id;
+            if (!cardById.has(cid)) {
+              const card = byId(cid);
+              cardById.set(cid, { id: cid, title: card ? (card.title || '(untitled)') : '(missing card)',
+                missing: !card, parents: [], y: 0 });
+              cardOrder.push(cid);
+            }
+            cardById.get(cid).parents.push({ topicId: t.id, subId: curSub ? curSub.id : null });
+          }
+        }
+      }
+      // Vertical layout: cards stack in first-seen order; subtopics & topics
+      // sit at the vertical centroid of the cards they connect to.
+      const avg = a => a.reduce((s, v) => s + v, 0) / a.length;
+      cardOrder.forEach((cid, i) => { cardById.get(cid).y = PAD + i * ROW_H + ROW_H / 2; });
+      for (const s of subById.values()) {
+        const ys = cardOrder.filter(c => cardById.get(c).parents.some(p => p.subId === s.id)).map(c => cardById.get(c).y);
+        s.y = ys.length ? avg(ys) : null;
+      }
+      for (const t of topicById.values()) {
+        const ys = cardOrder.filter(c => cardById.get(c).parents.some(p => String(p.topicId) === String(t.id))).map(c => cardById.get(c).y);
+        t.y = ys.length ? avg(ys) : PAD + ROW_H / 2;
+      }
+      for (const s of subById.values()) if (s.y == null) s.y = topicById.get(String(s.topicId)).y;
+
+      // Centroids can collide: two topics (or subtopics) whose cards share the
+      // same average y would stack at the exact same `top`. Spread same-column
+      // siblings apart to a minimum gap while keeping them near their centroid.
+      const deoverlap = (nodes, minGap) => {
+        if (nodes.length < 2) return;
+        const arr = nodes.slice().sort((a, b) => a.y - b.y);
+        const mean0 = avg(arr.map(n => n.y));
+        for (let i = 1; i < arr.length; i++)
+          if (arr[i].y - arr[i - 1].y < minGap) arr[i].y = arr[i - 1].y + minGap;
+        const shift = mean0 - avg(arr.map(n => n.y));  // re-center on original band
+        for (const n of arr) n.y += shift;
+        const top = PAD + ROW_H / 2;                   // never drift above first row
+        if (arr[0].y < top) { const d = top - arr[0].y; for (const n of arr) n.y += d; }
+      };
+      deoverlap([...topicById.values()], ROW_H);
+      deoverlap([...subById.values()], ROW_H - 8);
+
+      const maxY = Math.max(PAD + cardOrder.length * ROW_H,
+        ...[...topicById.values(), ...subById.values()].map(n => n.y + ROW_H / 2));
+      cont.style.width  = (CARD_X + 320) + 'px';
+      cont.style.height = (maxY + PAD) + 'px';
+
+      const pos = (x, y, mw) => `left:${x}px;top:${Math.round(y)}px;max-width:${mw}px;transform:translateY(-50%)`;
       const out = [];
-      function walk(card, depth) {
-        const isCur = CURRENT && card.id === CURRENT.id;
-        const indent = '&nbsp;'.repeat(depth * 4);
-        const childCount = childrenOf(card.id).length;
-        out.push(`<div class="t-row" data-id="${escHTML(card.id)}" style="padding:3px 8px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:6px;${isCur?'background:rgba(212,228,193,0.45);border-left:2px solid var(--omi-accent-deep);font-weight:600':''}">
-          <span style="color:var(--omi-muted);font-family:var(--omi-font-mono)">${indent}${depth?'└─':'▸'}</span>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHTML(card.title||'(untitled)')}</span>
-          ${childCount?`<span style="color:var(--omi-muted);font-size:10.5px;padding:0 6px;border-radius:999px;background:rgba(146,125,92,0.08)">${childCount}</span>`:''}
-        </div>`);
-        for (const ch of childrenOf(card.id)) walk(ch, depth + 1);
+      for (const t of topicById.values())
+        out.push(`<div class="lmap-node lmap-topic" data-node="t:${t.id}" data-topic="${t.id}" style="${pos(TOPIC_X, t.y, TOPIC_W)}">` +
+          `<span class="lmap-lbl">${escHTML(t.title)}</span>` + (t.count ? `<span class="lmap-badge">${t.count}</span>` : '') + `</div>`);
+      for (const s of subById.values())
+        out.push(`<div class="lmap-node lmap-sub" data-node="s:${s.id}" data-topic="${s.topicId}" data-sub="${s.id}" style="${pos(SUB_X, s.y, SUB_W)}">` +
+          `<span class="lmap-lbl">${escHTML(s.label)}</span></div>`);
+      for (const cid of cardOrder) {
+        const c = cardById.get(cid);
+        out.push(`<div class="lmap-node lmap-card${c.missing ? ' missing' : ''}" data-node="c:${cid}" data-card="${escHTML(cid)}" title="${escHTML(c.title)}" style="${pos(CARD_X, c.y, 300)}">` +
+          `<span class="lmap-dot"></span><span class="lmap-lbl">${escHTML(c.title)}</span></div>`);
       }
-      for (const r of rootCards()) walk(r, 0);
-      const orphans = (CARDS||[]).filter(c => parentOf(c) && !byId(parentOf(c)));
-      if (orphans.length) {
-        out.push(`<div style="margin-top:14px;font-size:10.5px;color:var(--omi-muted);text-transform:uppercase;letter-spacing:0.06em;padding:4px 8px">Broken parent (orphans)</div>`);
-        for (const o of orphans) walk(o, 0);
+      tree.innerHTML = out.join('');
+
+      const edges = [];
+      for (const s of subById.values()) edges.push({ from: `t:${s.topicId}`, to: `s:${s.id}`, topic: String(s.topicId), sub: String(s.id) });
+      for (const cid of cardOrder) for (const p of cardById.get(cid).parents) {
+        if (p.subId) edges.push({ from: `s:${p.subId}`, to: `c:${cid}`, topic: String(p.topicId), sub: String(p.subId) });
+        else edges.push({ from: `t:${p.topicId}`, to: `c:${cid}`, topic: String(p.topicId), sub: '' });
       }
-      const root = w.querySelector('.tree-render');
-      root.innerHTML = out.join('');
-      root.querySelectorAll('.t-row').forEach(el => el.onclick = () => {
-        close();
-        if (typeof window.openCard === 'function') window.openCard(el.dataset.id);
+      tree._edges = edges; tree._cards = cardById;
+    }
+
+    // Draw connectors from each parent's right edge to each child's left edge.
+    function drawEdges() {
+      if (!tree._edges) return;
+      const cr = cont.getBoundingClientRect();
+      svg.setAttribute('width', cont.scrollWidth); svg.setAttribute('height', cont.scrollHeight);
+      svg.setAttribute('viewBox', `0 0 ${cont.scrollWidth} ${cont.scrollHeight}`);
+      const out = [];
+      for (const e of tree._edges) {
+        const fe = nodeByKey(e.from), te = nodeByKey(e.to);
+        if (!fe || !te) continue;
+        const a = fe.getBoundingClientRect(), b = te.getBoundingClientRect();
+        const x1 = a.right - cr.left, y1 = a.top + a.height / 2 - cr.top;
+        const x2 = b.left  - cr.left, y2 = b.top + b.height / 2 - cr.top;
+        const dx = Math.max(20, (x2 - x1) / 2);
+        out.push(`<path d="M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}" ` +
+          `data-topic="${e.topic}" data-sub="${e.sub}" data-to="${e.to}"/>`);
+      }
+      svg.innerHTML = out.join('');
+    }
+    requestAnimationFrame(drawEdges);
+    setTimeout(drawEdges, 80);   // re-measure once fonts/layout settle
+
+    // Hover highlighting — traces full ancestry / descendant paths, dims rest.
+    function applyHover(n) {
+      cont.classList.add('hovering');
+      const keepNodes = new Set([n]);
+      let keepEdge = () => false;
+      if (n.classList.contains('lmap-topic')) {
+        const tid = n.dataset.topic;
+        tree.querySelectorAll(`.lmap-sub[data-topic="${tid}"]`).forEach(x => keepNodes.add(x));
+        if (tree._cards) tree._cards.forEach((c, cid) => {
+          if (c.parents.some(p => String(p.topicId) === tid)) { const el = nodeByKey('c:' + cid); if (el) keepNodes.add(el); }
+        });
+        keepEdge = p => p.dataset.topic === tid;
+      } else if (n.classList.contains('lmap-sub')) {
+        const sid = n.dataset.sub;
+        const tEl = nodeByKey('t:' + n.dataset.topic); if (tEl) keepNodes.add(tEl);
+        if (tree._cards) tree._cards.forEach((c, cid) => {
+          if (c.parents.some(p => String(p.subId) === sid)) { const el = nodeByKey('c:' + cid); if (el) keepNodes.add(el); }
+        });
+        keepEdge = p => p.dataset.sub === sid;
+      } else {   // card — light every topic/subtopic it fans in from
+        const cid = n.dataset.card, c = tree._cards && tree._cards.get(cid);
+        const subKeys = new Set();
+        if (c) for (const p of c.parents) {
+          const tEl = nodeByKey('t:' + p.topicId); if (tEl) keepNodes.add(tEl);
+          if (p.subId) { const sEl = nodeByKey('s:' + p.subId); if (sEl) keepNodes.add(sEl); subKeys.add('s:' + p.subId); }
+        }
+        keepEdge = p => p.dataset.to === ('c:' + cid) || subKeys.has(p.dataset.to);
+      }
+      tree.querySelectorAll('.lmap-node').forEach(x => {
+        const hot = keepNodes.has(x);
+        x.classList.toggle('hot', hot); x.classList.toggle('dim', !hot);
+      });
+      svg.querySelectorAll('path').forEach(p => {
+        const hot = keepEdge(p);
+        p.classList.toggle('hot', hot); p.classList.toggle('dim', !hot);
       });
     }
-    renderTree();
-    w.querySelector('.treex').onclick = () => w.remove();
+    function clearHover() {
+      cont.classList.remove('hovering');
+      tree.querySelectorAll('.lmap-node').forEach(x => x.classList.remove('hot', 'dim'));
+      svg.querySelectorAll('path').forEach(p => p.classList.remove('hot', 'dim'));
+    }
+    tree.querySelectorAll('.lmap-node').forEach(n => n.addEventListener('mouseenter', () => applyHover(n)));
+    cont.addEventListener('mouseleave', clearHover);
+    // Click a card → open it as a floating reference preview.
+    tree.querySelectorAll('.lmap-card').forEach(n => n.addEventListener('click', () => {
+      const card = byId(n.dataset.card);
+      if (card && typeof window._spawnRefWindow === 'function') window._spawnRefWindow(card);
+    }));
+
+    w.querySelector('.lmap-x').onclick = _closeLineageMap;
+    document.addEventListener('keydown', _lmapKey, true);
+
+    // Header drag.
     const hd = w.querySelector('.ref-window-header');
     hd.style.cursor = 'move';
     hd.addEventListener('mousedown', (e) => {
@@ -5202,60 +5729,106 @@ document.addEventListener('keydown', (e) => {
     return document.querySelector('#emPreview');
   }
   function openOutlinePanel() {
-    if (_outlineWin) { _outlineWin.remove(); _outlineWin = null; return; }
+    if (_outlineWin) { _closeOutline(); return; }
     const layer = document.getElementById('refLayer');
     if (dlgEd.open && layer.parentElement !== dlgEd) dlgEd.appendChild(layer);
     const w = document.createElement('div');
     _outlineWin = w;
     w.className = 'ref-window outline-win';
-    const baseW = Math.min(360, Math.round(window.innerWidth * 0.30));
-    const baseH = Math.min(620, Math.round(window.innerHeight * 0.7));
+    const baseW = Math.min(390, Math.round(window.innerWidth * 0.32));
+    const baseH = Math.min(660, Math.round(window.innerHeight * 0.74));
     w.style.cssText = `right:28px; top:80px; width:${baseW}px; height:${baseH}px; z-index:1700;`;
     w.innerHTML = `
       <div class="ref-window-header">
-        <span class="ref-title">📑 Outline</span>
-        <button class="ox" title="Close">×</button>
+        <span class="ref-title">📑 Document Outline <span class="outline-count"></span></span>
+        <button class="ox" title="Close (Esc)">×</button>
       </div>
-      <div class="ref-window-body" tabindex="0">
-        <div class="outline-list" style="padding:6px 4px"></div>
-      </div>`;
+      <div class="outline-filterbar">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="outline-filter" type="text" placeholder="Filter sections…" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="ref-window-body" tabindex="0"><div class="outline-list"></div></div>`;
     layer.appendChild(w);
-    function refresh() {
+    const root = w.querySelector('.outline-list');
+    const filterInp = w.querySelector('.outline-filter');
+    let HEADS = [];
+
+    function build() {
       const pv = _previewRoot();
       if (!pv) return;
-      const headings = pv.querySelectorAll('h1, h2, h3, h4');
-      const root = w.querySelector('.outline-list');
-      if (!headings.length) {
-        root.innerHTML = '<div class="outline-empty">No headings in this card</div>';
-        return;
-      }
-      const rows = [];
-      headings.forEach((h, idx) => {
-        const lvl = +h.tagName[1];
-        // Ensure each heading has an id so we can re-locate after rerender
+      const hs = [...pv.querySelectorAll('h1, h2, h3, h4')];
+      HEADS = hs.map((h, idx) => {
         if (!h.id) h.id = `outline-h-${idx}`;
-        const txt = (h.textContent || '').trim() || '(untitled)';
-        rows.push(
-          `<a class="outline-row" data-target="${escHTML(h.id)}" data-level="${lvl}" style="padding-left:${(lvl-1)*14 + 10}px">` +
-            `<span class="outline-mark">${'#'.repeat(lvl)}</span>` +
-            `<span class="outline-text">${escHTML(txt)}</span>` +
-          `</a>`
-        );
+        // A heading "owns" a collapsible section only when it IS that section's
+        // summary (H1/H2). H3/H4 live in the body, so they get no collapse btn.
+        const summ = h.closest('summary');
+        const own = (summ && summ.parentElement && summ.parentElement.classList.contains('md-h-section')) ? summ.parentElement : null;
+        return { id: h.id, lvl: +h.tagName[1], text: (h.textContent || '').trim() || '(untitled)',
+                 el: h, details: h.closest('details.md-h-section'), own };
       });
-      root.innerHTML = rows.join('');
+      w.querySelector('.outline-count').textContent =
+        HEADS.length ? `· ${HEADS.length} section${HEADS.length === 1 ? '' : 's'}` : '';
+      if (!HEADS.length) { root.innerHTML = '<div class="outline-empty">No headings in this card</div>'; return; }
+      // Count descendant headings (deeper level until the next same/higher one).
+      const kids = HEADS.map((h, i) => { let n = 0; for (let j = i + 1; j < HEADS.length && HEADS[j].lvl > h.lvl; j++) n++; return n; });
+      const q = filterInp.value.trim().toLowerCase();
+      const rows = HEADS.map((h, i) => {
+        if (q && !h.text.toLowerCase().includes(q)) return '';
+        // Soften a trailing "(parenthetical)" so the core title reads first.
+        const safe = escHTML(h.text).replace(/\s*(\([^)]*\))\s*$/, ' <span class="outline-paren">$1</span>');
+        const collapse = h.own ? `<button class="outline-act outline-collapse" data-id="${h.id}" title="Collapse / expand this section in the preview">▾</button>` : '';
+        return `<div class="outline-row${i === 0 ? '' : (h.lvl === 1 ? ' grp' : '')}" data-target="${escHTML(h.id)}" data-level="${h.lvl}" style="padding-left:${(h.lvl - 1) * 16 + 12}px">` +
+          `<span class="outline-bar"></span>` +
+          `<span class="outline-dot d${h.lvl}"></span>` +
+          `<span class="outline-text">${safe}</span>` +
+          (kids[i] ? `<span class="outline-badge" title="${kids[i]} sub-section${kids[i] === 1 ? '' : 's'}">${kids[i]}</span>` : '') +
+          `<span class="outline-acts">${collapse}<button class="outline-act outline-copy" data-id="${h.id}" title="Copy heading text">⧉</button></span>` +
+        `</div>`;
+      }).join('');
+      root.innerHTML = rows || '<div class="outline-empty">No sections match</div>';
       root.querySelectorAll('.outline-row').forEach(el => el.onclick = (ev) => {
-        ev.preventDefault();
-        const target = document.getElementById(el.dataset.target);
-        if (!target) return;
-        target.scrollIntoView({behavior: 'smooth', block: 'start'});
-        target.classList.add('outline-flash');
-        setTimeout(() => target.classList.remove('outline-flash'), 1400);
+        if (ev.target.closest('.outline-act')) return;
+        const t = document.getElementById(el.dataset.target);
+        if (!t) return;
+        const d = t.closest('details.md-h-section'); if (d && !d.open) d.open = true;
+        t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        t.classList.add('outline-flash'); setTimeout(() => t.classList.remove('outline-flash'), 1400);
       });
+      root.querySelectorAll('.outline-collapse').forEach(btn => btn.onclick = (ev) => {
+        ev.stopPropagation();
+        const h = document.getElementById(btn.dataset.id), d = h && h.closest('details.md-h-section');
+        if (d) { d.open = !d.open; btn.classList.toggle('collapsed', !d.open); }
+      });
+      root.querySelectorAll('.outline-copy').forEach(btn => btn.onclick = async (ev) => {
+        ev.stopPropagation();
+        const h = document.getElementById(btn.dataset.id);
+        try { await navigator.clipboard.writeText((h.textContent || '').trim()); btn.textContent = '✓'; setTimeout(() => btn.textContent = '⧉', 900); } catch {}
+      });
+      updateActive();
     }
-    refresh();
-    // Re-scan headings whenever the preview rerenders (typed edits)
-    w._outlineRefresh = refresh;
-    w.querySelector('.ox').onclick = () => { w.remove(); _outlineWin = null; };
+
+    // Scroll-spy: mark the section currently scrolled to the top of the preview.
+    function updateActive() {
+      const pv = _previewRoot(); if (!pv || !HEADS.length) return;
+      const pvTop = pv.getBoundingClientRect().top;
+      let activeId = HEADS[0].id;
+      for (const h of HEADS) { if (h.el.getBoundingClientRect().top - pvTop <= 30) activeId = h.id; else break; }
+      let activeRow = null;
+      root.querySelectorAll('.outline-row').forEach(r => {
+        const on = r.dataset.target === activeId; r.classList.toggle('active', on); if (on) activeRow = r;
+      });
+      if (activeRow) activeRow.scrollIntoView({ block: 'nearest' });
+    }
+
+    // Watch whichever element actually scrolls the preview.
+    const pv0 = _previewRoot();
+    const spyEls = pv0 ? [pv0, pv0.parentElement, pv0.closest('.em-pane-preview')].filter((e, i, a) => e && a.indexOf(e) === i) : [];
+    spyEls.forEach(e => e.addEventListener('scroll', updateActive, { passive: true }));
+    w._spyEls = spyEls; w._spyFn = updateActive;
+    filterInp.addEventListener('input', build);
+    build();
+    w._outlineRefresh = build;
+    w.querySelector('.ox').onclick = _closeOutline;
     const hd = w.querySelector('.ref-window-header');
     hd.style.cursor = 'move';
     hd.addEventListener('mousedown', (e) => {
@@ -5268,6 +5841,11 @@ document.addEventListener('keydown', (e) => {
       document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
     });
   }
+  function _closeOutline() {
+    if (!_outlineWin) return;
+    (_outlineWin._spyEls || []).forEach(e => e.removeEventListener('scroll', _outlineWin._spyFn));
+    _outlineWin.remove(); _outlineWin = null;
+  }
   // Exposed so renderPreview can refresh the panel when the user types.
   window._refreshOutlinePanel = () => {
     if (_outlineWin && _outlineWin._outlineRefresh) _outlineWin._outlineRefresh();
@@ -5275,6 +5853,9 @@ document.addEventListener('keydown', (e) => {
   // Exposed so the focus-pane Outline button (outside this IIFE) can toggle
   // the same panel — it auto-targets #focusBody via _previewRoot().
   window._toggleOutlinePanel = openOutlinePanel;
+  // Reset transient per-view panels (lineage map + outline) whenever the
+  // editor opens or switches cards, so they never linger over the new card.
+  window._resetCardPanels = function () { _closeLineageMap(); _closeOutline(); };
 
   // ── Events ─────────────────────────────────────────────────────
   trigger.addEventListener('click', (e) => {
@@ -5282,7 +5863,26 @@ document.addEventListener('keydown', (e) => {
     pop.classList.contains('show') ? close() : open();
   });
   document.getElementById('cascClose').addEventListener('click', close);
-  document.getElementById('cascTreeBtn').addEventListener('click', openFullTree);
+  // Lineage popover → full /lineage board (replaces the old Linear/Tree buttons).
+  document.getElementById('cascMaxBtn').addEventListener('click', () => {
+    close();
+    window.open('/lineage', '_blank');
+  });
+  // Editor header "Card tree" button → 3-way: closed → open (front);
+  // behind the editor → raise to front; already in front → close.
+  document.getElementById('emRefOpen').addEventListener('click', () => {
+    if (!_lineageMapWin) { openLineageMap(); return; }
+    if (_lineageMapWin.style.zIndex === '') _lineageMapWin.style.zIndex = '1300';
+    else _closeLineageMap();
+  });
+  // Don't leave the map floating over the gallery once the editor closes.
+  dlgEd.addEventListener('close', _closeLineageMap);
+  // Clicking anywhere in the editor (but not the map itself) drops the lineage
+  // map behind the editor body, so the editor stays visible when they overlap.
+  dlgEd.addEventListener('mousedown', (e) => {
+    if (e.target.closest('#emRefOpen')) return;   // its own 3-way toggle owns the z
+    if (_lineageMapWin && !e.target.closest('.lmap-win')) _lineageMapWin.style.zIndex = '';
+  }, true);
   document.getElementById('emOutlineBtn').addEventListener('click', openOutlinePanel);
   document.addEventListener('click', (e) => {
     if (!pop.classList.contains('show')) return;

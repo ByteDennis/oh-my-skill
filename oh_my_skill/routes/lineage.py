@@ -122,45 +122,6 @@ def page():
     return render_template('lineage.html')
 
 
-@lineage_bp.route('/lineage/linear')
-def linear_view():
-    conn = _db()
-    topics = [dict(r) for r in conn.execute(
-        "SELECT id, title, position FROM lineage_topics ORDER BY position, id"
-    ).fetchall()]
-    rows = conn.execute("""
-        SELECT li.id, li.topic_id, li.position, li.kind, li.label,
-               li.card_id, c.title AS card_title, c.tags AS card_tags
-        FROM lineage_items li
-        LEFT JOIN cards c ON c.id = li.card_id
-        ORDER BY li.topic_id, li.position
-    """).fetchall()
-    conn.close()
-
-    by_topic = {t['id']: [] for t in topics}
-    for r in rows:
-        item = dict(r)
-        try:
-            item['card_tags'] = json.loads(item['card_tags'] or '[]')
-        except Exception:
-            item['card_tags'] = []
-        by_topic.setdefault(item['topic_id'], []).append(item)
-
-    for t in topics:
-        groups = []
-        current_sub, current_cards = None, []
-        for item in by_topic.get(t['id'], []):
-            if item['kind'] == 'subtopic':
-                if current_cards or current_sub is not None:
-                    groups.append({'subtopic': current_sub, 'cards': current_cards})
-                current_sub, current_cards = item['label'], []
-            else:
-                current_cards.append(item)
-        groups.append({'subtopic': current_sub, 'cards': current_cards})
-        t['groups'] = groups
-
-    return render_template('lineage_linear.html', topics=topics)
-
 
 
 @lineage_bp.route('/lineage/api/state', methods=['GET'])

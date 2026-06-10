@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <title>Lineage · oh·my·skill</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260602b">
-<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260602b">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260610a">
+<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260610a">
 <style>
   html, body { height: 100%; }
   body { margin: 0; font-family: var(--omi-font-body); color: var(--omi-fg); background: var(--omi-bg, #faf6ee); }
@@ -21,16 +21,62 @@
   .ln-topbar .meta { color: var(--omi-muted); font-size: 12px; }
   .ln-topbar .grow { flex: 1; }
 
+  /* ── Focus breadcrumb bar ───────────────────────────── */
+  .ln-focusbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 14px; min-height: 30px; box-sizing: border-box;
+    border-bottom: 1px solid var(--omi-border);
+    background: rgba(247, 240, 228, 0.6); font-size: 12px;
+  }
+  .ln-focusbar .fb-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--omi-muted);
+  }
+  .ln-focusbar .fb-kind {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 1px 7px; border-radius: var(--omi-radius-pill);
+    background: rgba(212, 228, 193, 0.6); color: var(--omi-accent-deep);
+  }
+  .ln-focusbar .fb-crumb { color: var(--omi-fg); font-weight: 600; }
+  .ln-focusbar .fb-sub { color: var(--omi-muted); font-weight: 400; }
+  .ln-focusbar .fb-clear {
+    margin-left: auto; background: transparent; border: none; cursor: pointer;
+    color: var(--omi-muted); font-size: 11px; padding: 2px 8px; border-radius: 4px;
+  }
+  .ln-focusbar .fb-clear:hover { color: var(--omi-fg); background: rgba(232, 224, 208, 0.6); }
+  .ln-focusbar.empty .fb-crumb { color: var(--omi-muted); font-weight: 400; font-style: italic; }
+
   .ln-body { display: flex; flex: 1; min-height: 0; }
 
-  /* ── L0 Candidates column ───────────────────────────── */
+  /* Hidden-but-scrollable: wheel/trackpad still scroll, no visible bar. */
+  .ln-cards, .ln-board, .ln-inspector, .insp-excerpt {
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .ln-cards::-webkit-scrollbar, .ln-board::-webkit-scrollbar,
+  .ln-inspector::-webkit-scrollbar, .insp-excerpt::-webkit-scrollbar {
+    width: 0; height: 0; display: none;
+  }
+
+  /* Draggable column resizers (width persisted to localStorage). */
+  .ln-resizer {
+    flex: 0 0 6px; align-self: stretch; cursor: col-resize;
+    position: relative; background: transparent; z-index: 6;
+  }
+  .ln-resizer::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 2px; width: 1px;
+    background: var(--omi-border); transition: background 0.12s, width 0.12s, left 0.12s;
+  }
+  .ln-resizer:hover::after, .ln-resizer.dragging::after {
+    background: var(--omi-accent-deep); width: 3px; left: 1px;
+  }
+
+  /* ── L0 Candidates column (tightened) ───────────────── */
   .ln-l0 {
-    width: 260px; min-width: 220px; flex: 0 0 260px;
+    width: 234px; min-width: 160px; flex: 0 0 234px;
     display: flex; flex-direction: column;
-    border-right: 1px solid var(--omi-border);
     background: rgba(255, 251, 244, 0.55);
   }
-  .ln-l0-head { padding: 10px 10px 6px; display: flex; flex-direction: column; gap: 6px; }
+  .ln-l0-head { padding: 8px 10px 4px; display: flex; flex-direction: column; gap: 5px; }
   .ln-search {
     width: 100%; box-sizing: border-box;
     border: 1px solid var(--omi-border); border-radius: var(--omi-radius-sm);
@@ -44,6 +90,7 @@
     padding: 2px 4px; border-radius: 4px;
   }
   .ln-l0-controls button.linkish:hover { color: var(--omi-fg); background: rgba(232,224,208,0.55); }
+  .ln-l0-title { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--omi-muted); padding: 4px 10px 2px; }
   .ln-tagrow { display: none; gap: 4px; flex-wrap: wrap; padding: 0 10px 4px; }
   .ln-tagrow.show { display: flex; }
   .ln-tagrow .pill {
@@ -54,25 +101,37 @@
   .ln-tagrow .pill:hover { background: rgba(212, 228, 193, 0.75); }
   .ln-tagrow .pill.active { background: var(--omi-accent-deep); color: white; border-color: var(--omi-accent-deeper); }
 
-  .ln-cards { flex: 1; overflow-y: auto; padding: 6px 10px 10px; }
+  .ln-cards { flex: 1; overflow-y: auto; padding: 4px 10px 10px; }
   .ln-card {
-    background: var(--omi-card-bg);
+    background: var(--omi-card-bg, #fff);
     border: 1px solid var(--omi-border); border-radius: var(--omi-radius-sm);
-    padding: 6px 8px; margin-bottom: 6px;
-    cursor: grab; user-select: none;
+    padding: 5px 8px 5px 20px; margin-bottom: 5px; position: relative;
+    cursor: pointer; user-select: none;
     box-shadow: var(--omi-shadow-sm);
     font-size: 12px; line-height: 1.3;
+    transition: border-color .12s, box-shadow .12s;
   }
-  .ln-card:active { cursor: grabbing; }
+  .ln-card:hover { border-color: var(--omi-border-strong); }
+  .ln-card.selected { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
   .ln-card.dragging { opacity: 0.4; }
   .ln-card .t { font-weight: 600; color: var(--omi-fg); display: block; }
-  .ln-card .tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
+  .ln-card .tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; align-items: center; }
   .ln-card .tag {
     font-size: 9px; padding: 1px 5px; border-radius: var(--omi-radius-pill);
     background: rgba(214, 199, 168, 0.40); color: var(--omi-fg-soft);
   }
+  .ln-card .tag-more { font-size: 9px; color: var(--omi-muted); }
   .ln-card .uses { color: var(--omi-accent-deep); font-size: 9px; margin-left: 4px; }
   .ln-empty { color: var(--omi-muted); font-size: 11px; padding: 8px; text-align: center; }
+
+  /* drag grip — shared affordance for cards / chips / topic heads */
+  .ln-grip {
+    position: absolute; left: 5px; top: 0; bottom: 0; width: 11px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--omi-border-strong); cursor: grab; opacity: 0.5;
+    letter-spacing: -1px; font-size: 11px; line-height: 1;
+  }
+  .ln-card:hover .ln-grip, .ln-chip:hover .ln-grip { opacity: 1; }
 
   .ln-trash {
     margin: 8px 10px 10px;
@@ -82,52 +141,92 @@
   }
   .ln-trash.drop-hover { border-color: var(--omi-error); color: var(--omi-error-deep); background: rgba(201, 122, 100, 0.08); }
 
-  /* ── Topic board (masonry) ──────────────────────────── */
+  /* ── Topic board (true Pinterest-style masonry) ─────────
+     CSS multi-column flow: topics are auto-height (sized to their content)
+     and flow top-to-bottom down each column, then into the next, packing
+     tightly so a short topic is followed immediately by the next one — no
+     big floating gaps. break-inside:avoid keeps each topic whole; the only
+     spacing is the uniform 12px (column-gap + per-item margin-bottom).
+     (The earlier overlap came from a fixed max-height fighting multicol;
+     with auto height there is nothing to clip, so no overlap.) */
   .ln-board {
-    flex: 1; overflow-y: auto; overflow-x: hidden;
-    columns: 270px; column-gap: 12px;
-    padding: 12px; display: block;
+    flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden;
+    columns: 238px; column-gap: 12px; padding: 12px;
   }
   .ln-topic {
     display: inline-block; width: 100%; box-sizing: border-box;
-    margin-bottom: 12px; break-inside: avoid;
-    background: rgba(255, 251, 244, 0.55);
+    break-inside: avoid; margin-bottom: 12px;
+    background: rgba(247, 242, 232, 0.6);
     border: 1px solid var(--omi-border); border-radius: var(--omi-radius);
-    max-height: 130px; overflow: hidden;
-    transition: max-height 0.3s ease;
+    overflow: hidden;
+    transition: box-shadow 0.15s, border-color 0.15s;
   }
-  .ln-topic.expanded { max-height: 600px; }
-  .ln-topic.expanded .ln-topic-body { overflow-y: auto; }
-  .ln-topic-body { overflow-y: hidden; flex: unset; }
+  /* Collapse = header only (body + footer hidden). Default is fully open. */
+  .ln-topic.collapsed .ln-topic-body,
+  .ln-topic.collapsed .ln-topic-foot { display: none; }
+  .ln-topic.collapsed .ln-topic-head { border-bottom: none; }
+  .ln-topic.selected {
+    border-color: var(--omi-accent-deep);
+    box-shadow: 0 0 0 2px var(--omi-accent-ring), var(--omi-shadow);
+  }
   .ln-topic-head {
     display: flex; align-items: center; gap: 6px;
-    padding: 8px 10px; border-bottom: 1px solid var(--omi-border);
+    padding: 7px 8px 7px 18px; position: relative;
+    border-bottom: 1px solid var(--omi-border);
     background: rgba(232, 224, 208, 0.4);
     border-top-left-radius: var(--omi-radius); border-top-right-radius: var(--omi-radius);
-    cursor: grab; user-select: none;
+    cursor: pointer; user-select: none;
   }
-  .ln-topic-head:active { cursor: grabbing; }
+  .ln-topic.selected .ln-topic-head { background: rgba(212, 228, 193, 0.6); }
+  .ln-topic-head .ln-grip { left: 4px; opacity: 0.4; }
+  .ln-topic-head:hover .ln-grip { opacity: 0.9; }
   .ln-topic-head.dragging { opacity: 0.4; }
+  .ln-chev {
+    flex-shrink: 0; color: var(--omi-muted); transition: transform 0.2s;
+    display: inline-flex; cursor: pointer;
+  }
+  .ln-chev { transform: rotate(90deg); }            /* open: points down */
+  .ln-topic.collapsed .ln-chev { transform: rotate(0deg); }  /* points right */
   .ln-topic-title {
-    flex: 1; font-weight: 600; font-size: 13px; color: var(--omi-fg);
+    flex: 1; min-width: 0; font-weight: 600; font-size: 13px; color: var(--omi-fg);
     border: 1px solid transparent; border-radius: 4px; padding: 2px 4px;
     background: transparent;
   }
   .ln-topic-title:focus { outline: none; border-color: var(--omi-accent-deep); background: white; }
-  .ln-topic-count { font-size: 10px; color: var(--omi-muted); }
+  .ln-topic-count {
+    font-size: 10px; color: var(--omi-muted); flex-shrink: 0;
+    background: rgba(146,125,92,0.10); padding: 0 6px; border-radius: 999px;
+  }
+  .ln-head-actions { display: flex; gap: 1px; flex-shrink: 0; opacity: 0; transition: opacity 0.12s; }
+  .ln-topic-head:hover .ln-head-actions, .ln-topic.selected .ln-head-actions { opacity: 1; }
+  .ln-iconbtn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; padding: 0; border-radius: 5px;
+    background: transparent; border: none; color: var(--omi-muted); cursor: pointer;
+  }
+  .ln-iconbtn:hover { background: rgba(255,255,255,0.7); color: var(--omi-fg); }
+  .ln-iconbtn.danger:hover { color: var(--omi-error-deep); background: rgba(201,122,100,0.12); }
 
   .ln-topic-body {
-    flex: 1; overflow-y: auto;
-    padding: 8px; display: flex; flex-direction: column; gap: 4px;
-    min-height: 60px;
+    overflow-y: hidden;
+    padding: 7px; display: flex; flex-direction: column; gap: 3px;
+    min-height: 48px;
   }
-  .ln-topic-body.drop-hover { background: rgba(212, 228, 193, 0.25); }
+  .ln-topic-body.drop-hover {
+    background: rgba(212, 228, 193, 0.28);
+    outline: 2px dashed var(--omi-accent-deep); outline-offset: -4px; border-radius: 6px;
+  }
+  .ln-body-empty {
+    color: var(--omi-muted); font-size: 11px; text-align: center;
+    padding: 12px 8px; border: 1.5px dashed var(--omi-border); border-radius: 6px;
+    pointer-events: none;
+  }
 
   .ln-divider {
     display: flex; align-items: center; gap: 6px;
     color: var(--omi-accent-deep); font-size: 11px; text-transform: uppercase;
     letter-spacing: 0.08em; font-weight: 600;
-    padding: 4px 2px; margin-top: 6px; cursor: grab;
+    padding: 4px 2px; margin-top: 4px; cursor: grab;
   }
   .ln-divider:first-child { margin-top: 0; }
   .ln-divider:active { cursor: grabbing; }
@@ -144,31 +243,39 @@
   .ln-divider input:focus { outline: none; background: rgba(255,255,255,0.7); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
 
   .ln-chip {
-    background: var(--omi-card-bg);
-    border: 1px solid var(--omi-border); border-radius: var(--omi-radius-sm);
-    padding: 6px 8px; cursor: grab; user-select: none;
+    background: #fffdf9;
+    border: 1px solid var(--omi-border-strong, #d6c7a8); border-radius: var(--omi-radius-sm);
+    padding: 6px 8px 6px 20px; position: relative; cursor: pointer; user-select: none;
     font-size: 12px; line-height: 1.3;
-    box-shadow: var(--omi-shadow-sm);
+    box-shadow: 0 1px 2px rgba(60,46,28,0.07);
+    transition: border-color .12s, box-shadow .12s, transform .08s;
   }
-  .ln-chip:hover { border-color: var(--omi-border-strong); }
+  .ln-chip:hover { border-color: var(--omi-accent-deep); box-shadow: 0 2px 6px rgba(60,46,28,0.12); }
   .ln-chip:active { cursor: grabbing; }
+  .ln-chip.selected { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
   .ln-chip.dragging { opacity: 0.4; }
-  .ln-chip .t { font-weight: 600; color: var(--omi-fg); display: block; }
+  .ln-chip .t { font-weight: 600; color: var(--omi-fg); display: block; padding-right: 38px; }
   .ln-chip .tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
   .ln-chip .tag {
     font-size: 9px; padding: 1px 5px; border-radius: var(--omi-radius-pill);
     background: rgba(214, 199, 168, 0.40); color: var(--omi-fg-soft);
   }
-  .ln-chip.missing { opacity: 0.45; font-style: italic; }
+  .ln-chip.missing { opacity: 0.55; font-style: italic; }
+  .ln-chip-actions {
+    position: absolute; top: 4px; right: 4px; display: flex; gap: 1px;
+    opacity: 0; transition: opacity 0.12s;
+  }
+  .ln-chip:hover .ln-chip-actions, .ln-chip.selected .ln-chip-actions { opacity: 1; }
+  .ln-chip-actions .ln-iconbtn { width: 18px; height: 18px; background: rgba(255,253,249,0.9); }
 
   .ln-drop-line {
-    height: 2px; background: var(--omi-accent-deep); border-radius: 1px;
-    margin: 2px 0; opacity: 0;
+    height: 3px; background: var(--omi-accent-deep); border-radius: 2px;
+    margin: 1px 0; opacity: 0;
   }
   .ln-drop-line.show { opacity: 1; }
 
   .ln-topic-foot {
-    padding: 6px 8px 8px; border-top: 1px solid var(--omi-border);
+    padding: 5px 7px 7px; border-top: 1px solid var(--omi-border);
     display: flex; gap: 6px;
   }
   .ln-mini-btn {
@@ -176,7 +283,7 @@
     color: var(--omi-muted); font-size: 11px; padding: 4px 6px;
     border-radius: var(--omi-radius-sm); cursor: pointer;
   }
-  .ln-mini-btn:hover { color: var(--omi-fg); border-color: var(--omi-border-strong); background: rgba(232,224,208,0.4); }
+  .ln-mini-btn:hover { color: var(--omi-fg); border-color: var(--omi-accent-deep); background: rgba(212,228,193,0.25); }
   .ln-new-input {
     width: 100%; box-sizing: border-box; padding: 4px 6px;
     border: 1px solid var(--omi-accent-deep); border-radius: var(--omi-radius-sm);
@@ -186,12 +293,69 @@
 
   .ln-add-topic {
     display: inline-block; width: 100%; box-sizing: border-box;
+    break-inside: avoid; margin-bottom: 12px;
     background: transparent; border: 2px dashed var(--omi-border);
     color: var(--omi-muted); padding: 12px; border-radius: var(--omi-radius);
-    cursor: pointer; font-size: 13px; min-height: 44px; margin-bottom: 12px;
+    cursor: pointer; font-size: 13px; min-height: 44px;
+    text-align: center; line-height: 1.4;
   }
+  .ln-add-topic .sub { display: block; font-size: 10.5px; opacity: 0.8; }
   .ln-add-topic:hover { color: var(--omi-fg); border-color: var(--omi-border-strong); background: rgba(232,224,208,0.25); }
-  .ln-add-topic.drop-hover { border-color: var(--omi-accent-deep); color: var(--omi-accent-deep); background: rgba(212,228,193,.2); }
+  .ln-add-topic.drop-hover { border-color: var(--omi-accent-deep); color: var(--omi-accent-deep); background: rgba(212,228,193,.25); border-style: solid; }
+
+  /* ── Right inspector panel ──────────────────────────── */
+  .ln-inspector {
+    width: 322px; min-width: 220px; flex: 0 0 322px;
+    background: rgba(255, 251, 244, 0.6);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .insp-empty {
+    margin: auto; text-align: center; color: var(--omi-muted);
+    font-size: 12.5px; padding: 30px 24px; line-height: 1.6;
+  }
+  .insp-empty .glyph { font-size: 26px; opacity: 0.5; display: block; margin-bottom: 8px; }
+  .insp-section { padding: 12px 14px; border-bottom: 1px solid var(--omi-border); }
+  .insp-kind {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--omi-accent-deep);
+  }
+  .insp-title { font-size: 15px; font-weight: 700; margin: 3px 0 4px; line-height: 1.3; word-break: break-word; }
+  .insp-id {
+    font-family: var(--omi-font-mono); font-size: 11px; color: var(--omi-muted);
+    user-select: all; cursor: text;
+  }
+  .insp-updated { font-size: 11px; color: var(--omi-muted); margin-top: 2px; }
+  .insp-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+  .insp-tag {
+    font-size: 10px; padding: 2px 7px; border-radius: var(--omi-radius-pill);
+    background: rgba(212, 228, 193, 0.45); border: 1px solid var(--omi-border); color: var(--omi-fg);
+  }
+  .insp-label {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--omi-muted); margin-bottom: 6px;
+  }
+  .insp-used-row {
+    display: flex; align-items: baseline; gap: 6px; font-size: 12px;
+    padding: 3px 6px; border-radius: 5px; cursor: pointer; margin: 0 -6px;
+  }
+  .insp-used-row:hover { background: rgba(212, 228, 193, 0.35); }
+  .insp-used-row .ut { font-weight: 600; color: var(--omi-fg); }
+  .insp-used-row .us { color: var(--omi-accent-deep); font-size: 11px; }
+  .insp-used-row .usep { color: var(--omi-muted); }
+  .insp-none { font-size: 11.5px; color: var(--omi-muted); font-style: italic; }
+  .insp-excerpt {
+    font-size: 12px; line-height: 1.55; color: var(--omi-fg-soft);
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 240px; overflow-y: auto;
+    background: rgba(255,255,255,0.5); border: 1px solid var(--omi-border);
+    border-radius: 6px; padding: 8px 10px;
+  }
+  .insp-actions { padding: 12px 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .insp-list { margin: 0; padding: 0; list-style: none; }
+  .insp-list li { font-size: 12px; padding: 3px 0; display: flex; gap: 6px; align-items: baseline; }
+  .insp-list .il-sub { color: var(--omi-accent-deep); font-weight: 700; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .insp-list .il-card { color: var(--omi-fg); }
+  .insp-list .il-missing { color: var(--omi-muted); font-style: italic; }
 
   .ln-toast {
     position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
@@ -203,10 +367,15 @@
   .ln-toast.show { opacity: 1; }
 
   .ln-topic.drag-rejected { animation: shake 0.25s; }
+  .ln-topic.flash { animation: flashbg 1.2s; }
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-4px); }
     75% { transform: translateX(4px); }
+  }
+  @keyframes flashbg {
+    0%, 100% { box-shadow: 0 0 0 2px var(--omi-accent-ring), var(--omi-shadow); }
+    30% { box-shadow: 0 0 0 4px var(--omi-accent-deep); }
   }
 </style>
 </head>
@@ -221,12 +390,13 @@
     <h1>Lineage</h1>
     <span class="meta" id="lnMeta">0 topics · 0 cards placed</span>
     <span class="grow"></span>
-    <button class="omi-btn ghost sm" onclick="window.open('/lineage/linear','_blank')">Linear</button>
   </header>
+
+  <div class="ln-focusbar empty" id="lnFocusbar"></div>
 
   <div class="ln-body">
     <!-- L0 Candidates -->
-    <aside class="ln-l0">
+    <aside class="ln-l0" id="lnL0">
       <div class="ln-l0-head">
         <input class="ln-search" id="lnSearch" placeholder="filter cards…" autocomplete="off" spellcheck="false">
         <div class="ln-l0-controls">
@@ -239,14 +409,22 @@
         </div>
       </div>
       <div class="ln-tagrow" id="lnTagRow"></div>
+      <div class="ln-l0-title">Cards</div>
       <div class="ln-cards" id="lnCards"></div>
       <div class="ln-trash" id="lnTrash">
         🗑 Drag here to remove
       </div>
     </aside>
 
+    <div class="ln-resizer" id="lnResizeL" title="Drag to resize"></div>
+
     <!-- Topic board -->
     <main class="ln-board" id="lnBoard"></main>
+
+    <div class="ln-resizer" id="lnResizeR" title="Drag to resize"></div>
+
+    <!-- Inspector -->
+    <aside class="ln-inspector" id="lnInspector"></aside>
   </div>
 </div>
 
@@ -260,6 +438,7 @@ let STATE = { topics: [] };
 let CARDS = [];                  // L0 candidates from API
 let CARDS_BY_ID = {};
 let FILTER = { q: '', tag: '', unused: false };
+let SELECTED = null;             // { kind: 'card'|'topic', id }
 const ALL_TAGS = new Set();
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -269,6 +448,7 @@ const el = (tag, attrs={}, ...kids) => {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
     else if (k === 'dataset') Object.assign(e.dataset, v);
     else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
     else if (v != null && v !== false) e.setAttribute(k, v === true ? '' : v);
@@ -279,6 +459,27 @@ const el = (tag, attrs={}, ...kids) => {
   }
   return e;
 };
+
+// Tiny inline-SVG icon factory (inherits oh-my-ui currentColor styling).
+const ICONS = {
+  chevron: '<polyline points="9 18 15 12 9 6"/>',
+  plus:    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  branch:  '<line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  trash:   '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  open:    '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+  x:       '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+};
+function icon(name, sz=13) {
+  const span = document.createElement('span');
+  span.style.display = 'inline-flex';
+  span.innerHTML = `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+  return span.firstChild;
+}
+function iconBtn(name, title, onclick, cls='') {
+  return el('button', { class: 'ln-iconbtn ' + cls, title, type: 'button',
+    onclick: (ev) => { ev.stopPropagation(); onclick(ev); } }, icon(name));
+}
+function grip() { return el('span', { class: 'ln-grip', title: 'Drag to move' }, '⠿'); }
 
 function toast(msg, ms=1800) {
   const t = $('#lnToast');
@@ -318,12 +519,93 @@ function setDrag(ev, payload) {
 }
 function clearDrag() { DRAG = null; }
 
+// ── Selection / focus ──────────────────────────────────────────────────
+function selectCard(id) {
+  SELECTED = { kind: 'card', id };
+  applySelection(); renderFocusbar(); renderInspector();
+}
+function selectTopic(id) {
+  SELECTED = { kind: 'topic', id };
+  applySelection(); renderFocusbar(); renderInspector();
+}
+function clearSelection() {
+  SELECTED = null;
+  applySelection(); renderFocusbar(); renderInspector();
+}
+// Toggle .selected classes on the live DOM (cheaper than a full re-render,
+// and preserves scroll / expanded state).
+function applySelection() {
+  const isCard  = SELECTED && SELECTED.kind === 'card';
+  const isTopic = SELECTED && SELECTED.kind === 'topic';
+  $$('.ln-card').forEach(n => n.classList.toggle('selected', isCard && n.dataset.cardId === SELECTED.id));
+  $$('.ln-chip').forEach(n => n.classList.toggle('selected', isCard && n.dataset.cardId === SELECTED.id));
+  $$('.ln-topic').forEach(n => n.classList.toggle('selected', isTopic && n.dataset.topicId === String(SELECTED.id)));
+}
+
+function whereUsed(card_id) {
+  const out = [];
+  for (const t of STATE.topics) {
+    let sub = null;
+    let count = 0;
+    const subs = new Set();
+    for (const it of (t.items || [])) {
+      if (it.kind === 'subtopic') sub = it.label;
+      else if (it.kind === 'card' && it.card_id === card_id) { count++; if (sub) subs.add(sub); }
+    }
+    if (count) out.push({ topic_id: t.id, topic: t.title, count, subs: Array.from(subs) });
+  }
+  return out;
+}
+
+function excerpt(content, n=320) {
+  let s = String(content || '');
+  // strip a leading frontmatter block
+  s = s.replace(/^\s*---\s*\n[\s\S]*?\n---\s*(\n|$)/, '');
+  s = s.trim();
+  if (!s) return '';
+  return s.length > n ? s.slice(0, n).trimEnd() + '…' : s;
+}
+
+function flashTopicColumn(topic_id, { expand=true } = {}) {
+  const col = document.querySelector(`.ln-topic[data-topic-id="${topic_id}"]`);
+  if (!col) return;
+  if (expand) col.classList.remove('collapsed');
+  col.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  col.classList.remove('flash'); void col.offsetWidth; col.classList.add('flash');
+}
+
 // ── Render ─────────────────────────────────────────────────────────────
 function updateMeta() {
   const nTopics = STATE.topics.length;
   let nPlaced = 0;
   for (const t of STATE.topics) for (const it of (t.items||[])) if (it.kind === 'card') nPlaced++;
   $('#lnMeta').textContent = `${nTopics} topic${nTopics===1?'':'s'} · ${nPlaced} card${nPlaced===1?'':'s'} placed`;
+}
+
+function renderFocusbar() {
+  const bar = $('#lnFocusbar');
+  bar.innerHTML = '';
+  bar.classList.toggle('empty', !SELECTED);
+  bar.appendChild(el('span', { class: 'fb-label' }, 'Focus'));
+  if (!SELECTED) {
+    bar.appendChild(el('span', { class: 'fb-crumb' }, 'nothing selected — click a card or topic'));
+    return;
+  }
+  if (SELECTED.kind === 'card') {
+    const card = CARDS_BY_ID[SELECTED.id];
+    const used = whereUsed(SELECTED.id);
+    bar.appendChild(el('span', { class: 'fb-kind' }, 'Card'));
+    bar.appendChild(el('span', { class: 'fb-crumb' }, card ? card.title : SELECTED.id));
+    bar.appendChild(el('span', { class: 'fb-sub' },
+      used.length ? `· used in ${used.length} topic${used.length===1?'':'s'}` : '· not placed yet'));
+  } else {
+    const topic = STATE.topics.find(t => t.id === SELECTED.id);
+    const n = topic ? (topic.items||[]).filter(i => i.kind==='card').length : 0;
+    bar.appendChild(el('span', { class: 'fb-kind' }, 'Topic'));
+    bar.appendChild(el('span', { class: 'fb-crumb' }, topic ? topic.title : '(deleted)'));
+    bar.appendChild(el('span', { class: 'fb-sub' }, `· ${n} card${n===1?'':'s'}`));
+  }
+  bar.appendChild(el('button', { class: 'fb-clear', onclick: clearSelection }, 'clear ✕'));
 }
 
 function cardUseCount(card_id) {
@@ -353,14 +635,19 @@ function renderL0() {
   }
   for (const c of filtered) {
     const uses = cardUseCount(c.id);
+    const tags = c.tags || [];
+    const shown = tags.slice(0, 2);
     const node = el('div', {
       class: 'ln-card',
       draggable: 'true',
       dataset: { cardId: c.id },
+      onclick: () => selectCard(c.id),
     },
+      grip(),
       el('span', {class:'t'}, c.title, uses ? el('span', {class:'uses'}, ` ·${uses}`) : null),
-      (c.tags && c.tags.length) ? el('div', {class:'tags'},
-        ...c.tags.slice(0, 4).map(t => el('span', {class:'tag'}, t))
+      tags.length ? el('div', {class:'tags'},
+        ...shown.map(t => el('span', {class:'tag'}, t)),
+        tags.length > shown.length ? el('span', {class:'tag-more', title: tags.join(', ')}, `+${tags.length - shown.length}`) : null
       ) : null
     );
     node.addEventListener('dragstart', (ev) => {
@@ -370,6 +657,7 @@ function renderL0() {
     node.addEventListener('dragend', () => { node.classList.remove('dragging'); clearDrag(); });
     wrap.appendChild(node);
   }
+  applySelection();
 }
 
 function renderTagBar() {
@@ -400,7 +688,8 @@ function renderBoard() {
   const addBtn = el('button', {
     class: 'ln-add-topic',
     onclick: () => addTopic(),
-  }, '+ Topic');
+    html: '＋ New topic<span class="sub">or drop a card here to start one</span>',
+  });
   addBtn.addEventListener('dragover', (ev) => {
     const d = DRAG;
     if (!d || d.kind === 'topic' || (d.kind === 'item' && d.item_kind !== 'card')) return;
@@ -421,26 +710,45 @@ function renderBoard() {
     const card = CARDS_BY_ID[cardId];
     if (!card) return;
     await api('POST', '/lineage/api/topics', { title: card.title, card_id: cardId, position: STATE.topics.length });
-    await loadState(); renderBoard();
+    await refresh();
   });
   board.appendChild(addBtn);
+  applySelection();
 }
 
 function renderTopicColumn(topic) {
   const itemCount = (topic.items||[]).filter(i => i.kind === 'card').length;
 
+  const titleInput = el('input', {
+    class: 'ln-topic-title',
+    type: 'text',
+    value: topic.title,
+    onchange: (ev) => renameTopic(topic.id, ev.target.value),
+    onkeydown: (ev) => { if (ev.key === 'Enter') ev.target.blur(); },
+    // Focusing the title (click or tab) also makes this the focused topic,
+    // while still letting you edit the name.
+    onfocus: () => selectTopic(topic.id),
+  });
+
+  const chev = icon('chevron', 14);
   const head = el('div', {
     class: 'ln-topic-head',
     draggable: 'true',
+    onclick: (ev) => {
+      // Clicking the head (incl. the title) focuses this topic; buttons opt out.
+      if (ev.target.closest('button, .ln-iconbtn')) return;
+      selectTopic(topic.id);
+    },
   },
-    el('input', {
-      class: 'ln-topic-title',
-      type: 'text',
-      value: topic.title,
-      onchange: (ev) => renameTopic(topic.id, ev.target.value),
-      onkeydown: (ev) => { if (ev.key === 'Enter') ev.target.blur(); },
-    }),
-    el('span', {class: 'ln-topic-count'}, String(itemCount))
+    grip(),
+    el('span', { class: 'ln-chev', title: 'Collapse / expand', onclick: (ev) => { ev.stopPropagation(); col.classList.toggle('collapsed'); } }, chev),
+    titleInput,
+    el('span', {class: 'ln-topic-count'}, String(itemCount)),
+    el('div', { class: 'ln-head-actions' },
+      iconBtn('plus',   'Add a card here', () => openNewCardInput(body, topic.id)),
+      iconBtn('branch', 'Add subtopic',    () => addSubtopic(topic.id)),
+      iconBtn('trash',  'Delete topic',    () => deleteTopic(topic.id), 'danger'),
+    )
   );
   head.addEventListener('dragstart', (ev) => {
     head.classList.add('dragging');
@@ -460,6 +768,7 @@ function renderTopicColumn(topic) {
     else body.appendChild(renderChip(topic, it));
     appendDropLine(body, topic.id, i + 1);
   }
+  if (!itemCount) body.appendChild(el('div', {class:'ln-body-empty'}, 'Drop cards here'));
 
   const foot = el('div', {class: 'ln-topic-foot'},
     el('button', {
@@ -474,8 +783,8 @@ function renderTopicColumn(topic) {
 
   const col = el('section', {class: 'ln-topic', dataset: {topicId: topic.id}}, head, body, foot);
   head.addEventListener('dblclick', (ev) => {
-    if (ev.target.closest('input')) return;
-    col.classList.toggle('expanded');
+    if (ev.target.closest('input, button, .ln-iconbtn')) return;
+    col.classList.toggle('collapsed');
   });
   return col;
 }
@@ -522,11 +831,17 @@ function renderChip(topic, item) {
     draggable: 'true',
     dataset: {itemId: item.id, cardId: card.id},
     title: card.title,
+    onclick: (ev) => { if (ev.target.closest('.ln-iconbtn')) return; selectCard(card.id); },
   },
+    grip(),
     el('span', {class:'t'}, card.title),
     (card.tags && card.tags.length) ? el('div', {class:'tags'},
       ...card.tags.slice(0, 3).map(t => el('span', {class:'tag'}, t))
-    ) : null
+    ) : null,
+    el('div', { class: 'ln-chip-actions' },
+      iconBtn('open', 'Open in editor', () => window.open('/?card=' + encodeURIComponent(card.id), '_blank'), ''),
+      iconBtn('x',    'Remove from this topic', () => removeItem(item.id), 'danger'),
+    )
   );
   node.addEventListener('dragstart', (ev) => {
     node.classList.add('dragging');
@@ -534,6 +849,117 @@ function renderChip(topic, item) {
   });
   node.addEventListener('dragend', () => node.classList.remove('dragging'));
   return node;
+}
+
+// ── Inspector ──────────────────────────────────────────────────────────
+function renderInspector() {
+  const panel = $('#lnInspector');
+  panel.innerHTML = '';
+  if (!SELECTED) {
+    panel.appendChild(el('div', { class: 'insp-empty' },
+      el('span', { class: 'glyph' }, '◔'),
+      el('div', {}, 'Select a card or topic to inspect it here.'),
+      el('div', { style: 'margin-top:6px;font-size:11px;opacity:.8' }, 'Drag cards from the left into topics — drop on a topic, between cards, or on “New topic”.')
+    ));
+    return;
+  }
+  if (SELECTED.kind === 'card') renderCardInspector(panel);
+  else renderTopicInspector(panel);
+}
+
+function renderCardInspector(panel) {
+  const card = CARDS_BY_ID[SELECTED.id];
+  if (!card) {
+    panel.appendChild(el('div', { class: 'insp-empty' }, 'This card no longer exists.'));
+    return;
+  }
+  const used = whereUsed(card.id);
+  const updated = card.updated_at ? card.updated_at.slice(0, 19).replace('T', ' ') : '';
+
+  // Header
+  panel.appendChild(el('div', { class: 'insp-section' },
+    el('div', { class: 'insp-kind' }, 'Card'),
+    el('div', { class: 'insp-title' }, card.title || '(untitled)'),
+    el('div', { class: 'insp-id', title: 'Click to select · card id' }, card.id || ''),
+    updated ? el('div', { class: 'insp-updated' }, 'updated ' + updated) : null,
+    (card.tags && card.tags.length) ? el('div', { class: 'insp-tags' },
+      ...card.tags.map(t => el('span', { class: 'insp-tag' }, t))) : null
+  ));
+
+  // Where used
+  const usedSec = el('div', { class: 'insp-section' }, el('div', { class: 'insp-label' }, `Used in ${used.length} topic${used.length===1?'':'s'}`));
+  if (!used.length) {
+    usedSec.appendChild(el('div', { class: 'insp-none' }, 'Not placed in any topic yet — drag it onto the board.'));
+  } else {
+    for (const u of used) {
+      usedSec.appendChild(el('div', {
+        class: 'insp-used-row',
+        title: 'Jump to this topic',
+        onclick: () => flashTopicColumn(u.topic_id),
+      },
+        el('span', { class: 'ut' }, u.topic),
+        u.subs.length ? el('span', { class: 'us' }, '› ' + u.subs.join(', ')) : null,
+        u.count > 1 ? el('span', { class: 'usep' }, `×${u.count}`) : null,
+      ));
+    }
+  }
+  panel.appendChild(usedSec);
+
+  // Excerpt
+  const ex = excerpt(card.content);
+  panel.appendChild(el('div', { class: 'insp-section' },
+    el('div', { class: 'insp-label' }, 'Excerpt'),
+    ex ? el('div', { class: 'insp-excerpt' }, ex) : el('div', { class: 'insp-none' }, '(empty card)')
+  ));
+
+  // Actions
+  panel.appendChild(el('div', { class: 'insp-actions' },
+    el('button', { class: 'omi-btn secondary sm',
+      onclick: () => window.open('/?card=' + encodeURIComponent(card.id), '_blank') }, 'Open in editor ↗')
+  ));
+}
+
+function renderTopicInspector(panel) {
+  const topic = STATE.topics.find(t => t.id === SELECTED.id);
+  if (!topic) {
+    panel.appendChild(el('div', { class: 'insp-empty' }, 'This topic no longer exists.'));
+    return;
+  }
+  const items = topic.items || [];
+  const nCards = items.filter(i => i.kind === 'card').length;
+  const nSubs  = items.filter(i => i.kind === 'subtopic').length;
+
+  panel.appendChild(el('div', { class: 'insp-section' },
+    el('div', { class: 'insp-kind' }, 'Topic'),
+    el('div', { class: 'insp-title' }, topic.title || '(untitled)'),
+    el('div', { class: 'insp-updated' }, `${nCards} card${nCards===1?'':'s'} · ${nSubs} subtopic${nSubs===1?'':'s'}`)
+  ));
+
+  const listSec = el('div', { class: 'insp-section' }, el('div', { class: 'insp-label' }, 'Contents'));
+  if (!items.length) {
+    listSec.appendChild(el('div', { class: 'insp-none' }, 'Empty — drag cards here.'));
+  } else {
+    const ul = el('ul', { class: 'insp-list' });
+    for (const it of items) {
+      if (it.kind === 'subtopic') {
+        ul.appendChild(el('li', {}, el('span', { class: 'il-sub' }, it.label || '(subtopic)')));
+      } else {
+        const card = CARDS_BY_ID[it.card_id];
+        ul.appendChild(el('li', {},
+          card
+            ? el('span', { class: 'il-card', style: 'cursor:pointer', onclick: () => selectCard(card.id) }, card.title)
+            : el('span', { class: 'il-missing' }, `(missing: ${it.card_id})`)
+        ));
+      }
+    }
+    listSec.appendChild(ul);
+  }
+  panel.appendChild(listSec);
+
+  panel.appendChild(el('div', { class: 'insp-actions' },
+    el('button', { class: 'omi-btn ghost sm', onclick: () => addSubtopic(topic.id) }, '+ Subtopic'),
+    el('button', { class: 'omi-btn ghost sm', onclick: () => deleteTopic(topic.id) }, 'Delete topic')
+  ));
 }
 
 // ── Drop targets ──────────────────────────────────────────────────────
@@ -658,9 +1084,26 @@ async function addTopic() {
   catch (err) { toast(err.message || 'failed'); }
 }
 
+async function deleteTopic(topic_id) {
+  const topic = STATE.topics.find(x => x.id === topic_id);
+  if (!topic) return;
+  const n = (topic.items || []).length;
+  if (n > 0 && !confirm(`Delete topic "${topic.title}"? It contains ${n} item${n===1?'':'s'} (cards stay in the gallery).`)) return;
+  try {
+    await api('DELETE', `/lineage/api/topics/${topic_id}?force=1`);
+    if (SELECTED && SELECTED.kind === 'topic' && SELECTED.id === topic_id) SELECTED = null;
+    await refresh();
+  } catch (err) { toast(err.message || 'delete failed'); }
+}
+
+async function removeItem(item_id) {
+  try { await api('DELETE', `/lineage/api/items/${item_id}`); await refresh(); }
+  catch (err) { toast(err.message || 'remove failed'); }
+}
+
 async function renameTopic(id, title) {
   if (!title || !title.trim()) { await refresh(); return; }
-  try { await api('PATCH', `/lineage/api/topics/${id}`, { title: title.trim() }); }
+  try { await api('PATCH', `/lineage/api/topics/${id}`, { title: title.trim() }); await refresh(); }
   catch (err) { toast(err.message || 'failed'); await refresh(); }
 }
 
@@ -682,8 +1125,8 @@ async function renameItem(id, label) {
 }
 
 function openNewCardInput(body, topic_id) {
-  // Replace the foot's "+ new card" button area with an inline input.
   const topicEl = body.closest('.ln-topic');
+  topicEl.classList.remove('collapsed');
   const foot = topicEl.querySelector('.ln-topic-foot');
   foot.innerHTML = '';
   const input = el('input', {
@@ -719,10 +1162,46 @@ async function refresh() {
   STATE = state;
   CARDS = cards;
   CARDS_BY_ID = Object.fromEntries(cards.map(c => [c.id, c]));
+  // Drop a stale selection that no longer exists.
+  if (SELECTED) {
+    if (SELECTED.kind === 'card' && !CARDS_BY_ID[SELECTED.id]) SELECTED = null;
+    if (SELECTED.kind === 'topic' && !STATE.topics.some(t => t.id === SELECTED.id)) SELECTED = null;
+  }
   renderTagBar();
   renderL0();
   renderBoard();
   updateMeta();
+  renderFocusbar();
+  renderInspector();
+}
+
+// ── Resizable side panels (width persisted to localStorage) ────────────
+function setPanelWidth(panel, w) { panel.style.flex = `0 0 ${w}px`; panel.style.width = `${w}px`; }
+function setupResizer(resizerId, panelId, side, storeKey, min, max) {
+  const rez = $('#' + resizerId), panel = $('#' + panelId);
+  if (!rez || !panel) return;
+  const saved = parseInt(localStorage.getItem(storeKey) || '', 10);
+  if (Number.isFinite(saved)) setPanelWidth(panel, Math.max(min, Math.min(max, saved)));
+  rez.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    rez.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const startX = e.clientX, startW = panel.getBoundingClientRect().width;
+    const mv = (ev) => {
+      const delta = side === 'left' ? (ev.clientX - startX) : (startX - ev.clientX);
+      setPanelWidth(panel, Math.max(min, Math.min(max, startW + delta)));
+    };
+    const up = () => {
+      rez.classList.remove('dragging');
+      document.body.style.cursor = ''; document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', mv);
+      document.removeEventListener('mouseup', up);
+      localStorage.setItem(storeKey, String(Math.round(panel.getBoundingClientRect().width)));
+    };
+    document.addEventListener('mousemove', mv);
+    document.addEventListener('mouseup', up);
+  });
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────
@@ -739,6 +1218,8 @@ function bindControls() {
 
 bindControls();
 bindTrash();
+setupResizer('lnResizeL', 'lnL0', 'left', 'ln-l0-w', 160, 520);
+setupResizer('lnResizeR', 'lnInspector', 'right', 'ln-insp-w', 220, 620);
 refresh();
 </script>
 </body>

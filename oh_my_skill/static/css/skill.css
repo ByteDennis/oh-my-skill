@@ -36,6 +36,125 @@
      </div>
    Used by editor preview, ref-windows, and any .pv container. */
 
+/* ─── Lineage map (interactive topic → subtopic → card knowledge map) ──
+   Rendered into a .ref-window by openLineageMap(). Left→right tree with an
+   SVG connector overlay; hover traces ancestry/descendant paths. Calm,
+   minimal, industrial: soft bg, thin connectors, restrained shadows. */
+.lmap-win .ref-window-header { gap: 10px; }
+.lmap-hint { font-size: 11px; color: var(--omi-muted); margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lmap-x {
+  flex: 0 0 auto; width: 36px; height: 36px; padding: 0; margin-left: auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--omi-muted);
+  transition: background .12s, color .12s;
+}
+.lmap-x svg { width: 16px; height: 16px; }
+.lmap-x:hover { background: rgba(232, 224, 208, 0.7); color: var(--omi-fg); }
+.lmap-x:focus-visible { outline: 2px solid var(--omi-accent-deep); outline-offset: 1px; }
+
+.lmap-scroll {
+  overflow: auto; padding: 22px 26px;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(146,125,92,0.08) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--omi-bg, #faf6ee);
+}
+.lmap { position: relative; display: inline-block; min-width: 100%; }
+.lmap-edges { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+.lmap-edges path {
+  fill: none; stroke: var(--omi-border-strong, #d6c7a8); stroke-width: 1.4;
+  transition: stroke .12s, stroke-width .12s, opacity .12s;
+}
+.lmap.hovering .lmap-edges path.dim { opacity: 0.12; }
+.lmap-edges path.hot { stroke: var(--omi-accent-deep, #6c7d4f); stroke-width: 2.2; }
+
+/* Nodes are absolutely positioned into three aligned columns (x/y set
+   inline by openLineageMap); the tree just provides the positioning frame. */
+.lmap-tree { position: relative; z-index: 1; width: 100%; height: 100%; }
+
+.lmap-node {
+  position: absolute; box-sizing: border-box;
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  border-radius: 9px; cursor: default; user-select: none;
+  transition: opacity .12s, border-color .12s, box-shadow .12s, background .12s;
+}
+.lmap-node .lmap-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lmap-node .lmap-badge {
+  font-size: 10px; color: var(--omi-muted); background: rgba(146,125,92,0.12);
+  padding: 0 6px; border-radius: 999px;
+}
+/* Prominence: topic > subtopic > card. */
+.lmap-topic {
+  padding: 9px 14px; font-size: 14px; font-weight: 700; max-width: 240px;
+  color: var(--omi-fg);
+  background: var(--omi-accent-soft, #e7efd9);
+  border: 1.5px solid var(--omi-accent, #b9cda0);
+  box-shadow: 0 1px 3px rgba(60,46,28,0.08);
+}
+.lmap-sub {
+  padding: 6px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; max-width: 220px;
+  color: var(--omi-accent-deep, #6c7d4f);
+  background: rgba(214, 199, 168, 0.20);
+  border: 1px solid var(--omi-border, #e3d9c6);
+}
+.lmap-card {
+  padding: 6px 11px; font-size: 12.5px; font-weight: 500; max-width: 280px;
+  color: var(--omi-fg); cursor: pointer;
+  background: #fffdf9;
+  border: 1px solid var(--omi-border, #e3d9c6);
+  box-shadow: 0 1px 2px rgba(60,46,28,0.05);
+}
+.lmap-card .lmap-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--omi-accent, #b9cda0); flex: 0 0 auto; }
+.lmap-card.missing { opacity: 0.5; font-style: italic; cursor: default; }
+.lmap-card:hover { border-color: var(--omi-accent-deep, #6c7d4f); }
+
+/* Hover highlight — opacity/colour only (no size change → no layout shift). */
+.lmap.hovering .lmap-node.dim { opacity: 0.26; }
+.lmap-node.hot { box-shadow: 0 0 0 2px var(--omi-accent-ring, rgba(150,170,120,.45)), 0 2px 8px rgba(60,46,28,0.12); }
+.lmap-topic.hot { border-color: var(--omi-accent-deep, #6c7d4f); }
+.lmap-card.hot, .lmap-sub.hot { border-color: var(--omi-accent-deep, #6c7d4f); }
+
+.lmap-empty { color: var(--omi-muted); font-size: 14px; line-height: 1.7; padding: 50px 20px; text-align: center; }
+.lmap-empty span { font-size: 12px; opacity: 0.85; }
+
+/* ─── <kbd> keyboard keys (`<Ctrl+Shift+P>` shorthand) ─────────────── */
+.pv kbd {
+  display: inline-block;
+  font-family: var(--omi-font-mono, ui-monospace, monospace);
+  font-size: 0.82em; line-height: 1; white-space: nowrap;
+  padding: 2px 6px; margin: 0 1px;
+  color: var(--omi-fg);
+  background: linear-gradient(180deg, #fff, rgb(var(--omi-surface)));
+  border: 1px solid var(--omi-border-strong, #d6c7a8);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  box-shadow: 0 1px 0 rgba(60, 46, 28, 0.08);
+  vertical-align: baseline;
+}
+
+/* ─── <ept> card excerpt / summary (`>summary line<` shorthand) ─────── */
+.pv ept {
+  display: block;
+  margin: 10px 0 14px;
+  padding: 10px 14px 10px 16px;
+  border-left: 3px solid var(--omi-accent-deep, #6c7d4f);
+  border-radius: 6px;
+  background: rgba(212, 228, 193, 0.22);
+  color: var(--omi-fg-soft, #5a4f3a);
+  font-size: 0.96em; line-height: 1.55; font-style: italic;
+}
+.pv ept::before {
+  content: "TL;DR";
+  display: block;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; font-style: normal;
+  color: var(--omi-accent-deep, #6c7d4f);
+  margin-bottom: 3px;
+}
+/* marked may wrap the lone <ept> in a <p>; strip that wrapper's margins. */
+.pv p > ept:only-child { margin: 10px 0; }
+
 /* ─── Collapsible code blocks (```lang+ / ```lang-) ────────────────
    The fence's `+` or `-` suffix wraps the code card in a <details>.
    Summary shows the title (or language name when no title given);
@@ -64,15 +183,29 @@
 .pv details.pv-code-collapse > summary:hover { background: rgba(232, 224, 208, 0.7); }
 .pv details.pv-code-collapse > summary::before {
   content: '';
-  position: absolute; left: 10px; top: 50%;
-  width: 14px; height: 14px;
-  margin-top: -7px;
+  position: absolute; left: 8px; top: 50%;
+  width: 20px; height: 20px;
+  margin-top: -10px;
   background-color: var(--omi-accent-deep);
-  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
-          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 12px 12px;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 16px 16px;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 16px 16px;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .pv details.pv-code-collapse[open] > summary::before { transform: rotate(90deg); }
+
+/* Override omi.css's tiny `???` collapse chevron (a 11px ▸ glyph) with the
+   same larger SVG chevron used by code-collapse. omi.css is vendored, so we
+   override here (loaded after omi.css). */
+.pv details.md-collapse > summary { padding-left: 34px; }
+.pv details.md-collapse > summary::before {
+  content: '';
+  left: 8px; width: 20px; height: 20px; font-size: 0;
+  transform: translateY(-50%);
+  background-color: var(--omi-accent-deep);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 16px 16px;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 6 15 12 9 18'/></svg>") no-repeat center / 16px 16px;
+}
+.pv details.md-collapse[open] > summary::before { transform: translateY(-50%) rotate(90deg); }
 .pv details.pv-code-collapse:not([open]) > summary { border-bottom-color: transparent; }
 .pv-code-collapse-title {
   flex: 1; min-width: 0; font-weight: 600;
@@ -456,8 +589,11 @@
 }
 .pv .md-timeline__item + .md-timeline__item { margin-top: 4px; }
 .pv .md-timeline__dot {
+  /* Centre the dot on the vertical rail: rail centre is at x=8px
+     (left:7 + width:2/2); item content starts at x=22px (ul padding),
+     so dot left = 8 − 22 − 9/2 = −18.5px. */
   position: absolute;
-  left: -22px; top: 0.65em;
+  left: -18.5px; top: 0.65em;
   width: 9px; height: 9px;
   border-radius: 50%;
   background: var(--omi-accent-deep);
@@ -573,48 +709,77 @@
    Reuses the .ref-window chrome but tightens the body for a flat
    indented heading list. Active rows highlight on hover; clicking
    scrolls + briefly flashes the target heading in the preview. */
-.ref-window.outline-win .ref-window-body { padding: 0; }
+.ref-window.outline-win .ref-window-body { padding: 4px 4px 8px; }
+.outline-count { font-size: 11px; font-weight: 400; color: var(--omi-muted); }
+
+/* Filter bar */
+.outline-filterbar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-bottom: 1px solid var(--omi-border);
+  color: var(--omi-muted); flex-shrink: 0;
+}
+.outline-filter {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-size: 12px; color: var(--omi-fg);
+}
+.outline-filter::placeholder { color: var(--omi-muted); }
+
 .outline-list { display: flex; flex-direction: column; gap: 1px; }
 .outline-row {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 5px 10px;
-  font-size: 12.5px;
+  position: relative;
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 8px 4px 12px;
   color: var(--omi-fg-soft);
-  text-decoration: none;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-decoration: none; border-radius: 5px;
+  cursor: pointer; white-space: nowrap; overflow: hidden;
   transition: background 0.10s ease, color 0.10s ease;
 }
-.outline-row:hover {
-  background: rgba(232, 224, 208, 0.55);
-  color: var(--omi-fg);
+/* extra space before each new top-level section */
+.outline-row.grp { margin-top: 9px; }
+.outline-row:hover { background: rgba(232, 224, 208, 0.55); color: var(--omi-fg); }
+
+/* Active section (scroll-spy): left accent bar + tinted background + bold. */
+.outline-row .outline-bar {
+  position: absolute; left: 0; top: 3px; bottom: 3px; width: 3px;
+  border-radius: 0 2px 2px 0; background: transparent;
 }
-.outline-row[data-level="1"] { font-weight: 700; color: var(--omi-accent-deep); }
-.outline-row[data-level="2"] { font-weight: 600; }
-.outline-row[data-level="3"] { font-weight: 500; }
-.outline-row[data-level="4"] { font-weight: 400; color: var(--omi-muted); }
-.outline-row .outline-mark {
-  flex-shrink: 0;
-  font-family: var(--omi-font-mono);
-  font-size: 10px;
-  color: var(--omi-muted);
-  opacity: 0.65;
-  letter-spacing: -0.04em;
+.outline-row.active { background: rgba(212, 228, 193, 0.45); color: var(--omi-fg); font-weight: 700; }
+.outline-row.active .outline-bar { background: var(--omi-accent-deep); }
+
+/* Level prominence: H1 strongest → H4 faintest. */
+.outline-row[data-level="1"] { font-size: 13px; font-weight: 700; color: var(--omi-fg); }
+.outline-row[data-level="2"] { font-size: 12.5px; font-weight: 600; }
+.outline-row[data-level="3"] { font-size: 12px; font-weight: 500; color: var(--omi-fg-soft); }
+.outline-row[data-level="4"] { font-size: 11.5px; font-weight: 400; color: var(--omi-muted); }
+
+/* A small level dot instead of the uniform ### marks. */
+.outline-row .outline-dot { flex-shrink: 0; border-radius: 50%; }
+.outline-row .outline-dot.d1 { width: 7px; height: 7px; background: var(--omi-accent-deep); }
+.outline-row .outline-dot.d2 { width: 6px; height: 6px; background: var(--omi-accent, #b9cda0); }
+.outline-row .outline-dot.d3 { width: 5px; height: 5px; background: transparent; box-shadow: inset 0 0 0 1.5px var(--omi-accent, #b9cda0); }
+.outline-row .outline-dot.d4 { width: 4px; height: 4px; background: transparent; box-shadow: inset 0 0 0 1px var(--omi-muted); }
+
+.outline-row .outline-text { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.outline-paren { color: var(--omi-muted); font-weight: 400; font-size: 0.9em; }
+
+.outline-badge {
+  flex-shrink: 0; font-size: 9.5px; color: var(--omi-muted);
+  background: rgba(146, 125, 92, 0.12); padding: 0 5px; border-radius: 999px;
 }
-.outline-row .outline-text {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.outline-acts { display: inline-flex; gap: 1px; flex-shrink: 0; opacity: 0; transition: opacity 0.1s; }
+.outline-row:hover .outline-acts, .outline-row.active .outline-acts { opacity: 1; }
+.outline-act {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border: none; border-radius: 4px;
+  background: transparent; color: var(--omi-muted); cursor: pointer; font-size: 11px; line-height: 1;
 }
+.outline-act:hover { background: rgba(255, 255, 255, 0.7); color: var(--omi-fg); }
+.outline-collapse { transition: transform 0.15s ease; }
+.outline-collapse.collapsed { transform: rotate(-90deg); }
+
 .outline-empty {
-  padding: 14px;
-  color: var(--omi-muted);
-  font-size: 12px;
-  font-style: italic;
-  text-align: center;
+  padding: 16px; color: var(--omi-muted);
+  font-size: 12px; font-style: italic; text-align: center;
 }
 
 /* Heading flash when an outline row is clicked. Subtle accent highlight
@@ -697,3 +862,132 @@
   padding-left: 10px;
 }
 
+
+/* ─── Top-nav: when AI is unavailable, keep only Guide + Settings ──── */
+.omi-topnav.ai-off #toggleAI,
+.omi-topnav.ai-off #toggleLogs,
+.omi-topnav.ai-off #openLineage,
+.omi-topnav.ai-off #openSync,
+.omi-topnav.ai-off #openImport,
+.omi-topnav.ai-off .omi-nav,
+.omi-topnav.ai-off .omi-status { display: none; }
+
+/* ─── In-app guide drawer (docs-modal, ported from oh-my-plugins) ───
+   Uses the shared omi.css design tokens, so it themes automatically. */
+.docs-overlay {
+  position: fixed; inset: 0; z-index: 2100;
+  display: none; align-items: center; justify-content: center;
+  padding: 3vh 3vw;
+}
+.docs-overlay.show { display: flex; }
+.docs-backdrop {
+  position: absolute; inset: 0; border: 0; cursor: pointer;
+  background: rgb(var(--omi-scrim-rgb) / 0.42);
+  backdrop-filter: blur(3px);
+  animation: docsFade 0.16s ease-out;
+}
+.docs-modal {
+  position: relative; display: flex; flex-direction: column;
+  width: min(1120px, 96vw); height: min(860px, 94vh);
+  overflow: hidden;
+  border: 1px solid var(--omi-border-strong);
+  border-radius: var(--omi-radius-lg);
+  background: linear-gradient(165deg, rgb(var(--omi-surface) / 0.98), rgb(var(--omi-surface-2) / 0.95));
+  box-shadow: var(--omi-shadow-lg);
+  animation: docsRise 0.18s ease-out;
+}
+@keyframes docsFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes docsRise { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: none; } }
+
+.docs-topbar {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--omi-border);
+  background: rgb(var(--omi-surface) / 0.7); flex-shrink: 0;
+}
+.docs-brand {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-family: var(--omi-font-heading); font-weight: 700; color: var(--omi-accent-deeper);
+}
+.docs-brand .dot { color: var(--omi-accent); }
+.docs-search {
+  display: inline-flex; align-items: center; gap: 0.45rem; margin-left: auto;
+  width: min(320px, 40vw); padding: 0.4rem 0.7rem;
+  border: 1px solid var(--omi-border-strong); border-radius: var(--omi-radius-pill);
+  background: rgb(var(--omi-surface) / 0.85); color: var(--omi-muted);
+}
+.docs-search input {
+  flex: 1; min-width: 0; border: 0; background: transparent;
+  color: var(--omi-fg); font: inherit; font-size: 0.85rem; outline: none;
+}
+.docs-body { flex: 1; display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 0; }
+.docs-sidebar {
+  border-right: 1px solid var(--omi-border); background: rgb(var(--omi-surface) / 0.4);
+  padding: 1rem 0.75rem; overflow-y: auto;
+}
+.docs-nav-group + .docs-nav-group { margin-top: 1.1rem; }
+.docs-nav-kicker {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--omi-muted); padding: 0 0.6rem; margin-bottom: 0.4rem;
+}
+.docs-nav-item {
+  display: block; width: 100%; text-align: left; border: 0;
+  border-radius: var(--omi-radius-sm); background: transparent; color: var(--omi-fg-soft);
+  font: inherit; font-size: 0.86rem; padding: 0.45rem 0.6rem; cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.docs-nav-item:hover { background: rgb(var(--omi-surface-3) / 0.55); color: var(--omi-fg); }
+.docs-nav-item.active {
+  background: var(--omi-accent-ring); color: var(--omi-accent-deeper); font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--omi-accent);
+}
+.docs-nav-empty { font-size: 0.84rem; color: var(--omi-muted); padding: 0.5rem 0.6rem; }
+.docs-content { overflow-y: auto; padding: 1.6rem 2rem 2.4rem; }
+.docs-content-kicker {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--omi-accent);
+}
+.docs-prose { max-width: 46rem; }
+.docs-prose h2 { margin-top: 0.35rem; font-family: var(--omi-font-heading); font-size: 1.55rem; font-weight: 700; color: var(--omi-fg); }
+.docs-content-blurb { margin-top: 0.35rem; font-size: 0.92rem; color: var(--omi-fg-soft); }
+.docs-divider { height: 1px; margin: 1.1rem 0 1.3rem; background: var(--omi-border); }
+.docs-prose h3 { margin-top: 1.6rem; font-family: var(--omi-font-heading); font-size: 1.05rem; font-weight: 700; color: var(--omi-fg); }
+.docs-prose p { margin-top: 0.85rem; font-size: 0.92rem; line-height: 1.7; color: var(--omi-fg-soft); }
+.docs-prose strong { color: var(--omi-fg); font-weight: 600; }
+.docs-prose code {
+  font-family: var(--omi-font-mono); font-size: 0.82em; padding: 0.08em 0.4em;
+  border-radius: 5px; background: rgb(var(--omi-surface-3) / 0.7); color: var(--omi-accent-deeper);
+}
+.docs-prose kbd { font-size: 0.78em; }
+.doc-list { margin-top: 0.85rem; padding-left: 1.15rem; list-style: disc; }
+.doc-list li { margin-top: 0.5rem; font-size: 0.92rem; line-height: 1.65; color: var(--omi-fg-soft); }
+.doc-table {
+  width: 100%; margin-top: 1rem; border-collapse: collapse;
+  border: 1px solid var(--omi-border); border-radius: var(--omi-radius-sm);
+  overflow: hidden; font-size: 0.88rem;
+}
+.doc-table th, .doc-table td {
+  text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--omi-border);
+  vertical-align: top; color: var(--omi-fg-soft);
+}
+.doc-table thead th { background: rgb(var(--omi-surface-3) / 0.55); color: var(--omi-fg); font-weight: 700; font-size: 0.78rem; }
+.doc-table tbody tr:last-child td { border-bottom: 0; }
+.doc-callout {
+  margin-top: 1.1rem; border: 1px solid var(--omi-accent-ring); border-radius: var(--omi-radius-sm);
+  background: var(--omi-accent-ring); padding: 0.85rem 1rem;
+  font-size: 0.9rem; line-height: 1.6; color: var(--omi-fg);
+}
+.doc-copy-prompt { margin-top: 1rem; }
+.doc-prompt {
+  margin-top: 0.7rem;
+  max-height: 460px; overflow: auto;
+  padding: 0.95rem 1.05rem;
+  border: 1px solid var(--omi-border-strong);
+  border-radius: var(--omi-radius-sm);
+  background: rgb(var(--omi-surface-3) / 0.45);
+  font-family: var(--omi-font-mono); font-size: 0.8rem; line-height: 1.55;
+  color: var(--omi-fg); white-space: pre-wrap; word-break: break-word;
+}
+@media (max-width: 760px) {
+  .docs-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .docs-sidebar { border-right: 0; border-bottom: 1px solid var(--omi-border); max-height: 34vh; }
+  .docs-content { padding: 1.2rem 1.2rem 2rem; }
+}
