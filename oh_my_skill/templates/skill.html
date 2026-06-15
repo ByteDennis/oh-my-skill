@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>oh-my-skill</title>
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260610a">
-<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260610a">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260614b">
+<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260614b">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -266,6 +266,7 @@
   .sync-rows .badge.remote-only { background: rgba(180, 200, 220, 0.4); color: #4a6a8a; }
   .sync-rows .badge.modified { background: rgba(238, 220, 180, 0.5); color: #8a6a3a; }
   .sync-rows .badge.synced { background: rgba(220, 220, 220, 0.5); color: #777; }
+  .sync-rows .badge.orphan { background: rgba(214, 120, 110, 0.28); color: #a3322b; }
   .sync-rows .repo-pill { display:inline-block; font-size: 9.5px; padding: 1px 6px; border-radius: 8px; background: rgba(220, 200, 165, 0.35); border: 1px solid var(--omi-border); margin-right: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
   .sync-rows .repo-pill.private { background: rgba(238, 196, 188, 0.35); }
   .sync-rows .ttl { font-weight: 600; }
@@ -444,7 +445,8 @@
     padding: 5px 7px; font-size: 11px; background: rgba(255,255,255,0.85); outline: none;
   }
   .casc-search:focus { border-color: var(--omi-accent-deep); box-shadow: 0 0 0 2px var(--omi-accent-ring); }
-  .casc-cards { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .casc-cards { flex: 1; overflow-y: auto; padding: 4px 8px; scrollbar-width: none; -ms-overflow-style: none; }
+  .casc-cards::-webkit-scrollbar { width: 0; height: 0; }
   .casc-cand {
     background: var(--omi-card-bg); border: 1px solid var(--omi-border);
     border-radius: var(--omi-radius-sm); padding: 5px 7px; margin-bottom: 4px;
@@ -488,6 +490,12 @@
     flex: 1; border: none; background: transparent; font-size: 12px;
     font-weight: 600; color: var(--omi-fg); outline: none; min-width: 0;
   }
+  /* Drag affordance shared by topic heads + subtopic dividers. */
+  .casc-thandle { color: var(--omi-muted); font-size: 11px; cursor: grab; flex-shrink: 0; opacity: 0.55; user-select: none; }
+  .casc-thandle:hover { opacity: 0.9; }
+  .casc-topic-head.dragging { opacity: 0.4; }
+  .casc-topic-head.drop-before { box-shadow: inset 0 3px 0 0 var(--omi-accent-deep); }
+  .casc-topic-head.drop-after  { box-shadow: inset 0 -3px 0 0 var(--omi-accent-deep); }
   .casc-collapse-btn {
     background: none; border: none; color: var(--omi-muted);
     cursor: pointer; font-size: 10px; padding: 0 2px; flex-shrink: 0;
@@ -1344,6 +1352,11 @@
   <div class="omi-field"><label class="omi-label">Color theme</label><select id="setColor" class="omi-select"></select></div>
   <div class="omi-field"><label class="omi-label">Font theme</label><select id="setFont" class="omi-select"></select></div>
   <div class="omi-field">
+    <label class="omi-label">Server base URL <span class="omi-text-xs omi-text-muted">— the address this app is reachable at</span></label>
+    <input id="setBaseUrl" class="omi-input" type="text" placeholder="http://128.175.21.160:5009">
+    <div class="omi-text-xs omi-text-muted" style="margin-top:4px">Used to fill in the <strong>Guide</strong>'s copy-paste agent prompt &amp; <code>oms</code> CLI download. Leave blank to keep the guide on relative paths.</div>
+  </div>
+  <div class="omi-field">
     <label class="omi-label">Auto-close chat sessions after (days) — 0 = never</label>
     <input id="setRetention" class="omi-input" type="number" min="0" max="365" placeholder="7">
     <div class="omi-text-xs omi-text-muted" style="margin-top:4px">Per-card chats survive container restarts and resume on click. Sweeper runs hourly.</div>
@@ -1384,7 +1397,7 @@
   </div>
 
   <hr class="omi-hr" style="margin: 16px 0">
-  <div class="omi-text-xs omi-text-muted" style="margin-bottom: 8px"><strong>GitHub sync</strong> — cards with <code>private</code> tag go to the private repo; everything else to the public repo.</div>
+  <div class="omi-text-xs omi-text-muted" style="margin-bottom: 8px"><strong>GitHub sync</strong> — tag a card <code>public</code> → public repo, <code>private</code> → private repo. Cards with neither sync nowhere and are removed from the remote on the next sync. <code>public</code> and <code>private</code> are mutually exclusive.</div>
   <div class="omi-field"><label class="omi-label">Public repo</label><input id="setPubRepo" class="omi-input" placeholder="https://github.com/user/skills.git"></div>
   <div class="omi-field"><label class="omi-label">Private repo</label><input id="setPrivRepo" class="omi-input" placeholder="git@github.com:user/private-skills.git"></div>
   <div class="omi-row" style="gap: 8px">
@@ -1409,7 +1422,7 @@
   // links from window.__OMI_NAV__: {id, label (HTML), href}. Labels embed
   // lucide sprite icons from /omi/ui/icons.svg. `data-service="skill"` on the
   // nav.js tag marks the skill entry active.
-  const _ico = (name) => `<svg class="icon" aria-hidden="true"><use href="/omi/ui/icons.svg?v=20260610a#i-${name}"/></svg>`;
+  const _ico = (name) => `<svg class="icon" aria-hidden="true"><use href="/omi/ui/icons.svg?v=20260614b#i-${name}"/></svg>`;
   window.__OMI_NAV__ = [
     { id: 'image',     label: `${_ico('image')} image`,         href: `${location.protocol}//${location.hostname}:5006/` },
     { id: 'clipboard', label: `${_ico('clipboard')} clipboard`, href: `${location.protocol}//${location.hostname}:5007/` },
@@ -1427,7 +1440,7 @@
     }
   });
 </script>
-<script src="/omi/ui/js/nav.js?v=20260610a" data-service="skill"></script>
+<script src="/omi/ui/js/nav.js?v=20260614b" data-service="skill"></script>
 <script>
 const $ = s => document.querySelector(s);
 const escapeHtml = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2341,6 +2354,7 @@ let AI_OK = true;
 let CHAT_PROVIDER = 'claude';
 let CHAT_MODEL = 'sonnet';
 let CHAT_MODEL_OPTIONS = {claude: [], codex: []};
+let CONFIG_BASE = '';   // user-set "Server base URL" (Settings); '' → guide uses relative paths
 async function bootstrap() {
   const [t, ai, s] = await Promise.all([
     fetch('/api/themes').then(r => r.json()),
@@ -2351,6 +2365,7 @@ async function bootstrap() {
   CHAT_PROVIDER = s.chat_provider || ai.chat_provider || 'claude';
   CHAT_MODEL = s.chat_model || (ai.chat && ai.chat.model) || CHAT_MODEL;
   CHAT_MODEL_OPTIONS = s.chat_model_options || CHAT_MODEL_OPTIONS;
+  CONFIG_BASE = s.base_url || '';
   AI_OK = !!ai.configured;
   applyAIDegradation(ai);
   await loadCards();
@@ -2430,6 +2445,16 @@ function bodySnippet(content) {
   if (!text) return '';
   return text.length > 120 ? text.slice(0, 117) + '…' : text;
 }
+// Reserved tags that change where a card is published (see the "Tags that
+// drive sync & the API" guide page). Priority order = edge-colour precedence
+// when a card carries more than one.
+const RESERVED_TAGS = [
+  { tag: 'private', title: 'Syncs to your private GitHub repo only' },
+  { tag: 'rss',     title: 'Published to the RSS feed (/skill-cards/api/rss)' },
+  { tag: 'public',  title: 'Syncs to your public GitHub repo (the default)' },
+];
+const RESERVED_SET = new Set(RESERVED_TAGS.map(r => r.tag));
+
 function renderGrid() {
   $('#cardMeta').innerHTML = `${FILTERED.length} of ${CARDS.length} cards · Press <kbd>/</kbd> to search`;
   if (FILTERED.length === 0) {
@@ -2437,16 +2462,22 @@ function renderGrid() {
     return;
   }
   $('#cardGrid').innerHTML = FILTERED.map(c => {
-    const tagChips = (c.tags || []).slice(0, 6).map(t =>
+    const tags = c.tags || [];
+    const tset = new Set(tags.map(t => t.toLowerCase()));
+    // Reserved tags become coloured badges; the rest stay as normal chips.
+    const reserved = RESERVED_TAGS.filter(r => tset.has(r.tag));
+    const rtBadges = reserved.map(r =>
+      `<span class="rt-badge rt-${r.tag}" title="${r.title}">${r.tag}</span>`).join('');
+    const tagChips = tags.filter(t => !RESERVED_SET.has(t.toLowerCase())).slice(0, 6).map(t =>
       `<span class="omi-tag-chip tiny">${escapeHtml(t)}</span>`).join('');
-    const fields = fieldCount(c.content);
+    const edgeCls = reserved.length ? ` has-reserved rt-edge-${reserved[0].tag}` : '';
     const heading = firstHeading(c.content);
     const snip = bodySnippet(c.content);
     return `
-      <div class="omi-card skill-card" onclick="openCard('${c.id}')">
+      <div class="omi-card skill-card${edgeCls}" onclick="openCard('${c.id}')">
         <div class="id-row">
           <span class="omi-mono">${c.id.slice(0, 12)}</span>
-          ${fields ? `<span class="omi-pill muted">▸ ${fields} fields</span>` : ''}
+          ${rtBadges ? `<span class="rt-badges">${rtBadges}</span>` : ''}
         </div>
         <div class="ttl">${escapeHtml(c.title)}</div>
         ${heading && heading !== c.title ? `<div class="preview-line">${escapeHtml(heading)}</div>` : ''}
@@ -2564,12 +2595,26 @@ function renderEmTags() {
   $('#emTagInput').addEventListener('keydown', emTagKey);
 }
 window.removeEmTag = function (i) { CURRENT.tags.splice(i, 1); renderEmTags(); markDirty(); };
+// `public` and `private` are mutually-exclusive routing tags: a card syncs to
+// exactly one repo, or (with neither) to none. Returns the conflicting tag if
+// adding `tag` would set both, else null.
+function reservedConflict(tag, tags) {
+  const t = (tag || '').toLowerCase();
+  const other = t === 'public' ? 'private' : t === 'private' ? 'public' : null;
+  return other && (tags || []).some(x => x.toLowerCase() === other) ? other : null;
+}
 function emTagKey(e) {
   if (e.key === 'Enter' && this.value.trim()) {
     e.preventDefault();
+    const t = this.value.trim();
     CURRENT.tags = CURRENT.tags || [];
-    if (!CURRENT.tags.includes(this.value.trim())) {
-      CURRENT.tags.push(this.value.trim());
+    const clash = reservedConflict(t, CURRENT.tags);
+    if (clash) {
+      window.omiToast({title: 'Can’t set both', body: `A card is either “public” or “private”, not both — remove “${clash}” first.`, kind: 'error'});
+      return;   // keep the typed value so the user sees what was rejected
+    }
+    if (!CURRENT.tags.includes(t)) {
+      CURRENT.tags.push(t);
       markDirty();
     }
     this.value = '';
@@ -2595,6 +2640,11 @@ $('#emPreviewMode').onclick = () => {
 
 $('#emSave').onclick = async () => {
   if (!CURRENT) return;
+  const _tl = (CURRENT.tags || []).map(t => t.toLowerCase());
+  if (_tl.includes('public') && _tl.includes('private')) {
+    window.omiToast({title: 'Can’t set both', body: 'Remove either the “public” or the “private” tag before saving — a card syncs to one repo, not both.', kind: 'error'});
+    return;
+  }
   CURRENT.title = $('#emTitle').value.trim() || 'Untitled';
   CURRENT.content = $('#emContent').value;
   setStatus('saving…');
@@ -2999,6 +3049,8 @@ $('#searchInput').oninput = () => {
     '',
     '═ Option B — the HTTP API (JSON) ═',
     '  GET    __BASE__/skill-cards/api/cards          -> [{id,title,content,tags,updated_at}, ...]',
+    '  GET    __BASE__/skill-cards/api/cards?tag=rss  -> same shape, filtered to one tag',
+    '  GET    __BASE__/skill-cards/api/rss            -> rss-tagged cards only (lean feed for the RSS service)',
     '  POST   __BASE__/skill-cards/api/cards          {title, content, tags:[...]}   -> create',
     '  PUT    __BASE__/skill-cards/api/cards/<id>     {title, content, tags:[...]}   -> replace (title required)',
     '  DELETE __BASE__/skill-cards/api/cards/<id>     -> delete',
@@ -3078,7 +3130,7 @@ $('#searchInput').oninput = () => {
          <table class="doc-table"><thead><tr><th>Tool</th><th>What it does</th></tr></thead><tbody>
            <tr><td><strong>Outline</strong></td><td>Live H1–H4 navigator with scroll-spy (the current section highlights). Click to jump, collapse a section, copy a heading, or filter.</td></tr>
            <tr><td><strong>Card tree</strong></td><td>Toggles the interactive Topic → Subtopic → Card <em>lineage map</em>. Hover any node to trace its full path; click a card to open it as a preview. Clicking the editor drops the map behind it.</td></tr>
-           <tr><td><strong>Reference</strong></td><td><kbd>Ctrl+Shift+P</kbd> — pin any other card as a floating, resizable preview window. Its ↗ promotes it into the editor.</td></tr>
+           <tr><td><strong>Reference</strong></td><td><kbd>Ctrl+Shift+P</kbd> opens a card picker — choose any card to pin it as a floating, resizable preview window. Its ↗ opens that card in the editor. (Hotkey only; the old toolbar button is now <strong>Card tree</strong>.)</td></tr>
            <tr><td><strong>Find / Replace</strong></td><td><kbd>Ctrl+F</kbd> — with case / whole-word / regex toggles.</td></tr>
            <tr><td><strong>Slash menu</strong></td><td>Type <kbd>/</kbd> at the start of a line to insert any block (headings, lists, callouts, code, tabs, timeline, table, math…).</td></tr>
            <tr><td><strong>Images</strong></td><td>Paste or drag-drop image files onto the textarea to upload &amp; insert. Save the card first (the id namespaces the upload).</td></tr>
@@ -3116,17 +3168,57 @@ $('#searchInput').oninput = () => {
            <li><strong>Extract</strong> — turn raw input into a structured card.</li>
          </ul>
          <div class="doc-callout">If AI isn’t configured, the top-nav trims to <strong>Guide</strong> + <strong>Settings</strong>. Everything else (create, edit, search, lineage, sync) still works — and you can drive edits from your own agent (see <em>Drive it from an agent</em>).</div>` },
-    { id: 'sync', group: 'AI & sync', label: 'GitHub sync & import',
-      blurb: 'Push / pull your cards to a repo, or import a folder / zip.',
-      keywords: ['sync', 'github', 'git', 'import', 'backup', 'remote'],
+    { id: 'tags', group: 'AI & sync', label: 'Tags that drive sync & the API',
+      blurb: 'Most tags just filter — but private, public & rss change where a card goes.',
+      keywords: ['tag', 'tags', 'private', 'public', 'rss', 'feed', 'api', 'route', 'sync', 'github', 'podcast'],
       body:
-        `<p><strong>Sync</strong> (top-nav) opens the Sync Center: connect your cards to a GitHub repo and push / pull to back them up or share them across machines. It shows status and lets you re-fetch the remote.</p>
-         <p><strong>Import</strong> pulls in a folder or zip of markdown you cloned or exported manually — handy for seeding a fresh instance.</p>` },
+        `<p>Most tags are <strong>freeform labels</strong> — they drive grid filtering, the 🏷 tag row, and “by tag” relations (see <em>References &amp; wiki-links</em>). A handful, though, are <strong>reserved</strong>: they change where a card is published.</p>
+         <table class="doc-table"><thead><tr><th>Tag</th><th>Effect</th></tr></thead><tbody>
+           <tr><td><code>private</code></td><td>Card is pushed to your <strong>private</strong> GitHub repo only, and is <strong>excluded</strong> from the public repo.</td></tr>
+           <tr><td><code>public</code></td><td>Card is pushed to your <strong>public</strong> GitHub repo. Required — a card with <em>no</em> routing tag syncs nowhere. Mutually exclusive with <code>private</code> (the editor blocks setting both).</td></tr>
+           <tr><td><code>rss</code></td><td>Card is published to the <strong>RSS feed</strong> at <code>__BASE__/skill-cards/api/rss</code>. The RSS service (the “clipboard / podcast-rss” app, port <code>5007</code>) pulls that feed and shows the card at <code>…:5007/skill</code>.</td></tr>
+         </tbody></table>
+         <h3>How the rss feed works</h3>
+         <ul class="doc-list">
+           <li>Tag a card <code>rss</code>. It immediately appears in <code>GET __BASE__/skill-cards/api/rss</code>, which returns just <code>[{id, title, content, tags, updated_at}]</code> for rss-tagged cards — leaner than the full <code>/skill-cards/api/cards</code> dump.</li>
+           <li>The <strong>RSS service polls this skill app</strong> (pull model): from <em>its own</em> settings, point it at this app’s <strong>Server base URL</strong> (the one you set in Settings). The skill app stays passive — no push, nothing to configure here.</li>
+           <li><code>rss</code> is <strong>independent</strong> of GitHub routing: it composes with <code>public</code> or <code>private</code> (on GitHub <em>and</em> on the feed), or stands alone (on the feed, synced to neither repo).</li>
+         </ul>
+         <div class="doc-callout"><code>public</code>/<code>private</code> gate <strong>GitHub</strong> (pick exactly one, or neither to keep a card off both repos — it’s removed from a remote if it lingers there). <code>rss</code> independently controls the <strong>feed</strong>.</div>` },
+    { id: 'sync', group: 'AI & sync', label: 'GitHub sync & import',
+      blurb: 'Two-repo, diff-based push / pull with per-card control — plus folder / zip import.',
+      keywords: ['sync', 'github', 'git', 'import', 'backup', 'remote', 'private', 'public', 'diff', 'conflict', 'ssh', 'branch', 'ignore'],
+      body:
+        `<p><strong>Sync</strong> (top-nav) opens the <strong>Sync Center</strong>: it connects your cards to GitHub so you can back them up or share them across machines. Each card is stored on the remote as <code>&lt;id&gt;/SKILL.md</code> with YAML frontmatter (id, name, tags, updated_at), so a round-trip is loss-free.</p>
+         <h3>Two repos, routed by tag</h3>
+         <p>Sync targets <strong>two</strong> repositories at once, and a card’s routing tag decides where it lands:</p>
+         <table class="doc-table"><thead><tr><th>Card</th><th>Goes to</th></tr></thead><tbody>
+           <tr><td>Tagged <code>public</code></td><td>your <strong>public</strong> repo</td></tr>
+           <tr><td>Tagged <code>private</code></td><td>your <strong>private</strong> repo</td></tr>
+           <tr><td>Neither tag</td><td><strong>nowhere</strong> — kept local; if it’s already on a remote it’s flagged <em>untagged → delete remote</em></td></tr>
+         </tbody></table>
+         <p><code>public</code> and <code>private</code> are <strong>mutually exclusive</strong> (the editor blocks setting both). See <strong>Tags that drive sync &amp; the API</strong> for the full routing table (including <code>rss</code>).</p>
+         <h3>The diff-based flow</h3>
+         <ol class="doc-list">
+           <li><strong>Review</strong> — the Sync Center fetches both repos and shows a per-card diff: <em>local-only</em>, <em>remote-only</em>, <em>modified</em>, or <em>synced</em>. A content hash (not the timestamp) decides whether a card really changed.</li>
+           <li><strong>Pick a direction per card</strong> — <code>push</code>, <code>pull</code>, <code>skip</code>, or delete one side. For a <em>modified</em> card the <strong>suggested</strong> direction is whichever side has the newer <code>updated_at</code>; conflicts are flagged so you can override.</li>
+           <li><strong>Apply</strong> — runs every chosen action in <strong>one commit per repo</strong> and pushes.</li>
+         </ol>
+         <h3>Settings</h3>
+         <ul class="doc-list">
+           <li><strong>Public repo</strong> &amp; <strong>Private repo</strong> — git URLs (leave one blank to use only the other).</li>
+           <li><strong>Branch</strong> (default <code>main</code>), optional <strong>subdir</strong>, and an <strong>SSH key</strong> path for private clones / pushes.</li>
+           <li><strong>Ignore patterns</strong> — glob list (comma- or newline-separated); matched ids are skipped on both sides. Patterns match the id with and without the <code>skill-</code> prefix, so <code>sibyl-*</code> hits both.</li>
+         </ul>
+         <h3>Import</h3>
+         <p><strong>Import</strong> drag-drops a <strong>folder or .zip</strong> of <code>&lt;id&gt;/SKILL.md</code> files (cloned or exported manually) — no git remote needed. It shows the same diff rows and only ever <em>pulls</em> into your local DB, so it’s a safe way to seed a fresh instance.</p>
+         <div class="doc-callout">First push of a brand-new repo: create the empty GitHub repo first, then set its URL here — the Sync Center will initialise and push into it.</div>` },
     { id: 'oms', group: 'AI & sync', label: 'The oms CLI',
       blurb: 'A zero-dependency CLI to manage cards from a shell.',
       keywords: ['oms', 'cli', 'command', 'terminal', 'api', 'curl', 'base'],
       body:
-        `<p><code>oms</code> is a stdlib-only Python CLI that talks to the same HTTP API the web UI uses — so you (or an agent) can manage cards from any shell. Download it from <code>__BASE__/oms.py</code> and point it at the server with <code>OMI_API_BASE</code> (or the global <code>--base</code> flag).</p>
+        `<p><code>oms</code> is a stdlib-only Python CLI that talks to the same HTTP API the web UI uses — so you (or an agent) can manage cards from any shell. Download it from <code>__BASE__/oms.py</code> and point it at the server with <code>OMI_API_BASE</code> (or the global <code>--base</code> flag) — your app’s <strong>Server base URL</strong> from Settings.</p>
+         <div class="doc-callout"><strong>URLs in this guide are relative</strong> (e.g. <code>/oms.py</code>, <code>/skill-cards/api/rss</code>) — they resolve against whatever host you’re viewing on. The copy-paste <em>agent prompt</em> needs an absolute address, so it’s filled from the <strong>Server base URL</strong> you set in <strong>Settings</strong> (leave it blank and the prompt shows a <code>&lt;your-server-url&gt;</code> placeholder to replace by hand).</div>
          <table class="doc-table"><thead><tr><th>Command</th><th>Does</th></tr></thead><tbody>
            <tr><td><code>oms list</code></td><td>list every card (id · title · tags)</td></tr>
            <tr><td><code>oms show &lt;id&gt;</code></td><td>print a card’s markdown</td></tr>
@@ -3140,10 +3232,10 @@ $('#searchInput').oninput = () => {
       blurb: 'A ready-to-paste prompt that teaches any AI session to edit cards.',
       keywords: ['agent', 'prompt', 'llm', 'automation', 'api', 'cli', 'copy'],
       body:
-        `<p>Paste the prompt below into <strong>another AI session</strong> (Claude, Codex, ChatGPT, a coding agent…) and it will know how to read and edit your skill cards through the <code>oms</code> CLI or the HTTP API. The base URL is filled in with this instance.</p>
+        `<p>Paste the prompt below into <strong>another AI session</strong> (Claude, Codex, ChatGPT, a coding agent…) and it will know how to read and edit your skill cards through the <code>oms</code> CLI or the HTTP API. The base URL is filled in from your <strong>Server base URL</strong> (Settings).</p>
          <button type="button" class="omi-btn ghost sm doc-copy-prompt">⧉ Copy prompt</button>
          <pre class="doc-prompt" id="agentPrompt"></pre>
-         <div class="doc-callout">Give the agent network access to <code>__BASE__</code>. For a remote box, replace it with the address others can reach (e.g. <code>http://HOST:5009</code>).</div>` },
+         <div class="doc-callout">Set the <strong>Server base URL</strong> in <strong>Settings</strong> so the prompt carries a reachable address — leave it blank and it shows a <code>&lt;your-server-url&gt;</code> placeholder to fill in by hand. Give the agent network access to that host.</div>` },
   ];
 
   const overlay = $('#docsOverlay'), sidebar = $('#docsSidebar'), content = $('#docsContent'),
@@ -3170,15 +3262,18 @@ $('#searchInput').oninput = () => {
   }
   function renderContent() {
     const d = DOCS.find(x => x.id === activeId); if (!d) { content.innerHTML = ''; return; }
-    const base = location.origin;
-    const bodyHtml = d.body.replace(/__BASE__/g, escapeHtml(base));
+    // Doc prose stays host-free: __BASE__/path → /path (a relative link),
+    // bare __BASE__ → '' . Copy-paste artifacts (the agent prompt, oms curl)
+    // get the configured Server base URL, or a placeholder if it's unset.
+    const promptBase = (CONFIG_BASE || '').replace(/\/+$/, '') || '<your-server-url>';
+    const bodyHtml = d.body.replace(/__BASE__\//g, '/').replace(/__BASE__/g, '');
     content.innerHTML =
       `<div class="docs-prose pv"><div class="docs-content-kicker">${escapeHtml(d.group)}</div>` +
       `<h2>${escapeHtml(d.label)}</h2><p class="docs-content-blurb">${escapeHtml(d.blurb)}</p>` +
       `<div class="docs-divider"></div>${bodyHtml}</div>`;
     // Agent-prompt page: fill the <pre> via textContent (no HTML escaping needed).
     const pre = content.querySelector('#agentPrompt');
-    if (pre) pre.textContent = AGENT_PROMPT.replace(/__BASE__/g, base);
+    if (pre) pre.textContent = AGENT_PROMPT.replace(/__BASE__/g, promptBase);
     const copyBtn = content.querySelector('.doc-copy-prompt');
     if (copyBtn) copyBtn.onclick = async () => {
       try { await navigator.clipboard.writeText(pre ? pre.textContent : ''); copyBtn.textContent = '✓ Copied'; setTimeout(() => { copyBtn.textContent = '⧉ Copy prompt'; }, 1200); } catch {}
@@ -3974,6 +4069,7 @@ $('#openSettings').onclick = async () => {
   $('#setDefaultChatProvider').value = s.chat_provider || 'claude';
   $('#setClaudeToken').value = '';
   $('#setImgPaste').checked = s.img_paste_enabled !== false;
+  $('#setBaseUrl').value = s.base_url || '';
   $('#setPreamble').value = preamble.content || '';
   $('#setPubRepo').value  = syncS.remoteRepo   || '';
   $('#setPrivRepo').value = syncS.privateRepo  || '';
@@ -3996,6 +4092,7 @@ $('#saveSet').onclick = async () => {
   if (!isNaN(ret) && ret >= 0) body.chat_retention_days = ret;
   if ($('#setClaudeToken').value.trim()) body.claude_code_oauth_token = $('#setClaudeToken').value.trim();
   body.img_paste_enabled = $('#setImgPaste').checked;
+  body.base_url = $('#setBaseUrl').value.trim().replace(/\/+$/, '');
   await fetch('/api/settings', {
     method: 'PUT', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body),
@@ -4016,6 +4113,7 @@ $('#saveSet').onclick = async () => {
     method: 'PUT', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({content: $('#setPreamble').value}),
   });
+  CONFIG_BASE = body.base_url || '';
   CHAT_PROVIDER = body.chat_provider || CHAT_PROVIDER;
   CHAT_MODEL = CHAT_PROVIDER === 'codex' ? body.codex_chat_model : body.claude_chat_model;
   CHAT_MODEL_OPTIONS = {
@@ -4211,6 +4309,7 @@ $('#importApply').onclick = async () => {
 let SYNC_ROWS = [];
 let SYNC_REPOS = {};
 function syncStatusBadge(s) {
+  if (s === 'orphan') return `<span class="badge orphan" title="No public/private tag — will be removed from the remote">untagged</span>`;
   return `<span class="badge ${s}">${s.replace('-', ' ')}</span>`;
 }
 function dirOptions(row) {
@@ -4219,6 +4318,7 @@ function dirOptions(row) {
     if (row.status === 'remote-only') return ['pull', 'delete-remote', 'skip'];
     if (row.status === 'modified')    return ['push', 'pull', 'delete-remote', 'delete-local', 'skip'];
     if (row.status === 'synced')      return ['skip', 'delete-remote', 'delete-local'];
+    if (row.status === 'orphan')      return ['delete-remote', 'pull', 'skip'];
     return ['skip'];
   })();
   const labels = {
@@ -5181,10 +5281,9 @@ document.addEventListener('keydown', (e) => {
     }
     cascCards.innerHTML = cards.map(c => {
       const uses = cascCardUseCount(c.id);
-      const tags = (c.tags || []).slice(0, 3).map(t => `<span class="ck">${escHTML(t)}</span>`).join('');
+      // Tags are still searchable above, just not shown on the candidate chip.
       return `<div class="casc-cand" draggable="true" data-id="${escHTML(c.id)}">
         <span class="ct">${escHTML(c.title || '(untitled)')}${uses ? `<span class="cu">·${uses}</span>` : ''}</span>
-        ${tags ? `<span class="cg">${tags}</span>` : ''}
       </div>`;
     }).join('');
     cascCards.querySelectorAll('.casc-cand').forEach(el => {
@@ -5240,10 +5339,24 @@ document.addEventListener('keydown', (e) => {
     await loadLineage(); renderCascL0(); renderCascBoard();
   }
 
+  // Reorder a topic before/after another (mirrors the full lineage board).
+  async function reorderCascTopic(draggedId, targetId, after) {
+    const order = (LINEAGE.topics || []).slice()
+      .sort((a, b) => a.position - b.position)
+      .map(t => t.id).filter(id => id !== draggedId);
+    let idx = order.indexOf(targetId);
+    if (idx < 0) { CASC_DRAG = {}; return; }
+    if (after) idx += 1;
+    await lapi('PATCH', `/lineage/api/topics/${draggedId}`, { position: idx });
+    CASC_DRAG = {};
+    await loadLineage(); renderCascBoard();
+  }
+
   // ── Topic DnD ──────────────────────────────────────────────────
   function bindCascTopicDnD(body, topic) {
     body.addEventListener('dragover', (e) => {
       if (!CASC_DRAG.kind) return;
+      if (CASC_DRAG.kind === 'topic') return;   // topics reorder via the head
       e.preventDefault();
       e.dataTransfer.dropEffect = CASC_DRAG.kind === 'l0-card' ? 'copy' : 'move';
       const nearest = nearestCascDropLine(body, e.clientY);
@@ -5272,7 +5385,7 @@ document.addEventListener('keydown', (e) => {
     const el = document.createElement('div');
     el.className = 'casc-divider';
     el.draggable = true;
-    el.innerHTML = `<input value="${escHTML(item.label || '')}" placeholder="subtopic…">`;
+    el.innerHTML = `<span class="casc-thandle" title="Drag to move subtopic">⠿</span><input value="${escHTML(item.label || '')}" placeholder="subtopic…">`;
     el.querySelector('input').addEventListener('change', async (ev) => {
       await lapi('PATCH', `/lineage/api/items/${item.id}`, { label: ev.target.value });
     });
@@ -5320,7 +5433,9 @@ document.addEventListener('keydown', (e) => {
 
       const head = document.createElement('div');
       head.className = 'casc-topic-head';
-      head.innerHTML = `<button class="casc-collapse-btn" title="collapse/expand">▾</button>
+      head.draggable = true;
+      head.innerHTML = `<span class="casc-thandle" title="Drag to reorder topic">⠿</span>
+        <button class="casc-collapse-btn" title="collapse/expand">▾</button>
         <input value="${escHTML(topic.title)}" placeholder="topic…">`;
       head.querySelector('input').addEventListener('change', async (e) => {
         await lapi('PATCH', `/lineage/api/topics/${topic.id}`, { title: e.target.value });
@@ -5330,6 +5445,31 @@ document.addEventListener('keydown', (e) => {
         e.stopPropagation();
         col.classList.toggle('collapsed');
         btn.textContent = col.classList.contains('collapsed') ? '▸' : '▾';
+      });
+      // Drag the head to reorder topics; drop another topic before/after it.
+      head.addEventListener('dragstart', (e) => {
+        CASC_DRAG = { kind: 'topic', topic_id: topic.id };
+        e.dataTransfer.effectAllowed = 'move';
+        head.classList.add('dragging');
+      });
+      head.addEventListener('dragend', () => { head.classList.remove('dragging'); CASC_DRAG = {}; });
+      const clearHeadHint = () => head.classList.remove('drop-before', 'drop-after');
+      head.addEventListener('dragover', (e) => {
+        if (CASC_DRAG.kind !== 'topic' || CASC_DRAG.topic_id === topic.id) return;
+        e.preventDefault(); e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        const r = head.getBoundingClientRect();
+        const after = e.clientY > r.top + r.height / 2;
+        head.classList.toggle('drop-after', after);
+        head.classList.toggle('drop-before', !after);
+      });
+      head.addEventListener('dragleave', (e) => { if (!head.contains(e.relatedTarget)) clearHeadHint(); });
+      head.addEventListener('drop', (e) => {
+        if (CASC_DRAG.kind !== 'topic' || CASC_DRAG.topic_id === topic.id) return;
+        e.preventDefault(); e.stopPropagation();
+        const after = head.classList.contains('drop-after');
+        clearHeadHint();
+        reorderCascTopic(CASC_DRAG.topic_id, topic.id, after);
       });
       col.appendChild(head);
 

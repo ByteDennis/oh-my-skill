@@ -48,13 +48,24 @@ _migrate()
 
 
 # ── Card hashing ──────────────────────────────────────────────────
+def _norm_content(s: str) -> str:
+    """Canonical form for diffing. `_write_skill_md` stores content as
+    `rstrip() + '\\n'` and `_parse_skill_md_text` reads it back as
+    `lstrip('\\n').rstrip() + '\\n'`, so the on-disk copy gains/normalises
+    trailing whitespace the local DB copy may not have. Normalise both sides
+    the same way (and CRLF→LF) so a clean round-trip hashes as *synced*
+    instead of perpetually *modified*."""
+    return (s or '').replace('\r\n', '\n').replace('\r', '\n').lstrip('\n').rstrip()
+
+
 def _card_hash(title: str, content: str, tags: list) -> str:
     """Stable hash over the synced fields. Order tags so reordering doesn't
-    look like a change."""
+    look like a change; normalise content so trailing-newline differences
+    introduced by the SKILL.md round-trip don't read as a change."""
     h = hashlib.sha256()
-    h.update((title or '').encode('utf-8'))
+    h.update((title or '').strip().encode('utf-8'))
     h.update(b'\x1f')
-    h.update((content or '').encode('utf-8'))
+    h.update(_norm_content(content).encode('utf-8'))
     h.update(b'\x1f')
     for t in sorted(tags or []):
         h.update(t.encode('utf-8'))
@@ -64,6 +75,20 @@ def _card_hash(title: str, content: str, tags: list) -> str:
 
 def _has_private(tags) -> bool:
     return 'private' in (tags or [])
+
+
+def _repo_for(tags) -> str | None:
+    """Which remote a card belongs to, decided by its routing tag:
+    `private` → the private repo, `public` → the public repo. A card with
+    neither belongs to NO repo (synced nowhere; removed from a remote if it
+    still lingers there). `private` wins if both are somehow set — the editor
+    prevents that, but old data might carry both."""
+    tags = tags or []
+    if 'private' in tags:
+        return 'private'
+    if 'public' in tags:
+        return 'public'
+    return None
 
 
 def _parse_ignore_patterns(raw: str) -> list[str]:
@@ -219,9 +244,9 @@ def sync_diff():
     ignored_count = 0
     repo_status = {}  # repo -> {ok, error}
 
-    for repo_kind, repo_url, target_dir, want_private in (
-        ('public', cfg['public_repo'], SKILLS_REMOTE_DIR, False),
-        ('private', cfg['private_repo'], SKILLS_REMOTE_PRIVATE_DIR, True),
+    for repo_kind, repo_url, target_dir in (
+        ('public', cfg['public_repo'], SKILLS_REMOTE_DIR),
+        ('private', cfg['private_repo'], SKILLS_REMOTE_PRIVATE_DIR),
     ):
         if not repo_url:
             repo_status[repo_kind] = {'ok': False, 'error': 'not configured'}
@@ -239,10 +264,10 @@ def sync_diff():
         scan_dir = os.path.join(target_dir, cfg['subdir']) if cfg['subdir'] else target_dir
         remotes_by_id = _scan_repo(scan_dir)
 
-        # Cards from local that belong to this repo
+        # Cards from local that belong to this repo (by `public`/`private` tag)
         local_for_repo = {
             cid: c for cid, c in locals_by_id.items()
-            if _has_private(c['tags']) == want_private
+            if _repo_for(c['tags']) == repo_kind
         }
 
         # Build the set of all ids relevant to this repo
@@ -264,8 +289,16 @@ def sync_diff():
                 row['status'] = 'local-only'
                 row['suggested'] = 'push'
             elif rc and not lc:
-                row['status'] = 'remote-only'
-                row['suggested'] = 'pull'
+                if cid in locals_by_id:
+                    # The card exists locally but no longer carries this repo's
+                    # routing tag (tag removed, or moved to the other repo), yet
+                    # it still lingers on the remote → drop it from the remote.
+                    row['status'] = 'orphan'
+                    row['suggested'] = 'delete-remote'
+                    row['tags'] = locals_by_id[cid].get('tags') or []
+                else:
+                    row['status'] = 'remote-only'
+                    row['suggested'] = 'pull'
             else:
                 lh = _card_hash(lc['title'], lc['content'], lc['tags'])
                 rh = _card_hash(rc['title'], rc['content'], rc['tags'])

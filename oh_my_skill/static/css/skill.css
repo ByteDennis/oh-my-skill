@@ -23,6 +23,34 @@
 
 /* ─── Card grid + clickable tag chips ────────────────────────────── */
 
+/* Reserved-tag badges (private / rss / public) on the card tiles. These
+   tags change where a card is published, so they get distinct colours and
+   an accent edge instead of blending into the normal tag-chip row. */
+.skill-card .rt-badges { margin-left: auto; display: inline-flex; gap: 4px; }
+.rt-badge {
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 1px 7px; border-radius: var(--omi-radius-pill, 999px);
+  border: 1px solid transparent; line-height: 1.5;
+  font-family: var(--omi-font-mono, monospace);
+}
+.rt-badge.rt-private { color: #a3322b; background: rgba(193, 60, 60, 0.13); border-color: rgba(193, 60, 60, 0.34); }
+.rt-badge.rt-rss     { color: #9a6512; background: rgba(214, 140, 30, 0.16); border-color: rgba(214, 140, 30, 0.38); }
+.rt-badge.rt-public  { color: #46773c; background: rgba(90, 150, 80, 0.16);  border-color: rgba(90, 150, 80, 0.38); }
+
+/* Accent edge + faint tint, coloured by the highest-priority reserved tag. */
+.skill-card.rt-edge-private { --rt-edge: #c13c3c; }
+.skill-card.rt-edge-rss     { --rt-edge: #d68c1e; }
+.skill-card.rt-edge-public  { --rt-edge: #5a9650; }
+.skill-card.has-reserved {
+  border-color: color-mix(in srgb, var(--rt-edge) 42%, var(--omi-border));
+  box-shadow: inset 3px 0 0 0 var(--rt-edge), var(--omi-shadow);
+}
+.skill-card.has-reserved:hover {
+  border-color: color-mix(in srgb, var(--rt-edge) 60%, var(--omi-border));
+  box-shadow: inset 3px 0 0 0 var(--rt-edge), 0 8px 18px rgb(var(--omi-shadow-rgb) / 0.4);
+}
+
 /* ─── Editor modal (split-pane EDIT / PREVIEW) ───────────────────── */
 
 /* ─── Code block — header strip (lang + copy) + warm dark body ──────
@@ -872,6 +900,16 @@
 .omi-topnav.ai-off .omi-nav,
 .omi-topnav.ai-off .omi-status { display: none; }
 
+/* ─── Top-nav: collapse action buttons to icon-only on narrow screens ──
+   Below 1200px the labelled Chat / Logs / Lineage / Sync / Import / Guide /
+   Settings buttons crowd the bar. Drop their text (font-size:0 collapses the
+   bare label node; the SVG is sized in px so it stays) and square them up.
+   The title= tooltips still name each one. */
+@media (max-width: 1200px) {
+  .omi-topnav .omi-btn.icon-btn { font-size: 0; gap: 0; padding: 6px 9px; }
+  .omi-topnav { gap: 6px; }
+}
+
 /* ─── In-app guide drawer (docs-modal, ported from oh-my-plugins) ───
    Uses the shared omi.css design tokens, so it themes automatically. */
 .docs-overlay {
@@ -945,7 +983,7 @@
 .docs-content-kicker {
   font-size: 0.66rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--omi-accent);
 }
-.docs-prose { max-width: 46rem; }
+.docs-prose { max-width: none; }
 .docs-prose h2 { margin-top: 0.35rem; font-family: var(--omi-font-heading); font-size: 1.55rem; font-weight: 700; color: var(--omi-fg); }
 .docs-content-blurb { margin-top: 0.35rem; font-size: 0.92rem; color: var(--omi-fg-soft); }
 .docs-divider { height: 1px; margin: 1.1rem 0 1.3rem; background: var(--omi-border); }
@@ -968,6 +1006,9 @@
   text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--omi-border);
   vertical-align: top; color: var(--omi-fg-soft);
 }
+/* The first column holds the labels/keys; give it a comfortable floor so
+   short headers ("Tag", "Tool", "Area") don't collapse to a sliver. */
+.doc-table th:first-child, .doc-table td:first-child { width: 32%; min-width: 12rem; }
 .doc-table thead th { background: rgb(var(--omi-surface-3) / 0.55); color: var(--omi-fg); font-weight: 700; font-size: 0.78rem; }
 .doc-table tbody tr:last-child td { border-bottom: 0; }
 .doc-callout {

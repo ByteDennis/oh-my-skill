@@ -132,6 +132,9 @@ def create_app() -> Flask:
             },
             'claude_token_set': bool(get_setting('global', 'claude_code_oauth_token')),
             'img_paste_enabled': cur.get('img_paste_enabled', 'true') != 'false',
+            # Canonical server address shown in the guide's CLI / API / agent
+            # URLs. Empty → the guide uses relative paths only.
+            'base_url': cur.get('base_url', ''),
         })
 
     @app.route('/api/settings', methods=['PUT'])
@@ -163,6 +166,9 @@ def create_app() -> Flask:
                 put_setting('global', 'claude_code_oauth_token', v)
         if 'img_paste_enabled' in data:
             put_setting('skill', 'img_paste_enabled', 'true' if data['img_paste_enabled'] else 'false')
+        if 'base_url' in data and isinstance(data['base_url'], str):
+            # Normalise: strip whitespace and any trailing slashes.
+            put_setting('skill', 'base_url', data['base_url'].strip().rstrip('/'))
         return jsonify({'ok': True})
 
     # ── Serve local image files for inline preview ─────────────────────

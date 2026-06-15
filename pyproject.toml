@@ -14,6 +14,13 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
   "flask>=3.0,<4",
+  # Server-side markdown → self-contained HTML (mobile app card view).
+  # markdown-it-py + pygments are imported unconditionally by routes.skillcards,
+  # so they are hard requirements; latex2mathml renders $math$ → MathML and
+  # degrades gracefully to inline <code> if it ever fails to import.
+  "markdown-it-py>=3",
+  "pygments>=2.17",
+  "latex2mathml>=3",
 ]
 keywords = ["skill-cards", "claude", "markdown", "knowledge-base"]
 classifiers = [

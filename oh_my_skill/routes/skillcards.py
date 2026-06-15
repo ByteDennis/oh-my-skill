@@ -89,6 +89,163 @@ def list_cards():
     return jsonify(cards)
 
 
+@skillcards_bp.route('/skill-cards/api/rss', methods=['GET'])
+def rss_feed():
+    """Lean feed for the external RSS service (pull model).
+
+    Returns ONLY cards tagged `rss`, in a stable, minimal shape:
+        [{id, title, content, tags, updated_at}, ...]
+
+    The RSS service (configured to point at this skill app) polls this
+    endpoint; unlike /skill-cards/api/cards it drops `metadata`,
+    `created_at`, and sync bookkeeping columns, and never returns
+    untagged cards.
+    """
+    conn = _db()
+    rows = conn.execute('SELECT * FROM cards ORDER BY updated_at DESC').fetchall()
+    conn.close()
+    out = []
+    for r in rows:
+        try:
+            tags = json.loads(r['tags'])
+        except (json.JSONDecodeError, TypeError):
+            tags = []
+        if 'rss' not in tags:
+            continue
+        out.append({
+            'id': r['id'],
+            'title': r['title'],
+            'content': r['content'],
+            'tags': tags,
+            'updated_at': r['updated_at'],
+        })
+    return jsonify(out)
+
+
+# ─── Server-side markdown → self-contained HTML (for the mobile app) ───
+# markdown-it-py + Pygments (code) + latex2mathml (math → MathML, rendered
+# natively by WebKit). Output is a complete HTML doc with inline CSS and no
+# external resources / JS, so the app just displays it (offline once cached).
+import re as _re
+import html as _html
+from markdown_it import MarkdownIt
+from pygments import highlight as _pyg_highlight
+from pygments.lexers import get_lexer_by_name, guess_lexer, TextLexer
+from pygments.formatters import HtmlFormatter
+
+try:
+    from latex2mathml.converter import convert as _tex2mathml
+except Exception:  # pragma: no cover - optional dependency
+    _tex2mathml = None
+
+
+def _highlight_code(code, lang, attrs):
+    try:
+        lexer = get_lexer_by_name(lang, stripnl=False) if lang else guess_lexer(code)
+    except Exception:
+        lexer = TextLexer(stripnl=False)
+    inner = _pyg_highlight(code, lexer, HtmlFormatter(nowrap=True))
+    label = f'<span class="lang-label">{_html.escape(lang)}</span>' if lang else ''
+    return f'<pre class="code">{label}<code>{inner}</code></pre>'
+
+
+_md = MarkdownIt("commonmark", {
+    "html": False, "breaks": True, "linkify": False, "highlight": _highlight_code,
+}).enable(["table", "strikethrough"])
+
+_PYGMENTS_CSS = HtmlFormatter(style="github-dark").get_style_defs(".code")
+
+_CONTENT_CSS = (
+    "body{font-family:-apple-system,system-ui,sans-serif;font-size:16px;color:#1c1c1e;"
+    "margin:0;padding:16px 18px 48px;line-height:1.55;-webkit-text-size-adjust:100%}"
+    "h1.title{font-size:22px;font-weight:700;margin:0 0 6px;line-height:1.25}"
+    "#tags{margin:0 0 14px}"
+    ".tag{display:inline-block;font-size:12px;color:#e8590f;background:rgba(242,107,29,.12);"
+    "padding:3px 9px;border-radius:999px;margin:0 5px 5px 0}"
+    "h1{font-size:19px;color:#0a84ff;margin:18px 0 8px;font-weight:700}"
+    "h2{font-size:17px;color:#2da44e;margin:16px 0 6px;font-weight:700}"
+    "h3{font-size:15.5px;color:#8250df;margin:13px 0 4px;font-weight:700}"
+    "a{color:#0a84ff;text-decoration:none}ul,ol{padding-left:22px;margin:6px 0}li{margin:3px 0}"
+    "strong{font-weight:700}del{color:#8e8e93;text-decoration:line-through}"
+    "hr{border:none;height:1px;background:#d0d3d8;margin:18px 0}img{max-width:100%;border-radius:8px}"
+    "table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px;display:block;overflow-x:auto}"
+    "th,td{border:1px solid #d0d3d8;padding:6px 10px;text-align:left}th{background:#f6f8fa;font-weight:600}"
+    ":not(pre)>code{background:#eef1f4;color:#1c1c1e;padding:2px 6px;border-radius:4px;font-size:.88em;"
+    "font-family:ui-monospace,'SF Mono',Menlo,monospace}"
+    "pre.code{background:#0d1117;color:#c9d1d9;border-radius:10px;padding:14px 16px;margin:12px 0;"
+    "overflow-x:auto;font-size:13.5px;position:relative}"
+    "pre.code code{font-family:ui-monospace,'SF Mono',Menlo,monospace;background:none;padding:0}"
+    "pre.code .lang-label{position:absolute;right:12px;top:8px;font-size:10px;color:#8b949e;"
+    "text-transform:uppercase;letter-spacing:1px}"
+    "blockquote{border-left:3px solid #0a84ff;padding:8px 14px;margin:12px 0;"
+    "background:rgba(10,132,255,.06);border-radius:0 8px 8px 0}"
+    "math{font-size:1.05em}.math-display{display:block;overflow-x:auto;margin:12px 0;text-align:center}"
+    "@media(prefers-color-scheme:dark){body{color:#e6e6ea}h1.title{color:#fff}"
+    ":not(pre)>code{background:#2c2c2e;color:#e6e6ea}th{background:#1c1c1e}"
+    "th,td{border-color:#3a3a3c}hr{background:#3a3a3c}}"
+)
+
+
+def _to_mathml(tex, block):
+    try:
+        return _tex2mathml(tex, display="block" if block else "inline")
+    except TypeError:
+        return _tex2mathml(tex)
+
+
+def _protect_math(text):
+    blocks = []
+
+    def repl(m, block):
+        idx = len(blocks)
+        raw = m.group(0)
+        tex = m.group(1).strip()
+        if _tex2mathml:
+            try:
+                ml = _to_mathml(tex, block)
+                blocks.append(f'<div class="math-display">{ml}</div>' if block else ml)
+            except Exception:
+                blocks.append(f'<code>{_html.escape(raw)}</code>')
+        else:
+            blocks.append(f'<code>{_html.escape(raw)}</code>')
+        return f'%%MATH{idx}%%'
+
+    text = _re.sub(r'\$\$([\s\S]+?)\$\$', lambda m: repl(m, True), text)
+    text = _re.sub(r'\$([^$\n]+?)\$', lambda m: repl(m, False), text)
+    return text, blocks
+
+
+def _render_card_html(row):
+    try:
+        tags = json.loads(row['tags'])
+    except (json.JSONDecodeError, TypeError):
+        tags = []
+    protected, blocks = _protect_math(row['content'] or '')
+    body = _md.render(protected)
+    for i, b in enumerate(blocks):
+        body = body.replace(f'%%MATH{i}%%', b)
+    title = _html.escape(row['title'] or '(untitled)')
+    tag_html = ''.join(f'<span class="tag">{_html.escape(t)}</span>' for t in tags)
+    return (
+        '<!doctype html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">'
+        f'<style>{_CONTENT_CSS}{_PYGMENTS_CSS}</style></head><body>'
+        f'<h1 class="title">{title}</h1><div id="tags">{tag_html}</div>'
+        f'{body}</body></html>'
+    )
+
+
+@skillcards_bp.route('/skill-cards/api/cards/<card_id>/html', methods=['GET'])
+def card_html(card_id):
+    """Server-rendered, self-contained HTML for one card (mobile app)."""
+    conn = _db()
+    row = conn.execute('SELECT * FROM cards WHERE id=?', (card_id,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'not found'}), 404
+    return jsonify({'html': _render_card_html(row)})
+
+
 def _merge_link_meta(existing_meta_json: str, parent_id, links) -> str:
     """Merge parent_id + links into the existing metadata JSON blob.
     Pass `None` to leave a field untouched; pass '' / [] to clear it."""
@@ -409,7 +566,10 @@ def sync_remote():
                 conn = _db()
                 all_cards = [dict(r) for r in conn.execute('SELECT * FROM cards ORDER BY title').fetchall()]
                 conn.close()
-                public_cards = [c for c in all_cards if not _card_has_tag(c, 'private')]
+                # Only cards explicitly tagged `public` go to the public repo;
+                # untagged cards are excluded (and wiped from the remote by the
+                # clean re-export below), matching the Sync Center's routing.
+                public_cards = [c for c in all_cards if _card_has_tag(c, 'public')]
                 exported = _export_cards_to_dir(public_cards, pub_path)
                 pushed = _git_add_commit_push(SKILLS_REMOTE_DIR, f'Sync {exported} public cards at {now}', pub_env)
                 results['public'] = {'exported': exported, 'pushed': pushed, 'repo': public_repo}

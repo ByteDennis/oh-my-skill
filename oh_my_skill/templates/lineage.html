@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <title>Lineage · oh·my·skill</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260610a">
-<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260610a">
+<link rel="stylesheet" href="/omi/ui/css/omi.css?v=20260614b">
+<link rel="stylesheet" href="/omi/ui/css/skill.css?v=20260614b">
 <style>
   html, body { height: 100%; }
   body { margin: 0; font-family: var(--omi-font-body); color: var(--omi-fg); background: var(--omi-bg, #faf6ee); }
@@ -181,6 +181,9 @@
   .ln-topic-head .ln-grip { left: 4px; opacity: 0.4; }
   .ln-topic-head:hover .ln-grip { opacity: 0.9; }
   .ln-topic-head.dragging { opacity: 0.4; }
+  /* Topic-reorder drop indicators: a bar above/below the target head. */
+  .ln-topic-head.drop-before { box-shadow: inset 0 3px 0 0 var(--omi-accent-deep); }
+  .ln-topic-head.drop-after  { box-shadow: inset 0 -3px 0 0 var(--omi-accent-deep); }
   .ln-chev {
     flex-shrink: 0; color: var(--omi-muted); transition: transform 0.2s;
     display: inline-flex; cursor: pointer;
@@ -756,6 +759,30 @@ function renderTopicColumn(topic) {
   });
   head.addEventListener('dragend', () => head.classList.remove('dragging'));
 
+  // Drop ANOTHER topic onto this head to reorder it before/after this one.
+  const clearHeadHint = () => head.classList.remove('drop-before', 'drop-after');
+  head.addEventListener('dragover', (ev) => {
+    if (!DRAG || DRAG.kind !== 'topic' || DRAG.topic_id === topic.id) return;
+    ev.preventDefault();
+    ev.stopPropagation();           // don't let the body underneath claim it
+    ev.dataTransfer.dropEffect = 'move';
+    const r = head.getBoundingClientRect();
+    const after = ev.clientY > r.top + r.height / 2;
+    head.classList.toggle('drop-after', after);
+    head.classList.toggle('drop-before', !after);
+  });
+  head.addEventListener('dragleave', (ev) => {
+    if (!head.contains(ev.relatedTarget)) clearHeadHint();
+  });
+  head.addEventListener('drop', (ev) => {
+    if (!DRAG || DRAG.kind !== 'topic' || DRAG.topic_id === topic.id) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const after = head.classList.contains('drop-after');
+    clearHeadHint();
+    reorderTopic(DRAG.topic_id, topic.id, after);
+  });
+
   const body = el('div', {class: 'ln-topic-body', dataset: {topicId: topic.id}});
   bindTopicBodyDnD(body, topic);
 
@@ -966,6 +993,7 @@ function renderTopicInspector(panel) {
 function bindTopicBodyDnD(body, topic) {
   body.addEventListener('dragover', (ev) => {
     if (!DRAG) return;
+    if (DRAG.kind === 'topic') return;   // topics reorder via the head, not into a body
     // L0 source rejected over its own area is handled at trash; here we accept all.
     ev.preventDefault();
     ev.dataTransfer.dropEffect = 'move';
@@ -1001,6 +1029,24 @@ function nearestDropLine(body, clientY) {
     if (d < bestD) { best = l; bestD = d; }
   }
   return best;
+}
+
+// Reorder `draggedId` to sit before (or after) `targetId` among the topics.
+// The backend pulls the dragged topic out first, so `position` is the index
+// within the remaining topics.
+async function reorderTopic(draggedId, targetId, after) {
+  const order = STATE.topics.map(t => t.id).filter(id => id !== draggedId);
+  let idx = order.indexOf(targetId);
+  if (idx < 0) { clearDrag(); return; }
+  if (after) idx += 1;
+  try {
+    await api('PATCH', `/lineage/api/topics/${draggedId}`, { position: idx });
+    await refresh();
+  } catch (err) {
+    toast(err.message || 'reorder failed');
+  } finally {
+    clearDrag();
+  }
 }
 
 async function handleDrop(topic_id, position) {
