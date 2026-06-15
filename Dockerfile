@@ -16,7 +16,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir hatchling
 
 # Copy package source + install. The `[prod]` extra brings in gunicorn.
-COPY pyproject.toml README.md ./
+COPY pyproject.toml ./
 COPY oh_my_skill/ oh_my_skill/
 RUN pip install --no-cache-dir ".[prod]"
 

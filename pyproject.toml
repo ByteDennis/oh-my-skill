@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "oh-my-skill"
 version = "0.1.0"
 description = "Claude-powered skill cards manager — markdown skill cards with AI extract, per-card chat editing, and GitHub sync."
-readme = "README.md"
 license = { text = "MIT" }
 authors = [
   { name = "Dennis", email = "dennisl@udel.edu" },
@@ -61,7 +60,6 @@ packages = ["oh_my_skill"]
 include = [
   "oh_my_skill/",
   "tests/",
-  "README.md",
   "pyproject.toml",
   "Dockerfile",
 ]

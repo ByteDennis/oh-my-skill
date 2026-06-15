@@ -24,3 +24,6 @@ data/
 # Virtualenvs
 .venv/
 venv/
+
+# Root README (kept local, not tracked)
+/README.md
