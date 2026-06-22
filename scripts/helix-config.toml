@@ -1,0 +1,57 @@
+# Lucius-ish muted dark. Live-preview others with  :theme <Tab>
+# good alternates: "onedark", "ayu_dark", "gruvbox_dark_soft", "dracula"
+theme = "base16_default_dark"
+
+[editor]
+mouse = true                 # set mouse=a
+true-color = true
+cursorline = true
+color-modes = true           # tint the mode indicator
+bufferline = "never"         # keep the UI quiet, like your hidden ruler/status
+rulers = []
+
+[editor.cursor-shape]        # block in normal, bar in insert — your t_SI/t_EI trick
+normal = "block"
+insert = "bar"
+select = "underline"
+
+[editor.soft-wrap]
+enable = true                # vim 'wrap' is on by default; match it
+
+[editor.search]
+smart-case = true            # = 'ignorecase' + 'smartcase' (your `set ic`, but smarter)
+
+[editor.indent-guides]
+render = true
+character = "┊"
+
+[editor.statusline]          # slim, since you hid most of vim's UI
+left  = ["mode", "file-name", "file-modification-indicator"]
+right = ["diagnostics", "position"]
+
+[editor.file-picker]
+hidden = false               # show dotfiles in the picker
+
+# ───────────────── Vim muscle-memory keys ─────────────────
+[keys.normal]
+"0" = "goto_line_start"
+"$" = "goto_line_end"
+"^" = "goto_first_nonwhitespace"
+G   = "goto_last_line"
+"%" = "match_brackets"
+C-s = ":write"
+# Esc also drops back to a single cursor, like leaving visual mode
+esc = ["collapse_selection", "keep_primary_selection"]
+
+# \n opens the fuzzy file picker — your <leader>n / NERDTree toggle reflex
+[keys.normal."\\"]
+n = "file_picker"
+
+# same motions while extending a selection (Helix "visual" mode)
+[keys.select]
+"0" = "goto_line_start"
+"$" = "goto_line_end"
+"^" = "goto_first_nonwhitespace"
+G   = "goto_last_line"
+"%" = "match_brackets"
+esc = ["collapse_selection", "keep_primary_selection"]

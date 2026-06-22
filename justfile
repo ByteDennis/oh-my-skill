@@ -14,28 +14,27 @@ vendor:
 vendor-ui version="":
     scripts/vendor-ui.sh {{version}}
 
-# Build the Docker image
+# Build the Docker image (standalone compose in this dir)
 build:
-    cd .. && docker compose build oh-my-skill
+    docker compose build
 
 # Build the image and start the service
 build-up:
-    cd .. && docker compose build oh-my-skill
-    cd .. && docker compose up -d oh-my-skill
+    docker compose up -d --build
 
 # Build the image and force-recreate the service
 rebuild-hard:
-    cd .. && docker compose build oh-my-skill
-    cd .. && docker compose up -d --force-recreate oh-my-skill
+    docker compose build
+    docker compose up -d --force-recreate
 
 up:
-    cd .. && docker compose up -d oh-my-skill
+    docker compose up -d
 
 down:
-    cd .. && docker compose stop oh-my-skill
+    docker compose stop
 
 logs:
-    cd .. && docker compose logs -f oh-my-skill
+    docker compose logs -f
 
 # Run tests against the package as-is (no Docker)
 test:
@@ -44,9 +43,9 @@ test:
 test-watch:
     python -m pytest -q --tb=short -x
 
-# Local dev server (no Docker)
+# Local dev server (no Docker); loads .env if present
 dev:
-    python -m oh_my_skill --port 5009 --no-browser
+    { [ -f .env ] && set -a && . ./.env && set +a || true; } && python -m oh_my_skill --port 5009 --no-browser
 
 # Build a wheel for pipx smoke-testing
 wheel:

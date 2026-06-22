@@ -12,6 +12,7 @@ Two audiences:
 Subcommands:
     add                    Create a card. Content from --file / --content /
                            stdin. Title from --title or the leading "# H1".
+                           --category drops it straight into a board section.
     edit <id|--match T>    Update a card. Only the fields you pass change;
                            parent/links are preserved unless you set them.
     rm  <id|--match T>     Delete a card.
@@ -24,6 +25,7 @@ Subcommands:
 Content with newlines: pass --file PATH or pipe via stdin — NEVER hand-escape
 JSON. Examples:
     oms add --title "Disk triage" --tags linux,disk --file notes.md
+    oms add --title "Disk triage" --category Linux --file notes.md
     oms add --tags linux <<'EOF'
     # Disk triage
     body with **markdown**, code blocks, etc.
@@ -210,6 +212,8 @@ def cmd_add(args):
         body['parent_id'] = args.parent
     if args.link:
         body['links'] = list(args.link)
+    if args.category:
+        body['category'] = args.category.strip()
     res = _http('POST', '/skill-cards/api/cards', body)
     if not isinstance(res, dict) or res.get('error') or not res.get('id'):
         sys.stderr.write(f'add failed: {res.get("error", res)}\n'); sys.exit(1)
@@ -506,6 +510,7 @@ def main(argv: list[str] | None = None) -> int:
     a = sub.add_parser('add', aliases=['new'], help='create a card')
     a.add_argument('--title', help='card title (else taken from leading "# H1")')
     a.add_argument('--tags', help='comma-separated tags, e.g. linux,disk')
+    a.add_argument('--category', help='place the card in this category (else uncategorized)')
     a.add_argument('--parent', help='parent card id (tree hierarchy)')
     a.add_argument('--link', action='append', metavar='ID',
                    help='related card id (repeatable)')

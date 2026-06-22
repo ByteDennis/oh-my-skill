@@ -25,5 +25,10 @@ data/
 .venv/
 venv/
 
+# Secrets (standalone compose env — never commit)
+.env
+.env.*
+!.env.example
+
 # Root README (kept local, not tracked)
 /README.md

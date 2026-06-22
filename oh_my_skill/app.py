@@ -76,6 +76,11 @@ def create_app() -> Flask:
     def home():
         return render_template('skill.html')
 
+    # >>> deep-link: /cards/<id> serves the app; the client opens that card <<< #
+    @app.route('/cards/<card_id>')
+    def home_card(card_id):
+        return render_template('skill.html')
+
     @app.route('/healthz')
     def healthz():
         return {'ok': True}

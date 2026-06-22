@@ -1,4 +1,4 @@
-from flask import Blueprint, request, render_template, jsonify
+from flask import Blueprint, request, jsonify
 import os
 import json
 import re
@@ -59,11 +59,6 @@ def _init_db():
 
 
 _init_db()
-
-
-@skillcards_bp.route('/skill-cards')
-def gallery_page():
-    return render_template('skillcards.html')
 
 
 @skillcards_bp.route('/skill-cards/api/cards', methods=['GET'])
@@ -179,6 +174,10 @@ _CONTENT_CSS = (
     "text-transform:uppercase;letter-spacing:1px}"
     "blockquote{border-left:3px solid #0a84ff;padding:8px 14px;margin:12px 0;"
     "background:rgba(10,132,255,.06);border-radius:0 8px 8px 0}"
+    ".tldr{border-left:3px solid #e8590f;background:rgba(242,107,29,.10);padding:8px 14px;"
+    "margin:12px 0;border-radius:0 8px 8px 0;line-height:1.5}"
+    ".tldr-label{display:inline-block;font-size:11px;font-weight:800;color:#e8590f;"
+    "letter-spacing:.05em;margin-right:8px}"
     "math{font-size:1.05em}.math-display{display:block;overflow-x:auto;margin:12px 0;text-align:center}"
     "@media(prefers-color-scheme:dark){body{color:#e6e6ea}h1.title{color:#fff}"
     ":not(pre)>code{background:#2c2c2e;color:#e6e6ea}th{background:#1c1c1e}"
@@ -215,13 +214,32 @@ def _protect_math(text):
     return text, blocks
 
 
+# >>> a line like `TL;DR > xxx <` or `> xxx <` → a clean highlighted callout (strips the < > markers) <<< #
+_TLDR_RE = _re.compile(r'(?m)^[ \t]*(TL;DR[ \t]*)?>[ \t]*(.+?)[ \t]*<[ \t]*$')
+
+
+def _protect_tldr(text):
+    blocks = []
+
+    def repl(m):
+        idx = len(blocks)
+        lab = '<span class="tldr-label">TL;DR</span>' if m.group(1) else ''
+        blocks.append(f'<div class="tldr">{lab}{_html.escape(m.group(2).strip())}</div>')
+        return f'%%TLDR{idx}%%'
+
+    return _TLDR_RE.sub(repl, text), blocks
+
+
 def _render_card_html(row):
     try:
         tags = json.loads(row['tags'])
     except (json.JSONDecodeError, TypeError):
         tags = []
     protected, blocks = _protect_math(row['content'] or '')
+    protected, tldrs = _protect_tldr(protected)
     body = _md.render(protected)
+    for i, b in enumerate(tldrs):
+        body = body.replace(f'<p>%%TLDR{i}%%</p>', b).replace(f'%%TLDR{i}%%', b)
     for i, b in enumerate(blocks):
         body = body.replace(f'%%MATH{i}%%', b)
     title = _html.escape(row['title'] or '(untitled)')
@@ -278,6 +296,11 @@ def create_card():
     card_id = data.get('id') or _gen_id()
     tags = json.dumps(data.get('tags', []))
     meta_json = _merge_link_meta('{}', data.get('parent_id'), data.get('links'))
+    category = (data.get('category') or '').strip()
+    if category:
+        meta = json.loads(meta_json)
+        meta['category'] = category
+        meta_json = json.dumps(meta)
     conn = _db()
     conn.execute(
         'INSERT INTO cards (id, title, content, tags, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -331,6 +354,30 @@ def delete_card(card_id):
     conn.commit()
     conn.close()
     return jsonify({'ok': True})
+
+
+# >>> set/clear a card's category in metadata (empty string = uncategorized) <<< #
+@skillcards_bp.route('/skill-cards/api/cards/<card_id>/category', methods=['POST'])
+def set_card_category(card_id):
+    data = request.get_json(silent=True) or {}
+    category = (data.get('category') or '').strip()
+    conn = _db()
+    row = conn.execute('SELECT metadata FROM cards WHERE id=?', (card_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    try:
+        meta = json.loads(row['metadata'] or '{}')
+    except (json.JSONDecodeError, TypeError):
+        meta = {}
+    if category:
+        meta['category'] = category
+    else:
+        meta.pop('category', None)
+    conn.execute('UPDATE cards SET metadata=? WHERE id=?', (json.dumps(meta), card_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True, 'category': category})
 
 
 def _scan_skills_dir(skills_dir, source_tag=None):

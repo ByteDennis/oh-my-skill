@@ -862,6 +862,44 @@
   }
   /* Make images in preview/chat show zoom cursor */
   .pv img, .bubble.rendered img { cursor: zoom-in; }
+
+  /* Categorized sections (board on the cards page) */
+  #cardGrid.sectioned { display: block; }
+  .cat-toolbar { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+  .btn-add-cat { background: transparent; border: 1px dashed var(--omi-border); color: var(--omi-muted); border-radius: var(--omi-radius-sm); padding: 4px 12px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .btn-add-cat:hover { border-color: var(--omi-accent); color: var(--omi-accent-deep); }
+  .cat-section { margin-bottom: 16px; border-radius: var(--omi-radius-sm); transition: outline .15s, background .15s; }
+  .cat-section.drag-over { outline: 2px dashed var(--omi-accent); outline-offset: 3px; background: var(--omi-accent-ring); }
+  .cat-head { display: flex; align-items: center; gap: 8px; padding: 3px 4px 6px; font-size: 12px; color: var(--omi-muted); border-bottom: 1px solid var(--omi-border); margin-bottom: 12px; user-select: none; }
+  .cat-head .cat-caret { cursor: pointer; width: 12px; display: inline-block; font-size: 9px; }
+  .cat-head .cat-name { font-weight: 700; color: var(--omi-fg); cursor: text; font-family: var(--omi-font-heading); }
+  .cat-head .cat-uncat { font-weight: 700; color: var(--omi-muted); letter-spacing: .3px; }
+  .cat-head .cat-count { color: var(--omi-muted); font-size: 11px; }
+  .cat-head .cat-actions { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+  .cat-head:hover .cat-actions { opacity: 1; }
+  .cat-head .cat-act { background: none; border: none; color: var(--omi-muted); cursor: pointer; padding: 2px 6px; border-radius: var(--omi-radius-sm); font-size: 12px; line-height: 1; font-family: inherit; }
+  .cat-head .cat-act:hover { color: var(--omi-fg); background: rgb(var(--omi-surface)); }
+  .cat-section.collapsed .omi-card-grid { display: none; }
+  .omi-card.dragging { opacity: .4; }
+
+  /* Right-click context menu (cards) */
+  .ctx-menu, .ctx-sub {
+    position: fixed; z-index: 2147483000; min-width: 190px;
+    background: rgb(var(--omi-surface)); border: 1px solid var(--omi-border);
+    border-radius: var(--omi-radius); box-shadow: var(--omi-shadow-lg);
+    padding: 6px; font-size: 13px; color: var(--omi-fg); user-select: none;
+  }
+  .ctx-sub { position: absolute; top: -7px; left: 100%; min-width: 170px; max-height: 52vh; overflow-y: auto; display: none; }
+  .ctx-menu.flip-left .ctx-sub { left: auto; right: 100%; }
+  .ctx-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--omi-radius-sm); cursor: pointer; white-space: nowrap; position: relative; }
+  .ctx-item:hover { background: var(--omi-accent-ring); }
+  .ctx-item .ctx-chev { margin-left: auto; color: var(--omi-muted); font-size: 11px; }
+  .ctx-item .ctx-check { margin-left: auto; color: var(--omi-accent-deep); font-size: 12px; }
+  .ctx-sep { height: 1px; background: var(--omi-border); margin: 5px 6px; }
+  .ctx-item.danger { color: var(--omi-error); }
+  .ctx-item.danger:hover { background: color-mix(in srgb, var(--omi-error) 14%, transparent); }
+  .ctx-has-sub:hover > .ctx-sub { display: block; }
+  .ctx-card-highlight { outline: 2px solid var(--omi-accent); outline-offset: 2px; border-radius: var(--omi-radius-sm); }
 </style>
 </head>
 <body>
@@ -927,6 +965,7 @@
       <div class="tag-row" id="tagRow"></div>
     </div>
     <div class="grid-area" id="gridArea">
+      <div class="cat-toolbar"><button class="btn-add-cat" id="addCatBtn" type="button">+ category</button></div>
       <div id="cardGrid" class="omi-card-grid"></div>
     </div>
 
@@ -1707,13 +1746,14 @@ function _extractCustomBlocks(md) {
   return {text: out.join('\n'), blocks};
 }
 function _extractWikiLinks(text) {
-  // `[[Card Title]]` or `[[Card Title|display text]]`.
+  // `[[Card Title]]`, `[[Card Title|display]]`, or id-stable forms
+  // `[[display|<card-id>]]` / `[[<card-id>]]` (resolved at splice time).
   // Replaced with \x00WIKI#\x00 placeholders so marked.parse doesn't try to
   // interpret the inner `[Card Title]` as a reference-style link (it would
   // otherwise leak `[` brackets around the chip).
   const links = [];
-  const out = (text || '').replace(/\[\[([^\]\n|]+?)(?:\|([^\]\n]+?))?\]\]/g, (_m, title, display) => {
-    links.push({title: title.trim(), display: (display || title).trim()});
+  const out = (text || '').replace(/\[\[([^\]\n|]+?)(?:\|([^\]\n]+?))?\]\]/g, (_m, a, b) => {
+    links.push({left: a.trim(), right: b != null ? b.trim() : null});
     return `\x00WIKI${links.length - 1}\x00`;
   });
   return {text: out, links};
@@ -1927,6 +1967,19 @@ function _extractCode(text) {
   });
   return out;
 }
+// >>> \citep{a,b} -> (a,b);  \cite{a,b} -> inline code; placeholdered so markdown leaves the keys (underscores) alone <<< //
+function _extractCitations(text) {
+  const cites = [];
+  const out = text.replace(/\\cite(p)?\{([^}]*)\}/g, (m, p, inner) => {
+    const keys = inner.split(',').map(s => s.trim()).filter(Boolean);
+    if (!keys.length) return m;
+    const joined = escapeHtml(keys.join(','));
+    const html = p ? `(${joined})` : `<code>${joined}</code>`;
+    const idx = cites.length; cites.push(html);
+    return '\x00CITE' + idx + '\x00';
+  });
+  return {text: out, cites};
+}
 function _renderInner(body) {
   // Body-pipeline: pre-process custom blocks + footnotes, protect KaTeX,
   // marked.parse, then run all post-processors (tables / code / admonitions /
@@ -1945,7 +1998,8 @@ function _renderInner(body) {
   const {text: t1, blocks} = _extractCustomBlocks(t0);
   const {text: t1b, links: wikiLinks} = _extractWikiLinks(t1);
   const {text: t2, defs: fnDefs, refOrder: fnOrder, refNum: fnNum} = _extractFootnotes(t1b);
-  const {text: bodySafe, chunks: katexChunks} = _protectKatex(t2);
+  const {text: bodyKatex, chunks: katexChunks} = _protectKatex(t2);
+  const {text: bodySafe, cites: citeChunks} = _extractCitations(bodyKatex);
   // ── Custom inline/block syntax (pre-marked so the tags survive) ──
   // <Ctrl+Shift+P> → <kbd>Ctrl+Shift+P</kbd>   (keyboard keys)
   //   Runs on already-code-protected text, so `<x>` inside `code`/```fences```
@@ -2128,14 +2182,24 @@ function _renderInner(body) {
   // Hover tooltip wired in _attachMdInteractions reads data-card-id / -title.
   html = html.replace(/\x00WIKI(\d+)\x00/g, (_m, i) => {
     const link = wikiLinks[+i]; if (!link) return '';
-    const needle = link.title.toLowerCase();
-    const card = (typeof CARDS !== 'undefined' && CARDS) ?
-      CARDS.find(c => (c.title || '').toLowerCase() === needle) : null;
+    const list = (typeof CARDS !== 'undefined' && CARDS) ? CARDS : [];
+    const byId = v => list.find(c => c.id === v);
+    let card = null, display, missTitle = link.left;
+    if (link.right != null && byId(link.right)) {
+      card = byId(link.right); display = link.left || card.title || link.right;
+    } else if (link.right == null && byId(link.left)) {
+      card = byId(link.left); display = card.title || link.left;
+    } else {
+      missTitle = link.left;
+      display = link.right != null ? link.right : link.left;
+      const needle = link.left.toLowerCase();
+      card = list.find(c => (c.title || '').toLowerCase() === needle) || null;
+    }
     const icon = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"/></svg>';
     if (card) {
-      return `<a class="md-wikilink" href="javascript:void(0)" data-card-id="${escapeHtml(card.id)}" data-card-title="${escapeHtml(card.title || '')}" data-card-tags="${escapeHtml((card.tags || []).join(', '))}">${icon}<span class="md-wikilink-text">${escapeHtml(link.display)}</span></a>`;
+      return `<a class="md-wikilink" href="javascript:void(0)" data-card-id="${escapeHtml(card.id)}" data-card-title="${escapeHtml(card.title || '')}" data-card-tags="${escapeHtml((card.tags || []).join(', '))}">${icon}<span class="md-wikilink-text">${escapeHtml(display)}</span></a>`;
     }
-    return `<span class="md-wikilink md-wikilink--missing" title="No card titled &quot;${escapeHtml(link.title)}&quot;" data-card-title="${escapeHtml(link.title)}">${icon}<span class="md-wikilink-text">${escapeHtml(link.display)}</span></span>`;
+    return `<span class="md-wikilink md-wikilink--missing" title="No card matching &quot;${escapeHtml(missTitle)}&quot;" data-card-title="${escapeHtml(missTitle)}">${icon}<span class="md-wikilink-text">${escapeHtml(display)}</span></span>`;
   });
   // Splice footnote references back in. Plain <sup> (no anchor) so clicking
   // never causes the browser to jump to the footnote section. Hover behavior
@@ -2175,6 +2239,7 @@ function _renderInner(body) {
     const c = _MD_CTX.inline[+i]; if (c == null) return '';
     return `<code>${escapeHtml(c)}</code>`;
   });
+  html = html.replace(/\x00CITE(\d+)\x00/g, (_m, i) => citeChunks[+i] || '');
   // Append a numbered footnotes section, rendered as a nested markdown body
   // so footnote definitions can use full markdown (lists, code, etc.).
   if (fnOrder.length) {
@@ -2371,7 +2436,7 @@ async function bootstrap() {
   await loadCards();
   // Deep-link: /?card=<id> (used by the fullscreen mindmap) opens that card's
   // editor straight away once cards are loaded.
-  const _deep = new URLSearchParams(location.search).get('card');
+  const _deep = _cardIdFromUrl();
   if (_deep && CARDS.some(c => c.id === _deep)) {
     setTimeout(() => window.openCard(_deep), 60);
   }
@@ -2455,37 +2520,295 @@ const RESERVED_TAGS = [
 ];
 const RESERVED_SET = new Set(RESERVED_TAGS.map(r => r.tag));
 
+// ─── Categorized sections (order persisted locally; per-card category in metadata) ───
+let CAT_ORDER = [];
+let CAT_COLLAPSED = new Set();
+let DRAG_ID = null, _lastOverSec = null;
+try { CAT_ORDER = JSON.parse(localStorage.getItem('skillcards.catOrder') || '[]'); } catch (e) {}
+try { CAT_COLLAPSED = new Set(JSON.parse(localStorage.getItem('skillcards.collapsed') || '[]')); } catch (e) {}
+const _saveCatOrder = () => localStorage.setItem('skillcards.catOrder', JSON.stringify(CAT_ORDER));
+const _saveCollapsed = () => localStorage.setItem('skillcards.collapsed', JSON.stringify([...CAT_COLLAPSED]));
+const _cleanCat = s => (s || '').trim().replace(/["<>]/g, '');
+const _cardCategory = c => (c.metadata && c.metadata.category) ? String(c.metadata.category) : '';
+function _knownCats() {
+  const order = CAT_ORDER.slice();
+  new Set(CARDS.map(_cardCategory).filter(Boolean)).forEach(n => { if (!order.includes(n)) order.push(n); });
+  if (order.length !== CAT_ORDER.length || order.some((n, i) => n !== CAT_ORDER[i])) { CAT_ORDER = order; _saveCatOrder(); }
+  return CAT_ORDER;
+}
+
+function cardCellHtml(c) {
+  const tags = c.tags || [];
+  const tset = new Set(tags.map(t => t.toLowerCase()));
+  const reserved = RESERVED_TAGS.filter(r => tset.has(r.tag));
+  const rtBadges = reserved.map(r =>
+    `<span class="rt-badge rt-${r.tag}" title="${r.title}">${r.tag}</span>`).join('');
+  const tagChips = tags.filter(t => !RESERVED_SET.has(t.toLowerCase())).slice(0, 6).map(t =>
+    `<span class="omi-tag-chip tiny">${escapeHtml(t)}</span>`).join('');
+  const edgeCls = reserved.length ? ` has-reserved rt-edge-${reserved[0].tag}` : '';
+  const heading = firstHeading(c.content);
+  const snip = bodySnippet(c.content);
+  return `
+    <div class="omi-card skill-card${edgeCls}" draggable="true" data-id="${c.id}" onclick="openCard('${c.id}')">
+      <div class="id-row">
+        <span class="omi-mono">${c.id.slice(0, 12)}</span>
+        ${rtBadges ? `<span class="rt-badges">${rtBadges}</span>` : ''}
+      </div>
+      <div class="ttl">${escapeHtml(c.title)}</div>
+      ${heading && heading !== c.title ? `<div class="preview-line">${escapeHtml(heading)}</div>` : ''}
+      ${snip ? `<div class="body-snippet">${escapeHtml(snip)}</div>` : ''}
+      ${tagChips ? `<div class="tags-row">${tagChips}</div>` : ''}
+    </div>`;
+}
+
+function _sectionHtml(name, items, isUncat) {
+  const collapsed = CAT_COLLAPSED.has(isUncat ? '__uncat__' : name);
+  const caret = collapsed ? '▶' : '▼';
+  const grid = `<div class="omi-card-grid">${items.map(cardCellHtml).join('')}</div>`;
+  const head = isUncat
+    ? `<div class="cat-head">
+          <span class="cat-caret">${caret}</span>
+          <span class="cat-uncat">Uncategorized</span>
+          <span class="cat-count">${items.length}</span>
+       </div>`
+    : `<div class="cat-head">
+          <span class="cat-caret">${caret}</span>
+          <span class="cat-name" title="Double-click to rename">${escapeHtml(name)}</span>
+          <span class="cat-count">${items.length}</span>
+          <span class="cat-actions">
+            <button class="cat-act" data-act="up" title="Move up">↑</button>
+            <button class="cat-act" data-act="down" title="Move down">↓</button>
+            <button class="cat-act" data-act="rename" title="Rename">✎</button>
+            <button class="cat-act" data-act="delete" title="Delete">×</button>
+          </span>
+       </div>`;
+  return `<div class="cat-section${collapsed ? ' collapsed' : ''}" data-cat="${isUncat ? '' : escapeHtml(name)}">${head}${grid}</div>`;
+}
+
 function renderGrid() {
   $('#cardMeta').innerHTML = `${FILTERED.length} of ${CARDS.length} cards · Press <kbd>/</kbd> to search`;
+  const grid = $('#cardGrid');
   if (FILTERED.length === 0) {
-    $('#cardGrid').innerHTML = '<div class="omi-empty" style="grid-column:1/-1">no cards match — click <strong>+ New Card</strong> to create one, then use <strong>💬 Chat</strong> to fill it in</div>';
+    grid.classList.remove('sectioned');
+    grid.innerHTML = '<div class="omi-empty" style="grid-column:1/-1">no cards match — click <strong>+ New Card</strong> to create one, then use <strong>💬 Chat</strong> to fill it in</div>';
     return;
   }
-  $('#cardGrid').innerHTML = FILTERED.map(c => {
-    const tags = c.tags || [];
-    const tset = new Set(tags.map(t => t.toLowerCase()));
-    // Reserved tags become coloured badges; the rest stay as normal chips.
-    const reserved = RESERVED_TAGS.filter(r => tset.has(r.tag));
-    const rtBadges = reserved.map(r =>
-      `<span class="rt-badge rt-${r.tag}" title="${r.title}">${r.tag}</span>`).join('');
-    const tagChips = tags.filter(t => !RESERVED_SET.has(t.toLowerCase())).slice(0, 6).map(t =>
-      `<span class="omi-tag-chip tiny">${escapeHtml(t)}</span>`).join('');
-    const edgeCls = reserved.length ? ` has-reserved rt-edge-${reserved[0].tag}` : '';
-    const heading = firstHeading(c.content);
-    const snip = bodySnippet(c.content);
-    return `
-      <div class="omi-card skill-card${edgeCls}" onclick="openCard('${c.id}')">
-        <div class="id-row">
-          <span class="omi-mono">${c.id.slice(0, 12)}</span>
-          ${rtBadges ? `<span class="rt-badges">${rtBadges}</span>` : ''}
-        </div>
-        <div class="ttl">${escapeHtml(c.title)}</div>
-        ${heading && heading !== c.title ? `<div class="preview-line">${escapeHtml(heading)}</div>` : ''}
-        ${snip ? `<div class="body-snippet">${escapeHtml(snip)}</div>` : ''}
-        ${tagChips ? `<div class="tags-row">${tagChips}</div>` : ''}
-      </div>`;
-  }).join('');
+  const filtering = !!$('#searchInput').value.trim() || !!activeTag;
+  const byCat = {};
+  FILTERED.forEach(c => { const k = _cardCategory(c); (byCat[k] = byCat[k] || []).push(c); });
+  grid.classList.add('sectioned');
+  let html = '';
+  _knownCats().forEach(name => {
+    const items = byCat[name] || [];
+    if (filtering && items.length === 0) return;
+    html += _sectionHtml(name, items, false);
+  });
+  const unc = byCat[''] || [];
+  if (!(filtering && unc.length === 0)) html += _sectionHtml('', unc, true);
+  grid.innerHTML = html;
 }
+
+// ─── Category ops ───
+function addCategory() {
+  const name = _cleanCat(prompt('New category name'));
+  if (!name) return;
+  if (CAT_ORDER.includes(name)) { setStatus('category already exists', 'warn'); return; }
+  CAT_ORDER.push(name); _saveCatOrder(); renderGrid();
+}
+async function renameCategory(oldName) {
+  const name = _cleanCat(prompt('Rename category', oldName));
+  if (!name || name === oldName) return;
+  if (CAT_ORDER.includes(name)) { setStatus('category already exists', 'warn'); return; }
+  CAT_ORDER = CAT_ORDER.map(n => n === oldName ? name : n); _saveCatOrder();
+  if (CAT_COLLAPSED.delete(oldName)) { CAT_COLLAPSED.add(name); _saveCollapsed(); }
+  const affected = CARDS.filter(c => _cardCategory(c) === oldName);
+  affected.forEach(c => { c.metadata = c.metadata || {}; c.metadata.category = name; });
+  renderGrid();
+  for (const c of affected) { try { await _apiSetCategory(c.id, name); } catch (e) {} }
+}
+async function deleteCategory(name) {
+  const affected = CARDS.filter(c => _cardCategory(c) === name);
+  if (affected.length && !confirm(`Move ${affected.length} card(s) to Uncategorized and delete "${name}"?`)) return;
+  CAT_ORDER = CAT_ORDER.filter(n => n !== name); _saveCatOrder();
+  CAT_COLLAPSED.delete(name); _saveCollapsed();
+  affected.forEach(c => { if (c.metadata) delete c.metadata.category; });
+  renderGrid();
+  for (const c of affected) { try { await _apiSetCategory(c.id, ''); } catch (e) {} }
+}
+function moveCat(name, dir) {
+  const i = CAT_ORDER.indexOf(name); if (i < 0) return;
+  const j = i + dir; if (j < 0 || j >= CAT_ORDER.length) return;
+  [CAT_ORDER[i], CAT_ORDER[j]] = [CAT_ORDER[j], CAT_ORDER[i]];
+  _saveCatOrder(); renderGrid();
+}
+function _toggleCollapse(key, sectionEl) {
+  if (CAT_COLLAPSED.has(key)) CAT_COLLAPSED.delete(key); else CAT_COLLAPSED.add(key);
+  _saveCollapsed();
+  sectionEl.classList.toggle('collapsed');
+  const caret = sectionEl.querySelector('.cat-caret');
+  if (caret) caret.textContent = sectionEl.classList.contains('collapsed') ? '▶' : '▼';
+}
+async function _apiSetCategory(id, category) {
+  const r = await fetch(`/skill-cards/api/cards/${id}/category`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category })
+  });
+  return r.json();
+}
+async function _moveCardToCategory(id, cat) {
+  const card = CARDS.find(c => c.id === id); if (!card) return;
+  if (_cardCategory(card) === cat) return;
+  card.metadata = card.metadata || {};
+  if (cat) card.metadata.category = cat; else delete card.metadata.category;
+  renderGrid();
+  try { await _apiSetCategory(id, cat); } catch (e) { setStatus('move failed', 'err'); }
+}
+
+// ─── Card context menu (right-click) ───
+async function duplicateCard(id) {
+  const card = CARDS.find(c => c.id === id); if (!card) return;
+  const res = await fetch('/skill-cards/api/cards', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: (card.title || 'Untitled') + ' (copy)', content: card.content || '', tags: (card.tags || []).slice() })
+  });
+  const created = await res.json().catch(() => null);
+  const cat = _cardCategory(card);
+  if (cat && created && created.id) { try { await _apiSetCategory(created.id, cat); } catch (e) {} }
+  await loadCards();
+  setStatus('card duplicated', 'ok');
+}
+async function deleteCardById(id) {
+  const card = CARDS.find(c => c.id === id);
+  if (!confirm(`Delete "${card ? card.title : id}"?`)) return;
+  await fetch(`/skill-cards/api/cards/${id}`, { method: 'DELETE' });
+  await loadCards();
+  setStatus('deleted', 'ok');
+}
+let _ctxCardId = null, _ctxCardEl = null;
+function _ctxOutside(e) { const m = document.getElementById('cardCtxMenu'); if (m && !m.contains(e.target)) closeCardMenu(); }
+function _ctxKey(e) { if (e.key === 'Escape') closeCardMenu(); }
+function closeCardMenu() {
+  const m = document.getElementById('cardCtxMenu'); if (m) m.remove();
+  if (_ctxCardEl) { _ctxCardEl.classList.remove('ctx-card-highlight'); _ctxCardEl = null; }
+  _ctxCardId = null;
+  document.removeEventListener('mousedown', _ctxOutside, true);
+  document.removeEventListener('keydown', _ctxKey, true);
+  window.removeEventListener('scroll', closeCardMenu, true);
+  window.removeEventListener('resize', closeCardMenu);
+}
+function showCardMenu(x, y, cardId, cardEl) {
+  closeCardMenu();
+  const card = CARDS.find(c => c.id === cardId); if (!card) return;
+  _ctxCardId = cardId; _ctxCardEl = cardEl;
+  if (cardEl) cardEl.classList.add('ctx-card-highlight');
+  const curCat = _cardCategory(card);
+  const catItems = [
+    ..._knownCats().map(n => `<div class="ctx-item" data-action="move" data-cat="${escapeHtml(n)}">${escapeHtml(n)}${n === curCat ? '<span class="ctx-check">✓</span>' : ''}</div>`),
+    `<div class="ctx-item" data-action="move" data-cat="">Uncategorized${curCat === '' ? '<span class="ctx-check">✓</span>' : ''}</div>`,
+    `<div class="ctx-sep"></div>`,
+    `<div class="ctx-item" data-action="newcat">New category…</div>`,
+  ].join('');
+  const menu = document.createElement('div');
+  menu.className = 'ctx-menu'; menu.id = 'cardCtxMenu';
+  menu.innerHTML =
+    `<div class="ctx-item" data-action="newtab">Open in new tab</div>` +
+    `<div class="ctx-sep"></div>` +
+    `<div class="ctx-item" data-action="duplicate">Duplicate</div>` +
+    `<div class="ctx-item" data-action="copy">Copy content</div>` +
+    `<div class="ctx-item" data-action="link">Copy link</div>` +
+    `<div class="ctx-sep"></div>` +
+    `<div class="ctx-item ctx-has-sub" data-action="movehead">Move to category<span class="ctx-chev">▸</span><div class="ctx-sub">${catItems}</div></div>` +
+    `<div class="ctx-sep"></div>` +
+    `<div class="ctx-item danger" data-action="delete">Delete</div>`;
+  document.body.appendChild(menu);
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  let px = x, py = y;
+  if (px + mw + 8 > window.innerWidth) { px = window.innerWidth - mw - 8; menu.classList.add('flip-left'); }
+  if (py + mh + 8 > window.innerHeight) py = Math.max(8, window.innerHeight - mh - 8);
+  menu.style.left = Math.max(8, px) + 'px';
+  menu.style.top = py + 'px';
+  menu.addEventListener('click', _ctxClick);
+  document.addEventListener('mousedown', _ctxOutside, true);
+  document.addEventListener('keydown', _ctxKey, true);
+  window.addEventListener('scroll', closeCardMenu, true);
+  window.addEventListener('resize', closeCardMenu);
+}
+async function _ctxClick(e) {
+  const item = e.target.closest('.ctx-item'); if (!item) return;
+  const action = item.dataset.action;
+  if (action === 'movehead') return;
+  e.stopPropagation();
+  const id = _ctxCardId;
+  if (action === 'move') { const cat = item.dataset.cat || ''; closeCardMenu(); _moveCardToCategory(id, cat); return; }
+  if (action === 'newcat') {
+    const name = _cleanCat(prompt('New category name')); closeCardMenu();
+    if (!name) return;
+    if (!CAT_ORDER.includes(name)) { CAT_ORDER.push(name); _saveCatOrder(); }
+    _moveCardToCategory(id, name); return;
+  }
+  closeCardMenu();
+  if (action === 'newtab') window.open('/cards/' + id, '_blank');
+  else if (action === 'duplicate') duplicateCard(id);
+  else if (action === 'copy') { const c = CARDS.find(x => x.id === id); if (c) { const ok = await _copyToClipboard(c.content || ''); setStatus(ok ? 'content copied' : 'copy failed', ok ? 'ok' : 'err'); } }
+  else if (action === 'link') { const ok = await _copyToClipboard(location.origin + '/cards/' + id); setStatus(ok ? 'link copied' : 'copy failed', ok ? 'ok' : 'err'); }
+  else if (action === 'delete') deleteCardById(id);
+}
+
+// >>> one-time delegated drag/category handlers on the persistent #cardGrid <<< //
+function initBoardEvents() {
+  const host = $('#cardGrid');
+  host.addEventListener('dragstart', e => {
+    const card = e.target.closest('.omi-card'); if (!card) return;
+    DRAG_ID = card.dataset.id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', DRAG_ID);
+    card.classList.add('dragging');
+  });
+  host.addEventListener('dragend', e => {
+    const card = e.target.closest('.omi-card'); if (card) card.classList.remove('dragging');
+    if (_lastOverSec) { _lastOverSec.classList.remove('drag-over'); _lastOverSec = null; }
+    DRAG_ID = null;
+  });
+  host.addEventListener('dragover', e => {
+    if (DRAG_ID === null) return;
+    const sec = e.target.closest('.cat-section'); if (!sec) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    if (_lastOverSec !== sec) { if (_lastOverSec) _lastOverSec.classList.remove('drag-over'); sec.classList.add('drag-over'); _lastOverSec = sec; }
+  });
+  host.addEventListener('drop', e => {
+    if (DRAG_ID === null) return;
+    const sec = e.target.closest('.cat-section');
+    if (_lastOverSec) { _lastOverSec.classList.remove('drag-over'); _lastOverSec = null; }
+    if (!sec) return;
+    e.preventDefault();
+    const id = DRAG_ID; DRAG_ID = null;
+    _moveCardToCategory(id, sec.dataset.cat || '');
+  });
+  host.addEventListener('click', e => {
+    const caret = e.target.closest('.cat-caret');
+    if (caret) { const sec = caret.closest('.cat-section'); _toggleCollapse(sec.dataset.cat || '__uncat__', sec); return; }
+    const act = e.target.closest('.cat-act');
+    if (act) {
+      const name = act.closest('.cat-section').dataset.cat;
+      const a = act.dataset.act;
+      if (a === 'up') moveCat(name, -1);
+      else if (a === 'down') moveCat(name, 1);
+      else if (a === 'rename') renameCategory(name);
+      else if (a === 'delete') deleteCategory(name);
+    }
+  });
+  host.addEventListener('dblclick', e => {
+    const nm = e.target.closest('.cat-name');
+    if (nm) renameCategory(nm.closest('.cat-section').dataset.cat);
+  });
+  host.addEventListener('contextmenu', e => {
+    const card = e.target.closest('.omi-card'); if (!card) return;
+    e.preventDefault();
+    showCardMenu(e.clientX, e.clientY, card.dataset.id, card);
+  });
+  const addBtn = document.getElementById('addCatBtn');
+  if (addBtn) addBtn.onclick = addCategory;
+}
+initBoardEvents();
 
 // ── Editor modal ───────────────────────────────────────────────────
 // Default tab title (restored whenever no card is in focus). Captured from
@@ -2493,6 +2816,13 @@ function renderGrid() {
 const _BASE_TITLE = document.title || 'oh-my-skill';
 function _setTabTitle(card) {
   document.title = card && card.title ? `${card.title} · ${_BASE_TITLE}` : _BASE_TITLE;
+}
+let _suppressCardUrl = false;
+// >>> resolve the open-card id from /cards/<id> (or legacy ?card=) <<< //
+function _cardIdFromUrl() {
+  const m = location.pathname.match(/^\/cards\/(.+)$/);
+  if (m) return decodeURIComponent(m[1]);
+  return new URLSearchParams(location.search).get('card') || null;
 }
 window.openCard = function (id) {
   const card = CARDS.find(c => c.id === id);
@@ -2516,6 +2846,10 @@ window.openCard = function (id) {
   if (typeof window._showCardLineage === 'function') window._showCardLineage(id);
   refreshPullButton();
   _setTabTitle(card);
+  if (!_suppressCardUrl && id) {
+    const url = '/cards/' + id;
+    if (location.pathname !== url) history.pushState({ card: id }, '', url);
+  }
 };
 
 // "Pull" is only meaningful once a chat session exists for this card.
@@ -2744,6 +3078,26 @@ $('#editorModal').addEventListener('close', () => {
   document.body.classList.remove('modal-open');
   // Restore the default tab title unless the focus pane is showing a card.
   if (!FOCUS_CARD_ID) _setTabTitle(null);
+  if (!_suppressCardUrl && location.pathname.startsWith('/cards/')) history.pushState({}, '', '/');
+});
+
+// >>> back/forward syncs the editor to /cards/<id> (no extra history push) <<< //
+window.addEventListener('popstate', () => {
+  const id = _cardIdFromUrl();
+  const dlg = document.getElementById('editorModal');
+  _suppressCardUrl = true;
+  try {
+    if (id && CARDS.find(c => c.id === id)) {
+      if (!(dlg && dlg.open && CURRENT && CURRENT.id === id)) {
+        if (dlg && dlg.open) dlg.close();
+        window.openCard(id);
+      }
+    } else if (dlg && dlg.open) {
+      dlg.close();
+    }
+  } finally {
+    _suppressCardUrl = false;
+  }
 });
 
 // ── Edit w/ AI: opens chat panel scoped to this card ───────────────

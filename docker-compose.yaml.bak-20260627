@@ -1,0 +1,50 @@
+name: oh-my-skill
+
+x-ai-env: &ai-env
+  UPLOAD_FOLDER: /uploads
+  PODCAST_FOLDER: /podcasts
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  S2_API_KEY: ${S2_API_KEY}
+  GEMINI_API_KEY: ${GEMINI_API_KEY}
+  FIGMA_TOKEN: ${FIGMA_TOKEN}
+  GITHUB_TOKEN: ${GITHUB_TOKEN}
+  SHARELATEX_CONTAINER: sharelatex
+  SCHOLAR_GITHUB_REPO: ${SCHOLAR_GITHUB_REPO}
+  SCHOLAR_SSH_KEY: ${HOST_SSH_KEY}
+  SKILLS_DIR: /skills
+  SKILL_GITHUB_REPO: ${SKILL_GITHUB_REPO}
+  SKILL_PRIVATE_GITHUB_REPO: ${SKILL_PRIVATE_GITHUB_REPO}
+  SKILL_SSH_KEY: ${HOST_SSH_KEY}
+  HOST_UID: ${HOST_UID}
+  HOST_GID: ${HOST_GID}
+  HOST_HOME: ${HOST_HOME}
+  HOST_IMAGES_PATH: ${HOST_HOME}/.local/files/images
+  HOME: ${HOST_HOME}
+  CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
+
+services:
+  oh-my-skill:
+    build: .
+    container_name: oh-my-skill
+    volumes:
+      - ${HOST_HOME}/.local/files/oh-my-skill/data:/data
+      - ${HOST_HOME}/.local/files/skills:/skills
+      - ${HOST_HOME}/.local/share/claude:/opt/claude:ro
+      - ${HOST_HOME}/.claude:/root/.claude
+      - ${HOST_HOME}/.ssh:/root/.ssh:ro
+      - ${HOST_HOME}:${HOST_HOME}
+      - /tmp/tmux-${HOST_UID}:/tmp/tmux-${HOST_UID}
+    ports:
+      - 5009:80
+      - 7800-7818:7800-7818  # ttyd terminals
+    environment:
+      <<: *ai-env
+      SETTINGS_DB: /data/oh-my-skill.db
+      SKILLCARDS_DB: /data/skillcards.db
+      OMI_DATA_DIR: /data
+      OMI_TMUX_SESSION: oh-my
+      OMI_TMUX_PREFIX: skill
+      OMI_API_BASE: http://oh-my-skill
+      TTYD_PORT_BASE: 7800
+      TTYD_PORT_MAX: 7818
+    restart: unless-stopped
